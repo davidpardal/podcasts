@@ -5,7 +5,7 @@ dentro de cada trozo por número de caracteres. Si no hay trozos, el reproductor
 estima de forma proporcional sobre la duración total."""
 import json, re, subprocess, os
 BASE='/workspace/podcasts'
-EPS={'hussain-vender':'hussainibarra','dankoe-human30':'dankoe'}
+EPS={'alexei-reprogramacion':'alexeixbt','hussain-vender':'hussainibarra','dankoe-human30':'dankoe'}
 def dur(f):
     return float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',f]).decode())
 def md_lines(md):
