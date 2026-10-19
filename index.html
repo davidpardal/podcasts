@@ -1,138 +1,372 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Podcasts</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Podcasts">
+<meta name="robots" content="noindex,nofollow">
+<title>Mis podcasts</title>
 <style>
-body{font-family:-apple-system,system-ui,sans-serif;max-width:720px;margin:0 auto;padding:16px;line-height:1.6;color:#222;background:#fafafa}
-.player{position:sticky;top:0;background:#fff;padding:12px;border-radius:12px;box-shadow:0 2px 8px #0002;z-index:1}
+:root{color-scheme:light dark}
+body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:16px 14px calc(30px + env(safe-area-inset-bottom));max-width:760px;margin:auto;line-height:1.55;background:#f4f4f6;color:#1c1c1e}
+@media(prefers-color-scheme:dark){body{background:#000;color:#eee}.ep{background:#1c1c1e!important}button{background:#2c2c2e!important;color:#eee!important;border-color:#444!important}button.on{background:#0a84ff!important;color:#fff!important}.meta,.pos{color:#aaa!important}}
+h1{font-size:1.6rem;margin:6px 4px 14px}
+.ep{background:#fff;border-radius:16px;padding:14px;margin-bottom:18px;box-shadow:0 1px 4px #0001}
+.ep h2{font-size:1.15rem;margin:0 0 4px}.meta{color:#666;font-size:.9rem;margin-bottom:10px}.meta a{color:inherit}
 audio{width:100%}
-.sp,.nav,.eps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-button{flex:1;min-width:4.5rem;padding:10px 4px;font-size:16px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer}
-button.on,button.sel{background:#222;color:#fff}
-.note,.files{font-size:.9rem;color:#555;margin:8px 0 0}
-article{margin-top:16px}
-blockquote{border-left:4px solid #ccc;margin:0 0 1em;padding-left:12px;color:#444}
-h1{font-size:1.4rem}h2{font-size:1.15rem}
-a{color:#0b57d0}
-#author{color:#444}
-</style>
-</head>
-<body>
-<h1>Podcasts</h1>
-<div class="player">
-<strong id="title"></strong><br>
-<span id="author"></span>
-<audio id="a" controls preload="metadata" src="ep/hussain-vender.mp3"></audio>
-<div class="sp" id="speeds"></div>
-<div class="nav"><button type="button" id="b">⟲ 15 s</button><button type="button" id="f">30 s ⟳</button></div>
-<p id="rate-note" class="note"></p>
-</div>
-<div class="eps" id="list">
-<button type="button" class="ep sel" data-id="hussain-vender">Cómo volverte peligrosamente bueno vendiendo (usa estas 3 estrategias)</button>
-<button type="button" class="ep" data-id="dankoe-human30">Human 3.0: un mapa para llegar al 1 % de arriba</button>
-</div>
-<p class="files">Audio: <a href="ep/hussain-vender.mp3">ep/hussain-vender.mp3</a> · <a href="ep/dankoe-human30.mp3">ep/dankoe-human30.mp3</a></p>
-<article id="transcript"></article>
+.speeds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.nav{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;margin-top:8px}
+button{font-size:1.15rem;padding:14px 4px;border-radius:12px;border:1px solid #ccc;background:#fff;color:#1c1c1e;-webkit-tap-highlight-color:transparent}
+button.on{background:#007aff;color:#fff;border-color:#007aff;font-weight:600}
+.pos{font-size:.85rem;color:#666;margin-top:6px;text-align:center}
+details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
+.txt h3{font-size:1.05rem;margin-top:1.2em}blockquote{border-left:4px solid #999;margin:0;padding-left:12px;opacity:.85}
+</style></head><body>
+<h1>🎧 Mis podcasts</h1>
+<section class="ep" data-id="hussain-vender">
+<h2>Cómo volverte peligrosamente bueno vendiendo (usa estas 3 estrategias)</h2>
+<div class="meta">Hussain Ibarra · 21:15 · <a href="https://x.com/hussainibarra/status/2112198119672959413">original</a></div>
+<audio controls preload="metadata" src="ep/hussain-vender.mp3"></audio>
+<div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
+<div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
+<div class="pos"></div>
+<details><summary>Leer el texto</summary><div class="txt"><p>La mayoría de los creadores nunca llegarán a vivir de esto a tiempo completo.</p>
+<p>Puedes ser el mejor del mundo en algo, pero si nadie sabe quién eres, qué haces ni qué valor aportas, nadie se enterará, y acabarás siendo un artista muerto de hambre.</p>
+<p>La mayoría de los creadores son artistas muertos de hambre.</p>
+<p>Un artista muerto de hambre es alguien que es genial en lo que hace, pero nunca aprendió marketing, ventas y persuasión para convertir su conocimiento, sus intereses y sus habilidades en un medio de vida.</p>
+<p>Usan su incapacidad para ganar dinero como postureo moral.</p>
+<p>«¡Mírame! ¡Mira lo puro que es mi trabajo! ¡Mira cómo es el arte de verdad!»</p>
+<p>Los verás quejarse en redes de que su trabajo sale del corazón.</p>
+<p>Pero ¿quién ha dicho que ganar dinero con tu trabajo lo haga menos valioso?</p>
+<p>Dejemos una cosa clara:</p>
+<p>No hay nada noble en ser un artista muerto de hambre.</p>
+<p>No hace que tu trabajo sea más auténtico.</p>
+<p>Si acaso, lo hace menos auténtico, porque ahora estás creando desde la escasez. Y tu negativa a aprender a convertirlo en beneficio se filtra en tu trabajo. Empiezas a resentirte más con quienes viven de ello a tiempo completo, haciendo lo que aman como trabajo, y todo eso cambia tu personalidad, la forma en que actúas, creas, piensas y te comportas.</p>
+<p>Yo usaba la etiqueta de artista muerto de hambre como una medalla de honor. En 2024 no quería «ensuciar» mi trabajo vendiendo bajo mi marca. Pero lo que acabó pasando es que seguía necesitando dinero para vivir. Así que me hice ghostwriter y escribía tuits por 250 dólares la pieza. Solo que esta vez no estaba vendiendo mi trabajo, sino el de otras personas.</p>
+<p>Fue solo cuando estaba de vacaciones cuando me di cuenta del problema que me había creado. Estaba en los mejores hoteles, en la zona más agradable, con las mejores tiendas, pero me pasé todas las vacaciones en el hotel investigando, aprendiendo y escribiendo sobre trauma infantil para un cliente. No me interesaba nada escribir sobre trauma infantil.</p>
+<p>Eso me hizo odiar escribir.</p>
+<p>Así que la única forma de ganarme la vida haciendo algo que amo, que me da sentido y realización, era vender mis propios productos, porque creo de verdad en ellos y están alineados con lo que estoy intentando construir.</p>
+<p>Si no estás vendiendo tus propios productos, estás vendiendo los de otra persona.</p>
+<p>La única forma auténtica de vivir haciendo el trabajo que amas es vender el trabajo en el que de verdad crees.</p>
+<blockquote><p>«El marketing consiste en cambiar a las personas a mejor, creando trabajo del que puedas estar orgulloso. Y consiste en ser quien mueve el mercado, no simplemente dejarte llevar por él.»</p></blockquote>
+<ul><li>Seth Godin</li></ul>
+<p>Esta carta trata de cómo comercializar tu trabajo y ganarte la vida de forma significativa haciéndolo.</p>
+<p>Si crees que el marketing y las ventas son el mal y que solo sirven a corporaciones codiciosas que quieren destruir el mundo en secreto por el beneficio, hazte un favor y deja de leer.</p>
+<p>Pero si eres de los pocos que quieren convertir la creación de contenido en su trabajo a tiempo completo. Que quieren vivir haciendo algo que aman, tener control total sobre su tiempo, sus ingresos y su libertad, sigue leyendo.</p>
+<p>Esto es para ti.</p>
+<p>En esta carta te voy a mostrar 3 estrategias para ayudarte a vender más de tus productos, desde principiante hasta avanzado.</p>
+<p>Empecemos.</p>
+<blockquote><p>«Comercializar tu trabajo es una queja camino a algo mejor.»</p></blockquote>
+<ul><li>Seth Godin</li></ul>
+<p>El marketing no es el mal.</p>
+<p>No es una herramienta que usen las corporaciones malvadas para explotar a la humanidad.</p>
+<p>El marketing tiene mala fama porque todos nos hemos quemado con trucos baratos de marketing.</p>
+<p>El marketing de verdad trata del cambio. Trata de ayudar a los demás, de darles la oportunidad de resolver sus problemas.</p>
+<p>El marketing es cómo atraes a quienes apoyan tu trabajo. El marketing es cómo comunicas el valor que aportas al mundo.</p>
+<p>El marketing es cómo haces que el cambio ocurra.</p>
+<p>Es cómo le muestras a la gente que hay una forma mejor de hacer las cosas. Que hay otro camino que tomar, para vivir una vida mejor. Tu forma de hacer las cosas se llama marketing, y tú puedes hacerlo.</p>
+<p>El marketing da a la gente la oportunidad de cambiar su vida y mejorarla.</p>
+<p>Usas marketing en tu día a día.</p>
+<ul><li>Cuando le recomiendas un libro a un amigo, estás haciendo marketing.</li>
+<li>Cuando planeas una noche fuera y sugieres un restaurante, estás haciendo marketing.</li>
+<li>Cuando organizas un viaje en familia, estás haciendo marketing.</li>
+<li>Cuando le pides un aumento a tu jefe, estás haciendo marketing.</li>
+<li>Cuando pides a desconocidos que donen a una causa, estás haciendo marketing.</li>
+<li>Cuando escribes sobre una idea, necesitas usar marketing para que a otras personas les interese, vean el valor que aporta y la adopten en su vida.</li></ul>
+<p>A ti eso no te parece marketing. Pero es solo porque lo haces porque de verdad crees en lo que estás diciendo.</p>
+<blockquote><p>«El marketing es el acto generoso de ayudar a alguien a resolver su problema.»</p></blockquote>
+<ul><li>Seth Godin</li></ul>
+<p>Antes de mostrarte cómo vender más productos digitales, necesito hacer unas cuantas asunciones.</p>
+<ol><li>Ya estás creando contenido basado en valor y tienes audiencia (no hace falta que sea enorme, pero tienes una).</li>
+<li>Ya tienes un producto que vender. Sin un producto que vender, no puedes ganar dinero. El dinero es un subproducto del intercambio de valor. Ayudas a la gente a resolver sus problemas y, a cambio, te pagan.</li>
+<li>No quieres montar un negocio de freelance. Quieres vender tus propios productos, ser dueño de tu tiempo, y</li>
+<li>No quieres hacer llamadas de ventas ni prospección en frío. Quieres crear contenido que lleve tráfico a tu producto y vender todo de forma orgánica.</li></ol>
+<p>Si todavía no tienes audiencia, o no estás creando contenido, he creado un curso gratis para ayudarte a empezar.</p>
+<p>Cuando lo tengas claro, vuelve a esta carta.</p>
+<p>Dicho esto, aquí tienes 3 formas de vender más de tus productos:</p>
+<h3>1) Abrir, cerrar, refinar, lanzar (principiante)</h3>
+<p>Los humanos tienen demasiado miedo a perderse oportunidades.</p>
+<p>Es la razón por la que Adán comió la manzana del árbol prohibido, o por la que la gente se compra un televisor nuevo en el Black Friday (aunque se comprara uno el año pasado), o por la que sales aunque sepas que no lo vas a disfrutar.</p>
+<p>Los humanos quieren experimentarlo todo. No podemos evitarlo. Por eso el porno de la productividad también se está convirtiendo en una cosa. Quieres ser más productivo para poder hacerlo todo a la vez.</p>
+<p>Con el marketing puedes aprovechar este rasgo para ayudar a tu audiencia a resolver sus problemas.</p>
+<p>Porque, para que la gente compre tus productos que les ayudan a resolver sus problemas, necesitas presión.</p>
+<p>2 formas de añadir presión:</p>
+<ol><li>Urgencia: una razón para que la gente actúe ya. Descuentos, ofertas por tiempo limitado, etc.</li>
+<li>Escasez: cantidad limitada. Stock limitado, solo unas pocas plazas, etc.</li></ol>
+<p>La idea detrás de este método es bastante sencilla.</p>
+<p>Abres tu producto durante unos días (5-7), la gente puede comprar en ese tiempo, y después lo cierras durante 2-3 meses.</p>
+<p>Cuando las puertas están cerradas, tu objetivo es trabajar de cerca con tus clientes para mejorar el producto, aplicar su feedback, iterar sobre él y después abrirlo otra vez. Puedes lanzarlo al mismo precio o subirlo.</p>
+<p>Y cuando acaba el segundo lanzamiento, tienes que tomar una decisión:</p>
+<p>O conviertes tu producto en un producto evergreen (la gente puede comprarlo siempre), o lo cierras otra vez y repites el mismo proceso.</p>
+<p>Dónde puedes usar este método:</p>
+<ul><li>Productos digitales: no puedes hacer escasos los productos digitales (son digitales), pero puedes añadir urgencia al no tenerlos disponibles todo el tiempo.</li>
+<li>Talleres: puedes llevar a la gente por tu proceso en el taller y, después, recoger feedback.</li>
+<li>Cohortes: las cohortes tienen fechas claras de inicio y fin. Cuando la cohorte empieza, no tiene sentido que alguien se una a mitad.</li>
+<li>Comunidades: puedes dejar de aceptar nuevos miembros para centrarte en los que ya tienes, refinar el material de dentro, sobreentregar a quienes ya están dentro, reunir prueba social y lanzarla otra vez al mismo precio o a uno más alto.</li></ul>
+<p>Uso este método el 90 % de las veces, y la razón es sencilla:</p>
+<p>Es la primera vez que construyo ese producto.</p>
+<p>Cuando es la primera vez que vendes tu producto, lo mejor es dejar que pase por unas cuantas rondas de iteración. Refina tu proceso para que tus resultados sean más consistentes.</p>
+<p>Esto también te permite reunir más testimonios, que ayudan a mejorar tu producto y tus conversiones.</p>
+<h3>2) Método tripwire (intermedio)</h3>
+<p>No todo el mundo comprará en tu lanzamiento.</p>
+<p>Algunas personas son más escépticas. Y es justo. Las redes son un sitio turbio. El escepticismo está en máximos históricos y la confianza, en mínimos.</p>
+<p>Dar valor incondicional en forma de contenido, lead magnets o formaciones gratis ayuda a construir la confianza entre tú y tu audiencia.</p>
+<p>Demuestra que eres la persona adecuada para el trabajo y que vas en serio.</p>
+<p>También tiene un beneficio interesante, porque consigues recoger las direcciones de correo de la gente (lo que te ayuda a construir tu lista de email).</p>
+<p>Una oferta tripwire necesita 3 cosas:</p>
+<ul><li>Un recurso gratis: es lo que «enganchará» a tu audiencia. Puede ser un lead magnet o una masterclass gratis.</li>
+<li>Una secuencia de emails: puede ser una secuencia de 10, 20 o 30 días.</li>
+<li>Un producto evergreen: bastante autoexplicativo. Para que esto funcione, necesitas que la gente compre un producto. Si ese producto no está siempre disponible, tu tripwire no funcionará.</li></ul>
+<p>Con Eden puedes crear y alojar tus productos (un curso con IA, una masterclass o una comunidad gratis).</p>
+<p>Puedes meterlos en una automatización que arranca en cuanto se unen.</p>
+<p>La magia no está en el valor del lead magnet o de la masterclass en sí.</p>
+<p>Está en los 5-10 emails después de que reciban tu lead magnet. Tienes más oportunidad de vender tus productos de la que no habrías tenido si no se hubieran llevado el lead magnet.</p>
+<p>No hace falta que «vendas» en todos los emails. Puedes tener 5-10 días de emails solo de valor y, en los últimos 3 días, pasar a la venta.</p>
+<p>Y si quieres ir un paso más allá, puedes añadir urgencia a tu pitch arrancando una oferta exclusiva automatizada para cualquiera que se lleve tu lead magnet.</p>
+<p>Pasados 11 días, la oferta exclusiva desaparece.</p>
+<p>Así no dependes de trucos baratos de marketing para cerrar una venta. Estás siendo honesto con tu marketing.</p>
+<p>Cuando lo tengas todo montado, tienes que estar promocionando tu lead magnet sin parar.</p>
+<p>Promociona tu lead magnet en todas partes.</p>
+<ul><li>En tus stories</li>
+<li>Bajo tus posts</li>
+<li>En tus newsletters</li></ul>
+<p>Promociona. Promociona. Promociona. Promociona. Promociona.</p>
+<p>Tienes que estar llevando tráfico de forma constante a tu lead magnet, porque es la única forma de que funcione. La gente no lo va a encontrar por arte de magia. Tienes que ponerlo delante de todos los ojos posibles, sin parar.</p>
+<p>Qué significa esto para ti:</p>
+<ul><li>Oferta principal: 300 $</li>
+<li>Tráfico: 2.000 emails/mes</li>
+<li>Baja: 500 emails que se caen</li>
+<li>Nuevos lectores: 1.500</li>
+<li>Tasa de conversión: 5 %</li>
+<li>Ingresos generados: 22.500 $</li></ul>
+<p>Has ganado 22.500 $/mes simplemente promocionando un producto gratis, y ya está.</p>
+<blockquote><p>Aviso:</p></blockquote>
+<p>Si estás empezando, o no tienes una oferta principal contrastada, no necesitas una oferta tripwire ni un lead magnet.</p>
+<p>Llevo casi 3 años con mi negocio y nunca he tenido un lead magnet funcionando todo el tiempo.</p>
+<p>Uso sobre todo el primer método y este año he facturado seis cifras solo con ese método.</p>
+<h3>3) Lanzamiento de 4 semanas (avanzado)</h3>
+<p>Piensa en un lanzamiento como en una goma elástica.</p>
+<p>Cuanto más lejos y más fuerte tires, más grande será el chasquido.</p>
+<p>Un plan de lanzamiento de 4 semanas te da más potencia de marketing con la que jugar.</p>
+<p>Qué puedes hacer durante el lanzamiento de 4 semanas:</p>
+<ul><li>Lanzar un sorteo: los sorteos te traen una avalancha enorme de leads (por mi experiencia, conseguí entre 100 y 200 leads cada vez).</li>
+<li>Outreach manual: puedes contactar con clientes anteriores, leads y gente interesada de tu audiencia, conversar con ellos y cerrarlos en una llamada o por mensajes privados.</li>
+<li>Subida gradual de precio: empiezas el lanzamiento con un 40 % de descuento y, cada semana, el precio sube un 10 % hasta llegar al precio completo.</li></ul>
+<p>Si haces la subida gradual de precio, no hace falta que envíes emails diarios durante 4 semanas, porque vas a tener lo que se llama fatiga de oferta.</p>
+<p>Fatiga de oferta significa que tu audiencia se ha hartado de tu oferta y que ya no convierte como antes.</p>
+<p>El mejor enfoque es hacer 2-3 emails por semana (1 newsletter, 1 email de storytelling con un CTA al final, y 1 recordatorio de que el precio sube mañana) hasta llegar al precio completo.</p>
+<p>Eso es lo que hice a principios de año y gané 7.000 $ con mi cohorte (fue mi mayor lanzamiento hasta entonces).</p>
+<p>La parte más infravalorada de esta estrategia es que puedes crear clientes.</p>
+<p>¿Cómo?</p>
+<p>Educándolos a través de tus newsletters sobre sus problemas, tu visión y tu narrativa.</p>
+<p>Sube sus niveles de consciencia con tus newsletters largas y, cuando lo hagas, tus lectores irán deseando tu producto.</p>
+<p>En general, hay 5 etapas de consciencia:</p>
+<ul><li>Inconsciente del problema: no es consciente de sus problemas ni de cómo afectan a su día a día (céntrate en los puntos de dolor).</li>
+<li>Consciente del problema: es consciente de sus problemas, pero no sabe cómo resolverlos (céntrate en el impacto de esos puntos de dolor y en tu punto de vista único).</li>
+<li>Consciente de la solución: es consciente de sus problemas y sabe que existen soluciones, solo que no una solución clara y ordenada (céntrate en consejos accionables).</li>
+<li>Consciente del producto: es consciente de sus problemas y sabe que existe un camino, sistema o solución clara (céntrate en tu mecanismo único).</li>
+<li>Máxima consciencia: está listo para el cambio, solo necesita una razón para actuar ya (céntrate en las objeciones y en añadir presión, como urgencia y escasez).</li></ul>
+<p>Tu objetivo de cara a la semana del lanzamiento es educar a tu audiencia sobre sus problemas y mostrarle que tu producto es la solución.</p>
+<p>El plan de 4 semanas (qué hacer cada semana):</p>
+<p>Semana 1:</p>
+<p>El 99 % de tu audiencia son principiantes.</p>
+<p>Esta semana, tus newsletters estarán enfocadas a principiantes y serán más generales respecto a tu tema.</p>
+<p>Puedes usar frameworks de copywriting como PAS, PAS(O) o AIDA para estructurar tu newsletter.</p>
+<p>Mientras escribes la newsletter, promociona tu producto de forma suave. Puedes meterlo en el medio y/o al final.</p>
+<p>Puedes escribir algo así:</p>
+<blockquote><p>«Aviso rápido:</p></blockquote>
+<p>Si quieres [EL CIELO], mi producto, NOMBRE, está ahora con un 40 % de descuento hasta el domingo; después sube el precio.</p>
+<p>Puedes conseguirlo aquí: ENLACE.»</p>
+<p>En redes, ve a tu post que mejor esté funcionando ese día y enlaza debajo la newsletter de esa semana.</p>
+<p>El domingo, envía otro email a tu lista recordándoles que en 24 horas el precio sube un 10 %. No hace falta que sea muy largo. Cuanto más corto y directo, mejor.</p>
+<p>Semana 2:</p>
+<p>Muy parecida a la semana 1. Aquí no cambia mucho.</p>
+<p>Semana 3:</p>
+<p>Aquí enciendes el motor de marketing.</p>
+<p>Seguirás haciendo lo de las semanas 1 y 2. Pero esta semana lanzarás un lead magnet.</p>
+<p>El objetivo de este lead magnet es dar a la gente el marco general de tu producto.</p>
+<p>No les vas a dar un plan paso a paso de cómo implementar tu producto.</p>
+<p>Lo que harás es hablar del marco general desde una visión de conjunto.</p>
+<p>Dales el qué y el porqué, pero quédate con el cómo.</p>
+<p>Cuando el lead magnet esté listo, haz un post de «sorteo». Pide a la gente que responda a tu post y se lo envías.</p>
+<p>Cuando les envíes el lead magnet, escribe un mensaje corto contándoles tu producto y, si quieren saber más, que respondan con una palabra clave.</p>
+<p>Puedes usar Eden para automatizar y personalizar tus mensajes privados, para no pasarte el día entero enviando el lead magnet.</p>
+<p>Esto te ayudará a conseguir entre 100 y 200 leads nuevos con los que hablar.</p>
+<p>Y si se te da bien vender, puedes cerrar a entre 5 y 10 personas (es una estimación conservadora).</p>
+<p>Semana 4:</p>
+<p>Esta semana vas a cuestionar la realidad.</p>
+<p>Verás, un lanzamiento es como un tren. Al principio no estás seguro de si lo que oíste era un tren o no. Pero a medida que se acerca, el tren suena más fuerte, y la gente sabe con certeza lo que viene.</p>
+<p>Durante la semana del lanzamiento, tu objetivo es hacer todo el ruido posible (por email y en redes).</p>
+<p>Empieza a enviar emails cortos y diarios diciéndole a la gente que compre y que las puertas se cierran en una fecha concreta. En redes, escribe un post diario diciéndole a la gente que compre tu producto.</p>
+<p>Tu audiencia debería sentir la escasez y que esta semana está pasando algo grande.</p>
+<p>«Pero Hussain, no quiero molestar a mi audiencia.»</p>
+<p>¿Crees de verdad en el producto que estás vendiendo?</p>
+<p>Si es así, promocionarlo y conseguir que lo compre tanta gente como puedas es un acto de servicio. Si te importa ayudar a la gente y hacer del mundo un lugar mejor, tienes que aprender a hacer marketing, vender y persuadir a la gente para que compre tus productos.</p>
+<p>El último día harás tantas ventas que no te lo vas a creer (yo suelo hacer entre 30 y 50 ventas el último día).</p>
+<blockquote><p>Regla general: cuantos más emails envíes el último día, más ventas harás.</p></blockquote>
+<p>Personalmente, me gusta hacer 3 emails de recordatorio (quedan 24 horas, quedan 12 horas, quedan 3 horas).</p>
+<p>Cuando se cierren las puertas, baja el producto y céntrate en la entrega.</p>
+<p>Eso es todo.</p>
+<p>Así es como vendes más productos digitales.</p>
+<p>Y si lo que te he mostrado hoy te parece demasiado trabajo, déjame ser directo contigo un segundo.</p>
+<p>¿Qué cojones estás haciendo aquí?</p>
+<p>En serio.</p>
+<p>¿Vas en serio de verdad con convertir esto en tu trabajo a tiempo completo?</p>
+<p>¿O solo quieres tener de alguna forma mágica 100 millones de dólares en la cuenta y no volver a trabajar nunca?</p>
+<p>¿Quieres de verdad ganar dinero vendiendo un producto en el que crees, construyendo un negocio que amas, dejando huella en el mundo y sacando realización de ello?</p>
+<p>¿O solo te gusta masturbarte mentalmente y excitándote con la idea de triunfar algún día?</p>
+<p>¿Esperabas que esto fuera fácil?</p>
+<p>Porque si lo fuera, mucha gente habría seguido adelante y habría triunfado con su negocio, pero no lo hizo porque no tenían lo que hay que tener para aguantar y capear el temporal.</p>
+<p>No es fácil. Pero sí es sencillo.</p>
+<p>Eso es todo por hoy.</p>
+<p>Disfruta del resto del día.</p>
+<p>Hussain</p>
+<p>P. D.</p>
+<p>La herramienta que te estaba mostrando se llama Eden.</p>
+<p>Es el software que he estado usando para toda mi escritura, creación de contenido, email marketing, alojamiento de comunidades, productos digitales y coaching.</p>
+<p>Si vas en serio con empezar y construir un negocio de una sola persona, necesitas conseguir Eden.</p>
+<p>Empieza hoy con Eden gratis.</p></div></details>
+</section>
+<section class="ep" data-id="dankoe-human30">
+<h2>Human 3.0: un mapa para llegar al 1 % de arriba</h2>
+<div class="meta">Dan Koe · 31:53 · <a href="https://x.com/thedankoe/status/2023779299367809063">original</a></div>
+<audio controls preload="metadata" src="ep/dankoe-human30.mp3"></audio>
+<div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
+<div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
+<div class="pos"></div>
+<details><summary>Leer el texto</summary><div class="txt"><p>No solo tener un cuerpo bonito y musculado, sino estar plenamente desarrollado en todos los ámbitos de la vida.</p>
+<p>Quería estar fuerte en todas las dimensiones. Quería subir al máximo todas mis estadísticas. No quería ser un NPC. Quería ser un jugador de nivel 100. Todas las zonas del mapa desbloqueadas. El físico, el intelecto y las profesiones al máximo. El banco rebosando de oro. Lo quería todo. Mente, cuerpo, espíritu, relaciones, dinero.</p>
+<p>Este deseo ha influido muchísimo en mi vida.</p>
+<p>De adolescente me obsesioné con el fitness. Después quise absorber todo el conocimiento posible. Luego quise ser libre, así que fracasé con varios modelos de negocio hasta que por fin conseguí que uno funcionara. He tenido varias etapas espirituales y filosóficas que creo que me han ayudado a ver «objetivos superficiales» como el dinero y el fitness desde una perspectiva completamente distinta a la de la persona media.</p>
+<p>Durante los últimos 15 años he investigado a fondo la psicología, el desarrollo personal, la filosofía, las dinámicas sociales, la tecnología, internet, las startups, el dinero, la religión y el sentido de la vida.</p>
+<p>Después de escribir en internet sobre lo que he ido descubriendo durante los últimos 6 años, he notado patrones clave que se solapan y que han empezado a formar una nueva filosofía para el mundo de hoy. Mi filosofía personal, eso sí, aunque puede que a algunos les resuene.</p>
+<p>Ahí es donde entra HUMAN 3.0.</p>
+<p>Quiero sintetizar todo lo que he aprendido en un único mapa completo para orientarse en el panorama actual. Quiero darte el conocimiento, las habilidades y los principios que te ayuden a escapar de la mediocridad y a desarrollar tu máximo potencial. Intentaré que sea lo menos dogmático y lo más respaldado por la ciencia posible, pero también quiero transmitir la idea con claridad y convicción. Mi plan es escribirlo para el mundo de hoy, con un lenguaje claro y natural, simplificando estos conceptos lo mejor que pueda para que no acabe siendo un libro de texto olvidado. Por eso voy a hablar como hablo y te dejo los matices a ti. Los matices y el pensamiento crítico siempre le corresponden al lector.</p>
+<p>Mucho de esto estará mal, y te animo a cuestionar lo que digo. De hecho, espero que puedas construir esto conmigo. Si hablas de HUMAN 3.0 en lo que escribas o en tu contenido, me encantaría verlo. Coge estas ideas y construye sobre ellas. Si te gusta el modelo H3.0, úsalo.</p>
+<p>Ahora bien, ya existen muchísimos modelos increíbles.</p>
+<p>La Dinámica Espiral (psicología), el budismo y el cristianismo (sentido), el materialismo y el mentalismo (naturaleza de la realidad), el comercio electrónico y la consultoría (negocios), la Red Pill y el feminismo (dinámicas sociales), etcétera. Mires donde mires, encontrarás cientos de modelos que te prometen la respuesta a todos tus problemas.</p>
+<p>Todos tienen su parte de verdad, pero su fallo crítico es que a menudo se limitan a un solo ámbito o perspectiva de la vida. Aprendemos matemáticas, lengua y ciencias como asignaturas aisladas y separadas, cuando el conocimiento es un conjunto infinito de redes entrelazadas. Diseccionamos ranas en un laboratorio y sacamos conclusiones sin tener en cuenta el ecosistema completo y las relaciones interconectadas de las que proceden. Además, y a algunos les cuesta aceptarlo, muchos maestros espirituales tienen cuerpos frágiles. Muchos empresarios no son capaces de mantener relaciones. Muchos «machos alfa» están desalineados emocionalmente. Aunque son logros increíbles en su propio terreno, es raro que alguien esté verdaderamente desarrollado en todo.</p>
+<p>Incluso cuando estos modelos o gurús conectan varios ámbitos, como las filosofías de la antigua Grecia, solían estar vigentes antes de que internet, la tecnología y la IA empezaran a cambiarlo todo. Y, lo que es más importante, muy pocos tocan áreas como el trabajo y el dinero, lo cual sorprende, porque son lo que domina la mente y la vida de la mayoría de la gente.</p>
+<p>Hoy vamos a sentar las bases de HUMAN 3.0.</p>
+<p>En los próximos meses (quizá años), descubriremos lo que de verdad significa vivir la vida al máximo. En esta introducción no podré cubrir todos los detalles que contiene el modelo.</p>
+<blockquote><p>Nota: he creado una base de conocimiento de HUMAN 3.0 con los matices del modelo, su impacto en la civilización, el contexto histórico, los fundamentos científicos y mis principios personales entrelazados. Si quieres un desglose completo y fácil de ojear de todo el modelo, léelo aquí o pégalo en una IA para explorarlo. También lo enlazaré al final (te recomiendo leer esto primero).</p></blockquote>
+<h3>HUMAN 3.0: un modelo para maximizar tu potencial</h3>
+<p>He creado un prompt de IA para ayudarte a mapear tu propio desarrollo, encontrar tu metatipo e identificar el siguiente problema central que tienes que resolver en tu vida. También lo enlazaré más abajo. Te recomiendo leer primero este artículo para entender de qué va todo.</p>
+<p>Este modelo ofrece la visión de conjunto. No es una serie dogmática de pasos concretos, sino un conjunto de pautas para alcanzar tu máximo potencial y superar más rápido los estancamientos mentales, físicos, espirituales y profesionales. Ordena patrones que se observan en el desarrollo humano y se apoya en varios modelos científicos, psicológicos, espirituales y profesionales que ya han hecho gran parte del trabajo duro.</p>
+<p>Mi objetivo es coger lo mejor de las grandes teorías del mundo y aplicarlo a la vida de la persona.</p>
+<blockquote><p>Cuando entiendas este modelo, podrás empezar a situar en qué nivel de desarrollo estás dentro de cada cuadrante (tu arquetipo) y cómo es tu desarrollo en conjunto (tu metatipo). Después podrás intentar avanzar hacia un metatipo de nivel 3.0 o superior: alguien que ha llevado al máximo todas las áreas de la vida.</p></blockquote>
+<p>Hablaremos de ello más adelante en esta carta, pero de momento entendamos la base.</p>
+<h3>1) Cuadrantes</h3>
+<p>La base de Human 3.0 son cuatro cuadrantes que representan los cuatro ámbitos de la vida.</p>
+<ul><li>Mente (mundo mental personal): tus pensamientos, emociones, creencias y tu mundo interior. Cómo interpretas el mundo.</li>
+<li>Cuerpo (mundo físico personal): tu comportamiento y tu aspecto físico. Cómo te interpreta el mundo. Incluye la alimentación, el entrenamiento, las aficiones, los hábitos, el cuidado personal, la comunicación, la ropa, etc.</li>
+<li>Espíritu (mundo mental colectivo): tu relación con tu entorno, tu comunidad, tu cultura, tu familia, tus amigos, tus compañeros y la realidad. Cómo encuentras sentido y conexión.</li>
+<li>Vocación (mundo físico colectivo): tu relación con los sistemas, las estructuras y las instituciones sociales, como la educación, la carrera profesional y la economía. Cómo encajas en la sociedad y cómo contribuyes a ella.</li></ul>
+<p>Adaptados del modelo AQAL de Ken Wilber, los cuadrantes representan las cuatro perspectivas fundamentales y crean un mapa general de todo el conocimiento y la experiencia.</p>
+<blockquote><p>Este mapa de la realidad evita el pensamiento parcial y no reduce los problemas a una sola perspectiva. Puede que un problema mental interno no se resuelva mejor por la vía profesional, por ejemplo cambiando de trabajo. Puede que un problema espiritual no se resuelva mejor por la vía corporal, por ejemplo con la alimentación. Un capitalista y un cristiano están desarrollados en sus respectivos ámbitos, pero sufrirán un dolor innecesario al intentar aplicar su modelo a problemas de otros ámbitos. El dinero a menudo no resuelve la falta de sentido, y viceversa, pero eso no significa que no estén íntimamente conectados. Todos estos ámbitos se solapan, y al desarrollarte en todos ellos empiezas a vivir una vida en la que tomas el control de tu futuro.</p><p>Como la vida, el desarrollo y la evolución siguen un despliegue general hacia más caos o complejidad, y se crean estructuras ordenadas para contener ese caos, podemos llamar al proceso de la vida, sobre todo de tu vida personal, «resolver problemas».</p></blockquote>
+<p>Una semilla se despliega hasta convertirse en flor. Una flor es muchísimo más compleja que una semilla y, para llegar a ese estado, necesita recursos de su entorno para desarrollarse por sí misma. La semilla tiene el deseo natural de crecer y, a lo largo de muchos ciclos de evolución, ha resuelto los problemas que han hecho que muchas otras especies de plantas se extingan.</p>
+<p>Puede que no pienses que la semilla intenta crecer o resolver problemas de forma consciente. Aun así, al observar y conectar patrones con nuestra vida personal, así es como lo llamaríamos, ya que hemos creado el lenguaje. Podemos empezar a entender que existe un flujo natural de la vida hacia una mayor complejidad. La complejidad trae problemas y, para contener la entropía que surge de ella, tiene que aparecer una estructura ordenada a través de la creación.</p>
+<p>En tu propia evolución personal: tienes el deseo de alcanzar tu potencial → das un paso hacia lo desconocido y te encuentras con la complejidad → adquieres conocimiento y habilidades para resolver los problemas que te impiden avanzar (o te estancas y dejas que el caos te consuma) → tu identidad se expande y asciende a un nuevo nivel → el proceso se repite, a menos que te quedes atascado.</p>
+<p>Este patrón se puede observar en todos los planos y ámbitos de la realidad. Te animo a pensar en más ejemplos, pero, para no alargarnos, sigamos.</p>
+<h3>2) Niveles</h3>
+<p>Dentro de cada cuadrante hay 3 grandes niveles de desarrollo que representan una consciencia baja (1.0), una consciencia media (2.0) y una consciencia alta (3.0).</p>
+<p>Estos niveles están adaptados de varios modelos de la psicología del desarrollo, como la Dinámica Espiral y las 9 etapas del desarrollo del ego, que ya son síntesis bien estudiadas de muchas teorías psicológicas. En resumen, estos modelos han mostrado que nuestra mente (nuestros valores, creencias y visión del mundo, que influyen en cómo pensamos y tomamos decisiones) evoluciona con el tiempo a través de etapas predecibles.</p>
+<ul><li>Humano 1.0 (el conformista): valora la autoridad establecida y las tradiciones. Se caracteriza por la estrechez de miras, el pensamiento en blanco y negro y la creencia de que solo hay «una forma correcta», algo que a menudo viene del condicionamiento de la infancia.</li>
+<li>Humano 2.0 (el individualista): rechaza la norma y persigue sus propios objetivos. Tiene el deseo de conseguir estatus y de que lo perciban como valioso. Es menos estrecho de miras, pero ahora cree que su forma es la única correcta.</li>
+<li>Humano 3.0 (el sintetista): es capaz de adoptar múltiples perspectivas, conectar distintos patrones de la realidad y trazar nuevos caminos. Entiende que todas las perspectivas contienen verdades que se pueden sintetizar para obtener resultados más integrales y beneficiosos para todos. Puede mostrar rasgos que algunos verían como de nivel 1, como la estrechez de miras, pero es una elección intencionada para desconectar del ruido.</li></ul>
+<p>En un modelo como la Dinámica Espiral, la «espiral» describe cómo las personas, a lo largo de su desarrollo, alternan el foco entre uno mismo y los demás (como rechazar la comunidad religiosa y abrazar un ateísmo individual). En Human 3.0, esto ocurre cuando alguien alcanza un nuevo nivel en un cuadrante concreto. Alguien puede convertirse en individualista en la Mente, lo que puede desplazar su foco hacia el Espíritu, donde todavía está en la etapa conformista y se somete a la autoridad.</p>
+<p>Las descripciones de cada nivel toman formas distintas en cada cuadrante. Por ejemplo, un sintetista 3.0 en el cuadrante de la Vocación (abajo a la derecha) puede aprovechar eficazmente la IA para dedicarse a la obra de su vida, mientras que un conformista 1.0 cree que la IA es pura maldad por falta de conocimiento, habilidad y experiencia.</p>
+<p>En el cuadrante del Cuerpo (arriba a la derecha), una persona de consciencia baja no entiende nada de lo que come, lo que la lleva a la obesidad y a la pereza, porque no ha adquirido los rasgos necesarios para tomar mejores decisiones, mientras que una persona de consciencia alta entiende cómo interactúan los distintos nutrientes con su cuerpo y puede ajustar su dieta para que le ayude a cumplir sus objetivos.</p>
+<blockquote><p>Estos niveles reflejan tu complejidad como persona en un ámbito determinado. El gráfico completo de Human 3.0 te representa a ti. Cuanto más complejo eres (cultivando la perspectiva y expandiendo la consciencia), más interesante se vuelve la vida, porque puedes elegir los retos que quieres asumir. Como en un videojuego: el nivel 1 se parece a un NPC, un personaje no jugador que sigue un guion; el nivel 2 es el protagonista que elige su propia historia; y el nivel 3 es el programador que puede crear juegos nuevos a los que otros también disfrutan jugando.</p><p>Nota: los niveles más bajos o más altos no son «malos» ni «buenos», son puntos del camino individual de cada persona. Una persona de «consciencia alta» no es mejor, solo está más desarrollada, y ese desarrollo tiene sus ventajas evidentes.</p><p>No abandonas ningún nivel. Trasciendes e incluyes el anterior. Adquieres una perspectiva más amplia que te permite aprovechar el conocimiento, las habilidades y las herramientas que adquiriste en las etapas inferiores.</p></blockquote>
+<p>Más abajo veremos más ejemplos en profundidad.</p>
+<p>Si te está gustando, apúntate aquí si quieres recibir estos artículos directamente, por si el algoritmo no te los enseña.</p>
+<h3>3) Fases</h3>
+<p>Dentro de cada nivel hay 3 fases de desarrollo por las que hay que pasar para llegar al siguiente nivel. Las fases representan el desarrollo vertical: subir un nivel o retroceder.</p>
+<p>Hay 3 patrones generales que podemos observar cuando una persona atraviesa un cambio profundo:</p>
+<ul><li>Disonancia (fase 1): cuando una persona ya ha «probado» su etapa actual de la vida, y si no se adormece con la estrechez de miras y la comodidad, se cansa de donde está, pero no sabe qué tipo de vida viene después.</li>
+<li>Incertidumbre (fase 2): si esa persona llega a ser lo bastante consciente de su disgusto, da un paso incierto hacia lo desconocido y se abre a nuevos conocimientos y habilidades.</li>
+<li>Descubrimiento (fase 3): como quien recorre un mapa, descubre la formación, las herramientas, los recursos y las ideas que le permiten llegar al siguiente nivel de desarrollo.</li></ul>
+<p>Para tener una terminología, podemos mapear áreas concretas de la vida de alguien añadiendo la fase en la que está al nivel en el que se encuentra dentro de un ámbito determinado.</p>
+<blockquote><p>Durante este proceso es fácil que las personas vivan una falsa transformación. Puede que sientan que han avanzado por cada fase hasta llegar a un nuevo nivel, pero en realidad solo están imitando cómo sería ese nivel de desarrollo sin haber desarrollado los rasgos necesarios. Esto es autoengaño y atrapa a la gente en su etapa actual, impidiéndole seguir avanzando hasta que resuelva los problemas que le quedan en su nivel actual.</p><p>Esta falsa transformación puede ocurrir cuando alguien se desarrolla en un ámbito (como la mente) y da por hecho que ha avanzado en otro (como el espíritu o la vocación).</p><p>Las personas también pueden retroceder a un nivel inferior durante un periodo temporal de estrés o cuando llega a su vida un problema que está fuera de su nivel actual. Eso explica por qué a veces miras atrás, a una época en la que «todo se sentía mejor», y anhelas recuperar esa sensación en el presente.</p></blockquote>
+<p>Una vida placentera, como muestran la psicología del flow y las reflexiones de muchos filósofos como Nietzsche, está en avanzar por estas fases superando la resistencia. Los cambios profundos rara vez ocurren por casualidad. Cuando tienes intención en tu visión, tus objetivos y tus prioridades, sin retroceder por culpa de las distracciones y la comodidad, el caos que consumiría a la mayoría de la gente durante estas fases se vuelve llevadero y, a menudo, se convierte en las partes más gratificantes de la vida, las que guardas con más cariño.</p>
+<p>A partir del nivel 3, las personas pueden perseguir retos más complejos y simular estas fases por puro amor al juego (como un CEO que vende su empresa, se deprime y monta otra desde un punto de vista más iluminado), y como son ellas quienes crean el juego, este se vuelve infinito.</p>
+<h3>4) Rasgos</h3>
+<p>Dentro de cada fase hay un umbral de conocimiento, experiencia y habilidad que hay que adquirir antes de que se te revele el siguiente nivel. Si las fases representan el desarrollo vertical, los rasgos representan el desarrollo horizontal: moverte por lo desconocido hasta haber descubierto lo suficiente para llegar a la siguiente fase.</p>
+<p>Cada cuadrante, nivel y fase plantea retos distintos que exigen un cierto nivel de habilidad. Y esa habilidad requiere experimentación y formación.</p>
+<blockquote><p>Alguien puede saber mucho de fitness, pero, sin práctica ni experiencia, se convierte en el arquetipo del entrenador personal gordo. Su conocimiento es admirable, pero poca gente se lo toma en serio, lo cual tiene sus pros y sus contras.</p></blockquote>
+<p>La trampa, tanto del desarrollo vertical (las fases) como del horizontal (los rasgos), son el aburrimiento y la ansiedad. Si intentas saltar a un nuevo nivel de desarrollo sin la habilidad y la experiencia necesarias, te entrará ansiedad y fracasarás. Si ni siquiera intentas subir de nivel, te aburrirás y acabarás refugiándote en la comodidad y la distracción.</p>
+<p>Tanto el aburrimiento como la ansiedad generan desorden en la mente y te sacan del flujo de la evolución que se va desplegando. Puede que tu vida parezca estar bien, pero todo se siente apagado y sin sentido.</p>
+<p>Eso nos lleva a los canales: una forma de combatir el desorden y avanzar de verdad.</p>
+<h3>5) Canales</h3>
+<p>Cuando llegas a la fase de disonancia de cualquier nivel, adquieres la capacidad de aprovechar un «canal».</p>
+<p>Piensa en un canal como en una misión emocionante de un videojuego. Una madriguera de conocimiento o de habilidad en la que te metes de lleno. Es cuando no puedes dejar de investigar un tema o de trabajar en un proyecto y el tiempo se te pasa sorprendentemente rápido.</p>
+<p>En el gráfico de Human 3.0 se ve que un extremo del canal está en el rasgo del conocimiento y el otro, en el rasgo de la habilidad. Normalmente, una persona se «obsesiona» con aprender o con construir, y eso le hace ganar experiencia rápidamente y avanzar deprisa hacia su siguiente nivel de desarrollo dentro de un cuadrante concreto.</p>
+<p>Algunos ejemplos serían:</p>
+<ul><li>Mente: sumergirte en un estado meditativo profundo (habilidad) o seguir una línea de pensamiento que no te deja dormir y que te llena de ideas que te encienden el cerebro (conocimiento).</li>
+<li>Cuerpo: descubres una nueva dieta, un suplemento o un método y te tragas todo el contenido que puedes encontrar sobre ello (conocimiento). Te obsesionas con correr o con levantar pesas durante 3 meses y progresas más que nunca (habilidad).</li>
+<li>Espíritu: experiencias místicas. Fases de luna de miel. Momentos íntimos. Encontrar una filosofía que «encaja» con tu etapa actual de la vida. Etcétera.</li>
+<li>Vocación: llegar a un punto de máxima claridad que te lleva rápidamente a un cambio de carrera emocionante, al lanzamiento de un producto o a una racha creativa (habilidad). Encuentras la oportunidad perfecta y no puedes dejar de aprender las habilidades necesarias para montar un negocio (conocimiento).</li></ul>
+<p>El proceso para entrar en un canal es el siguiente.</p>
+<p>Primero, tienes que llegar a la fase de disonancia, después de haberte adaptado del todo al nivel en el que estás. Cuando te cansas de donde estás, y si no te insensibilizas ante tus problemas, usas ese disgusto como combustible para adentrarte en lo desconocido. Te marcas un propósito, una visión o un objetivo dentro de un cuadrante concreto (como el Cuerpo). Empiezas a adquirir conocimiento y habilidad. Aprendes y haces. Cometes errores y afinas tu propósito. Experimentas lo suficiente hasta que encuentras el canal que te atrapa.</p>
+<p>Se nota que alguien está en un canal por lo emocionado que está cuando habla de ello, como quien ha llegado a ese punto de escribir un libro en el que las palabras no paran de salir. Tiene visión. Su habilidad y su conocimiento le dan una claridad que le permite avanzar disparado.</p>
+<p>Cuando estás en la fase de disonancia, el mejor consejo que te puedo dar es que busques la emoción y el entusiasmo y que vayas a por ello sin vergüenza, porque esa vergüenza indica un nivel inferior de Mente, y durante ese proceso puedes desarrollar la habilidad de la confianza.</p>
+<blockquote><p>Sobre los «glitches»:</p><p>Hay ciertas tácticas para forzarte a entrar en un canal o para romper un estancamiento en tu desarrollo, que llamaremos «glitches», como un fallo en Matrix, si Matrix fueran los límites de los niveles 1 y 2 hasta que creas los tuyos propios en el nivel 3.</p><p>Los psicodélicos pueden forzar a alguien a vivir una experiencia mística. Las sustancias para mejorar el rendimiento pueden acelerar el progreso físico. Mudarte a un piso que no te puedes permitir puede darte una fecha límite real que te obligue a aprender y a hacer hasta que tu negocio paralelo funcione.</p><p>La IA es el glitch más reciente y más disponible, y abarca todos los ámbitos. Se puede usar para desarrollarte o para autodestruirte a toda velocidad. Hace falta criterio y discernimiento. La IA solo es puro bien o puro mal desde una perspectiva limitada.</p><p>Ten cuidado con ellos, porque, aunque aceleran el progreso, su riesgo aumenta en los niveles más bajos de consciencia. Si tomas psicodélicos sin experiencia previa para interpretar ese estado alterado, puedes volverte loco. La psicosis por IA y delegar tu mente en la IA son cada vez más frecuentes, no porque la IA sea mala, sino porque es como tomar esteroides. Si no has construido una base, no has estudiado a fondo todos los aspectos de la nutrición, no entiendes todas las posibles interacciones y no llevas 5 años o más entrenando (metafóricamente), la IA tendrá efectos secundarios muy feos. Incluso así, muchos mecanismos de gran recompensa en la realidad tienen un coste, por mucho cuidado que tengas. Para ciertas personas con ciertos objetivos, se puede tomar la decisión consciente de asumir ese riesgo a pesar de las consecuencias. Para la mayoría de la gente, sobre todo en el nivel 1, son una sentencia de muerte.</p><p>Lleva al máximo tu potencial «natural» para tener experiencia de sobra y que no te tumben a la primera. El conocimiento y la habilidad reducen el riesgo.</p></blockquote>
+<p>Si te sientes perdido, probablemente estés en una fase de disonancia y, si aguantas, podrás encontrar tu siguiente canal y volver a enamorarte de la vida.</p>
+<h3>Arquetipos y metatipos</h3>
+<p>En futuras cartas y vídeos podremos usar el gráfico de Human 3.0 para entender a personas (como Jordan Peterson, Andrew Tate o Alan Watts) o para superar problemas de tu vida, como no ser capaz de ganar dinero o de encontrar pareja.</p>
+<p>Si tienes una petición concreta sobre un problema al que te enfrentas o sobre una persona a la que quieres entender, responde a esta carta.</p>
+<p>En este modelo he incluido lo que llamo arquetipos y metatipos.</p>
+<ul><li>Arquetipos: patrones de personas que aparecen en cuadrantes concretos y en los niveles dentro de esos cuadrantes.</li>
+<li>Metatipos: la síntesis de los cuatro arquetipos de una sola persona, uno por cuadrante.</li></ul>
+<p>Piensa en los metatipos como en una especie de test de personalidad, pero para el desarrollo personal.</p>
+<p>Aquí tienes un prompt que he creado para identificar tu metatipo, mapear tu desarrollo en todos los cuadrantes y encontrar el problema central de tu vida.</p>
+<p>En el ejemplo de arriba solo muestro 3 arquetipos dentro de cada cuadrante. Hay muchos más, así que entiende que no son algo grabado en piedra. Simplemente me estoy divirtiendo con ellos.</p>
+<p>Verás que hay una progresión general de la consciencia baja a la consciencia alta a medida que alguien se desarrolla dentro de un cuadrante:</p>
+<p>NPC → Jugador → Creador, en el cuadrante de la Mente, describe a alguien que deja de vivir según el guion que le asignaron al nacer, empieza a jugar su propio juego y después crea juegos nuevos a los que jugar (algo parecido a la consciencia de «nivel constructo»).</p>
+<p>Incel → Chad → Macho sigma o beta → Macho alfa → Macho sigma, en el cuadrante del Cuerpo, son arquetipos habituales en el mundo de hoy que se pueden observar en el comportamiento y el aspecto de alguien. Esto puede corresponderse con otras áreas del gráfico o tener más causas dentro del mismo cuadrante. Por ejemplo, un incel suele tener niveles de estrógenos más altos por la alimentación y el entorno, y las estructuras sociales del cuadrante de la Vocación han traído la comida procesada y los microplásticos, que agravan aún más ese problema a escala masiva.</p>
+<p>Trabajo → Carrera → Vocación es una de las muchas progresiones del cuadrante de la Vocación. En lo relativo al trabajo, hoy en día esto puede empezar por cualquier cosa. Puede que algunas personas ni siquiera tengan trabajo, o que se dediquen a su vocación desde muy jóvenes. La clave de la progresión por cada nivel es que se empieza con una consciencia baja (conformista) y se tiene la capacidad de avanzar hacia una consciencia alta (sintetista).</p>
+<p>Religión → Ateísmo → Misticismo, en el cuadrante del Espíritu, es un patrón habitual (no el único) que vemos en quienes se han criado en una familia muy religiosa, lo que les lleva a rebelarse. Después redescubren una nueva perspectiva sobre Dios y vuelven a las verdades que contenía el nivel 1.</p>
+<blockquote><p>La «falacia pre/trans» de Ken Wilber ocurre cuando la gente confunde los estados prerracionales (conformista) con los transracionales (sintetista), porque ambos parecen «no racionales» desde una perspectiva racional convencional (individualista). Esto puede ocurrir en los dos sentidos.</p><p>Uno puede elevar un estado primitivo de nivel 1 a la categoría de nivel 3, y a menudo hay quien reduce un auténtico desarrollo de nivel 3 a pensamiento primitivo.</p><p>Dicho de otro modo, a un «meapilas» sin conocimiento ni experiencia más allá del condicionamiento de su infancia le cuesta tomarse en serio a un místico, cuando a menudo el místico sostiene las mismas verdades, pero desde una perspectiva más completa.</p><p>Si te ayuda, piensa en el meme de la campana de Gauss del cociente intelectual.</p></blockquote>
+<p>Hay decenas o cientos de arquetipos dentro de cada cuadrante, no solo los tres que he mostrado en cada uno.</p>
+<p>Ahora, en el ejemplo de arriba, cuando situamos los puntos de desarrollo dentro de cada cuadrante, nivel, fase y rasgo, obtenemos una visión completa de dónde se encuentra una persona concreta. (Puedes verlo en la forma blanca opaca del mapa).</p>
+<p>Esta persona concreta del ejemplo estaría en Human 2.0.</p>
+<p>¿Cómo llegamos a eso?</p>
+<p>Después dividimos el total entre 12 (el número total de porciones de desarrollo del gráfico), lo que da 2.0.</p>
+<p>En este ejemplo, podemos describir su desarrollo dentro de cada cuadrante así:</p>
+<ul><li>Mente: ya no vive según un guion y está cerca de la consciencia de nivel constructo.</li>
+<li>Cuerpo: descuidado y con malos hábitos, pero de vez en cuando transmite confianza.</li>
+<li>Espíritu: cree en la interpretación literal de Dios, pero es tolerante con sus amigos y compañeros ateos.</li>
+<li>Vocación: tiene una formación y unas habilidades valiosas, pero se centra en una carrera segura y satisfactoria.</li></ul>
+<p>Si mapeáramos más de 3 arquetipos por cuadrante, esto sería mucho más complejo y completo, pero lo dejamos para futuras cartas.</p>
+<p>Ahora, si cogemos esas descripciones y las fusionamos en una, obtenemos su metatipo. Mi idea es usar la IA para esto, porque no quiero que sea un «test de personalidad» estático que te meta en una de 16 cajas genéricas.</p>
+<p>En este caso, podemos considerar que el metatipo de esta persona es «el atípico». En pocas palabras, es alguien que se ha alejado de los patrones dominantes sin rebelarse y que funciona desde una mirada contracultural. No le importa su aspecto, pero esto puede ser una falsa transformación, ya que le falta experiencia en el cuadrante del Cuerpo.</p>
+<h3>El estilo de vida 3.0</h3>
+<p>«¿Cómo se equilibra el desarrollo en todos los cuadrantes? ¿Sobre todo si uno de ellos se lleva mucho tiempo, concentración y energía?».</p>
+<p>El objetivo final es crear un estilo de vida en el que todos los cuadrantes estén atendidos a través de la resolución de problemas.</p>
+<p>Si tu Vocación te consume tanto tiempo que tu Mente está angustiada, estás demasiado agotado para tu Cuerpo y no puedes atender al Espíritu, ese es un problema evidente que tienes que intentar resolver adquiriendo conocimiento y habilidades, lo que abre la posibilidad de un canal. En este caso, uno podría estudiar oportunidades de negocio una hora al día y sacar algo de tiempo para practicar. Puede que tarde más que otra persona, pero cuando empiezas a avanzar por las fases, te sientes más seguro de que puedes reducir o eliminar por completo el trabajo actual que te está quitando el tiempo.</p>
+<p>Ese cambio puede hacer más evidente otro problema, como tener poca energía o que los posibles clientes no te respeten. Para llegar al siguiente nivel en el negocio puede que no haga falta desarrollarte más en los negocios, sino resolver problemas relacionados con el cuerpo, la mente o el espíritu. Incluso así, puedes construir un negocio increíble y tener todo el dinero del mundo, pero sentir un vacío en el pecho por la falta de sentido en tus objetivos profesionales.</p>
+<p>Si de verdad has leído hasta el final, bien hecho.</p>
+<p>Apúntate aquí si quieres recibir estos artículos directamente, por si el algoritmo no te los muestra.</p></div></details>
+</section>
 <script>
-const EPISODES = [{"id": "hussain-vender", "title": "Cómo volverte peligrosamente bueno vendiendo (usa estas 3 estrategias)", "author": "Hussain Ibarra", "audio": "ep/hussain-vender.mp3", "transcript": "ep/hussain-vender.md", "fileRate": 1}, {"id": "dankoe-human30", "title": "Human 3.0: un mapa para llegar al 1 % de arriba", "author": "Dan Koe", "audio": "ep/dankoe-human30.mp3", "transcript": "ep/dankoe-human30.md", "fileRate": 1.5}];
-const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
-const a = document.getElementById("a");
-let current = EPISODES[0];
-let started = false;
-
-function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-function kind(line){if(line.startsWith("- "))return "ul";if(/^\d+\.\s+/.test(line))return "ol";return null;}
-function renderMd(md){
-  const lines=md.replace(/\r\n/g,"\n").split("\n");
-  let html="", list=null;
-  const close=()=>{if(list){html+=list==="ol"?"</ol>":"</ul>";list=null;}};
-  for(let i=0;i<lines.length;i++){
-    const line=lines[i].trimEnd();
-    if(!line.trim()){
-      let j=i+1;while(j<lines.length&&!lines[j].trim())j++;
-      const next=j<lines.length?lines[j].trimEnd():"";
-      if(list&&kind(next)===list)continue;
-      close();continue;
-    }
-    if(line.startsWith("### ")){close();html+="<h3>"+esc(line.slice(4))+"</h3>";continue;}
-    if(line.startsWith("## ")){close();html+="<h2>"+esc(line.slice(3))+"</h2>";continue;}
-    if(line.startsWith("# ")){close();html+="<h2>"+esc(line.slice(2))+"</h2>";continue;}
-    if(line.startsWith("> ")){close();html+="<blockquote><p>"+esc(line.slice(2))+"</p></blockquote>";continue;}
-    const k=kind(line);
-    if(k){
-      if(list!==k){close();html+=k==="ol"?"<ol>":"<ul>";list=k;}
-      html+="<li>"+esc(k==="ul"?line.slice(2):line.replace(/^\d+\.\s+/,""))+"</li>";
-      continue;
-    }
-    close();html+="<p>"+esc(line)+"</p>";
-  }
-  close();return html;
-}
-function desired(){
-  const saved=+localStorage.getItem("spd:"+current.id);
-  return SPEEDS.includes(saved)?saved:1;
-}
-function applyRate(){
-  const d=desired();
-  const rate=d/(current.fileRate||1);
-  a.playbackRate=rate;a.defaultPlaybackRate=rate;a.preservesPitch=true;
-  document.querySelectorAll("#speeds button").forEach(b=>b.classList.toggle("on",+b.dataset.r===d));
-  const note=document.getElementById("rate-note");
-  if(current.fileRate&&current.fileRate!==1){
-    note.textContent="Este archivo está codificado a "+String(current.fileRate).replace(".",",")+"×. El botón 1× lo reproduce a velocidad de habla normal.";
-  }else note.textContent="";
-}
-async function loadTranscript(ep){
-  const el=document.getElementById("transcript");
-  el.innerHTML="<p>Cargando el texto…</p>";
-  try{
-    const res=await fetch(ep.transcript);
-    if(!res.ok)throw new Error(String(res.status));
-    el.innerHTML=renderMd(await res.text());
-  }catch(e){
-    el.innerHTML='<p>No se pudo mostrar el texto aquí. <a href="'+ep.transcript+'">Abrir la transcripción</a>.</p>';
-  }
-}
-function restorePos(){
-  const p=+localStorage.getItem("pos:"+current.id);
-  if(p)a.currentTime=p;
-  applyRate();
-}
-function select(id){
-  const ep=EPISODES.find(e=>e.id===id)||EPISODES[0];
-  if(started)localStorage.setItem("pos:"+current.id,String(a.currentTime||0));
-  current=ep;
-  started=true;
-  document.getElementById("title").textContent=ep.title;
-  document.getElementById("author").textContent=ep.author;
-  document.title=ep.title+" · "+ep.author;
-  if(a.getAttribute("src")!==ep.audio)a.src=ep.audio;
-  document.querySelectorAll(".ep").forEach(b=>b.classList.toggle("sel",b.dataset.id===ep.id));
-  if(location.hash!=="#"+ep.id)history.replaceState(null,"","#"+ep.id);
-  applyRate();
-  if(a.readyState>=1)restorePos();
-  loadTranscript(ep);
-}
-document.getElementById("speeds").innerHTML=SPEEDS.map(r=>'<button type="button" data-r="'+r+'">'+String(r).replace(".",",")+"x</button>").join("");
-document.getElementById("speeds").onclick=ev=>{
-  const b=ev.target.closest("button");
-  if(!b)return;
-  localStorage.setItem("spd:"+current.id,b.dataset.r);
-  applyRate();
-};
-document.getElementById("b").onclick=()=>{a.currentTime=Math.max(0,a.currentTime-15);};
-document.getElementById("f").onclick=()=>{a.currentTime+=30;};
-document.getElementById("list").onclick=ev=>{
-  const b=ev.target.closest(".ep");
-  if(b)select(b.dataset.id);
-};
-a.addEventListener("loadedmetadata",restorePos);
-a.addEventListener("play",applyRate);
-setInterval(()=>{if(started&&a.readyState>=1)localStorage.setItem("pos:"+current.id,String(a.currentTime||0));},5000);
-const start=(location.hash||"").slice(1);
-select(EPISODES.some(e=>e.id===start)?start:EPISODES[0].id);
-</script>
-</body>
-</html>
+const fmt=s=>{s=Math.floor(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return (h?h+':'+String(m).padStart(2,'0'):m)+':'+x};
+document.querySelectorAll('.ep').forEach(ep=>{
+  const id=ep.dataset.id,a=ep.querySelector('audio'),KP='pos:'+id,KR='rate:'+id,pos=ep.querySelector('.pos'),pp=ep.querySelector('.pp');
+  const sps=ep.querySelectorAll('.sp');
+  const rate=()=>parseFloat(localStorage.getItem(KR)||'1');
+  const setR=r=>{a.defaultPlaybackRate=r;a.playbackRate=r;a.preservesPitch=true;a.webkitPreservesPitch=true;localStorage.setItem(KR,r);sps.forEach(b=>b.classList.toggle('on',parseFloat(b.dataset.r)===r))};
+  sps.forEach(b=>b.onclick=()=>setR(parseFloat(b.dataset.r)));
+  setR(rate());
+  let restored=false;
+  a.addEventListener('loadedmetadata',()=>{if(!restored){const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0&&p<a.duration-5)a.currentTime=p;restored=true}upd()});
+  a.addEventListener('play',()=>{a.playbackRate=rate();document.querySelectorAll('audio').forEach(o=>{if(o!==a)o.pause()});pp.textContent='❚❚ Pausa'});
+  a.addEventListener('pause',()=>{pp.textContent='▶︎ Reproducir';localStorage.setItem(KP,a.currentTime)});
+  a.addEventListener('ratechange',()=>{if(Math.abs(a.playbackRate-rate())>0.01&&a.playbackRate>0)setR(a.playbackRate)});
+  const upd=()=>{pos.textContent=fmt(a.currentTime)+' / '+fmt(a.duration)+' · quedan '+fmt((a.duration-a.currentTime)/rate())+' a '+String(rate()).replace('.',',')+'×'};
+  a.addEventListener('timeupdate',()=>{upd();if(!a.paused)localStorage.setItem(KP,a.currentTime)});
+  a.addEventListener('ended',()=>localStorage.setItem(KP,0));
+  const seek=d=>{a.currentTime=Math.max(0,Math.min((a.duration||1e9)-1,a.currentTime+d))};
+  ep.querySelector('.bk').onclick=()=>seek(-15);
+  ep.querySelector('.fw').onclick=()=>seek(30);
+  pp.onclick=()=>a.paused?a.play():a.pause();
+  const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0)pos.textContent='Seguirás en '+fmt(p);
+  if('mediaSession' in navigator){a.addEventListener('play',()=>{navigator.mediaSession.metadata=new MediaMetadata({title:ep.querySelector('h2').textContent,artist:ep.querySelector('.meta').textContent.split(' · ')[0],album:'Mis podcasts'});navigator.mediaSession.setActionHandler('seekbackward',()=>seek(-15));navigator.mediaSession.setActionHandler('seekforward',()=>seek(30))})}
+});
+</script></body></html>

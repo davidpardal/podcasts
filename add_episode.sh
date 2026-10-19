@@ -1,44 +1,19 @@
-#!/bin/sh
-# Copia un episodio a ep/ y regenera index.html.
-# Uso: ./add_episode.sh <id> <audio.mp3> <texto.md> <titulo> <autor> [fileRate]
-set -eu
-if [ "$#" -lt 5 ]; then
-  echo "Uso: $0 <id> <audio.mp3> <texto.md> <titulo> <autor> [fileRate]" >&2
-  exit 1
-fi
-id=$1
-audio=$2
-text=$3
-title=$4
-author=$5
-rate=${6:-1}
-mkdir -p ep
-cp "$audio" "ep/${id}.mp3"
-cp "$text" "ep/${id}.md"
-python3 - "$id" "$title" "$author" "$rate" << 'PY'
-import json
-import sys
-from pathlib import Path
-
-episode_id, title, author, rate = sys.argv[1:5]
-item = {
-    "id": episode_id,
-    "title": title,
-    "author": author,
-    "audio": f"ep/{episode_id}.mp3",
-    "transcript": f"ep/{episode_id}.md",
-    "fileRate": float(rate),
-}
-path = Path("episodes.json")
-data = json.loads(path.read_text(encoding="utf-8"))
-episodes = data["episodes"]
-for index, episode in enumerate(episodes):
-    if episode["id"] == episode_id:
-        episodes[index] = item
-        break
-else:
-    episodes.insert(0, item)
-path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+#!/usr/bin/env bash
+# Uso: ./add_episode.sh <id> <carpeta_origen> "<título>" "<autor>" [url_original]
+# Ej.: ./add_episode.sh hussain-vender /workspace/podcasts/hussainibarra "Cómo volverte..." "Hussain Ibarra" https://x.com/...
+# Copia <carpeta>/articulo-es.mp3 y articulo-es.md a ep/<id>.*, añade la entrada a episodes.json (arriba del todo) y regenera index.html.
+set -euo pipefail
+cd "$(dirname "$0")"
+ID="$1"; SRC="$2"; TITLE="$3"; AUTHOR="$4"; URL="${5:-#}"
+cp "$SRC/articulo-es.mp3" "ep/$ID.mp3"
+cp "$SRC/articulo-es.md"  "ep/$ID.md"
+DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "ep/$ID.mp3" | python3 -c 'import sys;s=int(float(sys.stdin.read()));print(f"{s//60}:{s%60:02d}")')
+python3 - "$ID" "$TITLE" "$AUTHOR" "$URL" "$DUR" <<'PY'
+import json,sys,datetime
+i,t,a,u,d=sys.argv[1:]
+eps=[e for e in json.load(open('episodes.json')) if e['id']!=i]
+eps.insert(0,{"id":i,"title":t,"author":a,"date":datetime.date.today().isoformat(),"duration":d,"source":u})
+json.dump(eps,open('episodes.json','w'),ensure_ascii=False,indent=1)
 PY
 python3 build_site.py
-echo "Episodio ${id} listo"
+echo "Añadido $ID ($DUR). Si la web está publicada, vuelve a subir index.html y ep/$ID.mp3."

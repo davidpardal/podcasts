@@ -1,195 +1,83 @@
 #!/usr/bin/env python3
-"""Genera index.html a partir de episodes.json.
-
-El reproductor publicado es la salida de este script. Vuelve a ejecutarlo
-después de cambiar episodes.json; no edites index.html a mano.
-"""
-
-import html
-import json
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent
-
-TEMPLATE = """<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Podcasts</title>
+"""Genera index.html a partir de episodes.json + ep/<id>.mp3 + ep/<id>.md"""
+import json, html, re, os
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+eps=json.load(open('episodes.json'))
+def md2html(md):
+    out=[]
+    for block in md.split('\n\n'):
+        b=block.strip()
+        if not b: continue
+        if b.startswith('# '): continue  # el título ya va en la tarjeta
+        if b.startswith('Por '): continue
+        m=re.match(r'^(#{2,3}) (.*)',b)
+        if m: out.append(f'<h3>{html.escape(m.group(2))}</h3>'); continue
+        if b.startswith('- '): out.append(f'<ul><li>{html.escape(b[2:])}</li></ul>'); continue
+        if re.match(r'^1\.\s',b): out.append(f'<ol><li>{html.escape(b[3:])}</li></ol>'); continue
+        if b.startswith('>'):
+            ps=[re.sub(r'^>\s?','',l) for l in b.split('\n') if re.sub(r'^>\s?','',l).strip()]
+            out.append('<blockquote>'+''.join(f'<p>{html.escape(p)}</p>' for p in ps)+'</blockquote>'); continue
+        out.append(f'<p>{html.escape(b)}</p>')
+    return '\n'.join(out).replace('</ul>\n<ul>','\n').replace('</ol>\n<ol>','\n')
+cards=[]
+for e in eps:
+    i=e['id']; txt=md2html(open(f'ep/{i}.md').read())
+    btns=''.join(f'<button class="sp" data-r="{s}">{str(s).replace(".",",")}×</button>' for s in [0.75,1,1.25,1.5,1.75,2])
+    cards.append(f'''<section class="ep" data-id="{i}">
+<h2>{html.escape(e['title'])}</h2>
+<div class="meta">{html.escape(e['author'])} · {e.get('duration','')} · <a href="{e.get('source','#')}">original</a></div>
+<audio controls preload="metadata" src="ep/{i}.mp3"></audio>
+<div class="speeds">{btns}</div>
+<div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
+<div class="pos"></div>
+<details><summary>Leer el texto</summary><div class="txt">{txt}</div></details>
+</section>''')
+page='''<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Podcasts">
+<meta name="robots" content="noindex,nofollow">
+<title>Mis podcasts</title>
 <style>
-body{font-family:-apple-system,system-ui,sans-serif;max-width:720px;margin:0 auto;padding:16px;line-height:1.6;color:#222;background:#fafafa}
-.player{position:sticky;top:0;background:#fff;padding:12px;border-radius:12px;box-shadow:0 2px 8px #0002;z-index:1}
+:root{color-scheme:light dark}
+body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:16px 14px calc(30px + env(safe-area-inset-bottom));max-width:760px;margin:auto;line-height:1.55;background:#f4f4f6;color:#1c1c1e}
+@media(prefers-color-scheme:dark){body{background:#000;color:#eee}.ep{background:#1c1c1e!important}button{background:#2c2c2e!important;color:#eee!important;border-color:#444!important}button.on{background:#0a84ff!important;color:#fff!important}.meta,.pos{color:#aaa!important}}
+h1{font-size:1.6rem;margin:6px 4px 14px}
+.ep{background:#fff;border-radius:16px;padding:14px;margin-bottom:18px;box-shadow:0 1px 4px #0001}
+.ep h2{font-size:1.15rem;margin:0 0 4px}.meta{color:#666;font-size:.9rem;margin-bottom:10px}.meta a{color:inherit}
 audio{width:100%}
-.sp,.nav,.eps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-button{flex:1;min-width:4.5rem;padding:10px 4px;font-size:16px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer}
-button.on,button.sel{background:#222;color:#fff}
-.note,.files{font-size:.9rem;color:#555;margin:8px 0 0}
-article{margin-top:16px}
-blockquote{border-left:4px solid #ccc;margin:0 0 1em;padding-left:12px;color:#444}
-h1{font-size:1.4rem}h2{font-size:1.15rem}
-a{color:#0b57d0}
-#author{color:#444}
-</style>
-</head>
-<body>
-<h1>Podcasts</h1>
-<div class="player">
-<strong id="title"></strong><br>
-<span id="author"></span>
-<audio id="a" controls preload="metadata" src="__FIRST_AUDIO__"></audio>
-<div class="sp" id="speeds"></div>
-<div class="nav"><button type="button" id="b">⟲ 15 s</button><button type="button" id="f">30 s ⟳</button></div>
-<p id="rate-note" class="note"></p>
-</div>
-<div class="eps" id="list">
-__BUTTONS__
-</div>
-<p class="files">Audio: __LINKS__</p>
-<article id="transcript"></article>
+.speeds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.nav{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;margin-top:8px}
+button{font-size:1.15rem;padding:14px 4px;border-radius:12px;border:1px solid #ccc;background:#fff;color:#1c1c1e;-webkit-tap-highlight-color:transparent}
+button.on{background:#007aff;color:#fff;border-color:#007aff;font-weight:600}
+.pos{font-size:.85rem;color:#666;margin-top:6px;text-align:center}
+details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
+.txt h3{font-size:1.05rem;margin-top:1.2em}blockquote{border-left:4px solid #999;margin:0;padding-left:12px;opacity:.85}
+</style></head><body>
+<h1>🎧 Mis podcasts</h1>
+'''+'\n'.join(cards)+'''
 <script>
-const EPISODES = __EPISODES_JSON__;
-const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
-const a = document.getElementById("a");
-let current = EPISODES[0];
-let started = false;
-
-function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-function kind(line){if(line.startsWith("- "))return "ul";if(/^\\d+\\.\\s+/.test(line))return "ol";return null;}
-function renderMd(md){
-  const lines=md.replace(/\\r\\n/g,"\\n").split("\\n");
-  let html="", list=null;
-  const close=()=>{if(list){html+=list==="ol"?"</ol>":"</ul>";list=null;}};
-  for(let i=0;i<lines.length;i++){
-    const line=lines[i].trimEnd();
-    if(!line.trim()){
-      let j=i+1;while(j<lines.length&&!lines[j].trim())j++;
-      const next=j<lines.length?lines[j].trimEnd():"";
-      if(list&&kind(next)===list)continue;
-      close();continue;
-    }
-    if(line.startsWith("### ")){close();html+="<h3>"+esc(line.slice(4))+"</h3>";continue;}
-    if(line.startsWith("## ")){close();html+="<h2>"+esc(line.slice(3))+"</h2>";continue;}
-    if(line.startsWith("# ")){close();html+="<h2>"+esc(line.slice(2))+"</h2>";continue;}
-    if(line.startsWith("> ")){close();html+="<blockquote><p>"+esc(line.slice(2))+"</p></blockquote>";continue;}
-    const k=kind(line);
-    if(k){
-      if(list!==k){close();html+=k==="ol"?"<ol>":"<ul>";list=k;}
-      html+="<li>"+esc(k==="ul"?line.slice(2):line.replace(/^\\d+\\.\\s+/,""))+"</li>";
-      continue;
-    }
-    close();html+="<p>"+esc(line)+"</p>";
-  }
-  close();return html;
-}
-function desired(){
-  const saved=+localStorage.getItem("spd:"+current.id);
-  return SPEEDS.includes(saved)?saved:1;
-}
-function applyRate(){
-  const d=desired();
-  const rate=d/(current.fileRate||1);
-  a.playbackRate=rate;a.defaultPlaybackRate=rate;a.preservesPitch=true;
-  document.querySelectorAll("#speeds button").forEach(b=>b.classList.toggle("on",+b.dataset.r===d));
-  const note=document.getElementById("rate-note");
-  if(current.fileRate&&current.fileRate!==1){
-    note.textContent="Este archivo está codificado a "+String(current.fileRate).replace(".",",")+"×. El botón 1× lo reproduce a velocidad de habla normal.";
-  }else note.textContent="";
-}
-async function loadTranscript(ep){
-  const el=document.getElementById("transcript");
-  el.innerHTML="<p>Cargando el texto…</p>";
-  try{
-    const res=await fetch(ep.transcript);
-    if(!res.ok)throw new Error(String(res.status));
-    el.innerHTML=renderMd(await res.text());
-  }catch(e){
-    el.innerHTML='<p>No se pudo mostrar el texto aquí. <a href="'+ep.transcript+'">Abrir la transcripción</a>.</p>';
-  }
-}
-function restorePos(){
-  const p=+localStorage.getItem("pos:"+current.id);
-  if(p)a.currentTime=p;
-  applyRate();
-}
-function select(id){
-  const ep=EPISODES.find(e=>e.id===id)||EPISODES[0];
-  if(started)localStorage.setItem("pos:"+current.id,String(a.currentTime||0));
-  current=ep;
-  started=true;
-  document.getElementById("title").textContent=ep.title;
-  document.getElementById("author").textContent=ep.author;
-  document.title=ep.title+" · "+ep.author;
-  if(a.getAttribute("src")!==ep.audio)a.src=ep.audio;
-  document.querySelectorAll(".ep").forEach(b=>b.classList.toggle("sel",b.dataset.id===ep.id));
-  if(location.hash!=="#"+ep.id)history.replaceState(null,"","#"+ep.id);
-  applyRate();
-  if(a.readyState>=1)restorePos();
-  loadTranscript(ep);
-}
-document.getElementById("speeds").innerHTML=SPEEDS.map(r=>'<button type="button" data-r="'+r+'">'+String(r).replace(".",",")+"x</button>").join("");
-document.getElementById("speeds").onclick=ev=>{
-  const b=ev.target.closest("button");
-  if(!b)return;
-  localStorage.setItem("spd:"+current.id,b.dataset.r);
-  applyRate();
-};
-document.getElementById("b").onclick=()=>{a.currentTime=Math.max(0,a.currentTime-15);};
-document.getElementById("f").onclick=()=>{a.currentTime+=30;};
-document.getElementById("list").onclick=ev=>{
-  const b=ev.target.closest(".ep");
-  if(b)select(b.dataset.id);
-};
-a.addEventListener("loadedmetadata",restorePos);
-a.addEventListener("play",applyRate);
-setInterval(()=>{if(started&&a.readyState>=1)localStorage.setItem("pos:"+current.id,String(a.currentTime||0));},5000);
-const start=(location.hash||"").slice(1);
-select(EPISODES.some(e=>e.id===start)?start:EPISODES[0].id);
-</script>
-</body>
-</html>
-"""
-
-
-def main() -> None:
-    data = json.loads((ROOT / "episodes.json").read_text(encoding="utf-8"))
-    episodes = data["episodes"]
-    if not episodes:
-        raise SystemExit("episodes.json no tiene episodios")
-    for ep in episodes:
-        for key in ("id", "title", "author", "audio", "transcript", "fileRate"):
-            if key not in ep:
-                raise SystemExit(f"falta {key} en {ep.get('id', ep)}")
-        if not (ROOT / ep["audio"]).is_file():
-            raise SystemExit(f"no está el audio {ep['audio']}")
-        if not (ROOT / ep["transcript"]).is_file():
-            raise SystemExit(f"no está el texto {ep['transcript']}")
-        if float(ep["fileRate"]) <= 0:
-            raise SystemExit(f"fileRate inválido en {ep['id']}")
-    buttons = "\n".join(
-        '<button type="button" class="ep{sel}" data-id="{id}">{title}</button>'.format(
-            sel=" sel" if i == 0 else "",
-            id=html.escape(ep["id"], quote=True),
-            title=html.escape(ep["title"]),
-        )
-        for i, ep in enumerate(episodes)
-    )
-    links = " · ".join(
-        '<a href="{href}">{href}</a>'.format(href=html.escape(ep["audio"], quote=True))
-        for ep in episodes
-    )
-    page = (
-        TEMPLATE.replace("__FIRST_AUDIO__", html.escape(episodes[0]["audio"], quote=True))
-        .replace("__BUTTONS__", buttons)
-        .replace("__LINKS__", links)
-        .replace("__EPISODES_JSON__", json.dumps(episodes, ensure_ascii=False))
-    )
-    for ep in episodes:
-        if ep["audio"] not in page:
-            raise SystemExit(f"index.html no referencia {ep['audio']}")
-    (ROOT / "index.html").write_text(page, encoding="utf-8")
-    print(f"index.html escrito ({len(episodes)} episodios)")
-
-
-if __name__ == "__main__":
-    main()
+const fmt=s=>{s=Math.floor(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return (h?h+':'+String(m).padStart(2,'0'):m)+':'+x};
+document.querySelectorAll('.ep').forEach(ep=>{
+  const id=ep.dataset.id,a=ep.querySelector('audio'),KP='pos:'+id,KR='rate:'+id,pos=ep.querySelector('.pos'),pp=ep.querySelector('.pp');
+  const sps=ep.querySelectorAll('.sp');
+  const rate=()=>parseFloat(localStorage.getItem(KR)||'1');
+  const setR=r=>{a.defaultPlaybackRate=r;a.playbackRate=r;a.preservesPitch=true;a.webkitPreservesPitch=true;localStorage.setItem(KR,r);sps.forEach(b=>b.classList.toggle('on',parseFloat(b.dataset.r)===r))};
+  sps.forEach(b=>b.onclick=()=>setR(parseFloat(b.dataset.r)));
+  setR(rate());
+  let restored=false;
+  a.addEventListener('loadedmetadata',()=>{if(!restored){const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0&&p<a.duration-5)a.currentTime=p;restored=true}upd()});
+  a.addEventListener('play',()=>{a.playbackRate=rate();document.querySelectorAll('audio').forEach(o=>{if(o!==a)o.pause()});pp.textContent='❚❚ Pausa'});
+  a.addEventListener('pause',()=>{pp.textContent='▶︎ Reproducir';localStorage.setItem(KP,a.currentTime)});
+  a.addEventListener('ratechange',()=>{if(Math.abs(a.playbackRate-rate())>0.01&&a.playbackRate>0)setR(a.playbackRate)});
+  const upd=()=>{pos.textContent=fmt(a.currentTime)+' / '+fmt(a.duration)+' · quedan '+fmt((a.duration-a.currentTime)/rate())+' a '+String(rate()).replace('.',',')+'×'};
+  a.addEventListener('timeupdate',()=>{upd();if(!a.paused)localStorage.setItem(KP,a.currentTime)});
+  a.addEventListener('ended',()=>localStorage.setItem(KP,0));
+  const seek=d=>{a.currentTime=Math.max(0,Math.min((a.duration||1e9)-1,a.currentTime+d))};
+  ep.querySelector('.bk').onclick=()=>seek(-15);
+  ep.querySelector('.fw').onclick=()=>seek(30);
+  pp.onclick=()=>a.paused?a.play():a.pause();
+  const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0)pos.textContent='Seguirás en '+fmt(p);
+  if('mediaSession' in navigator){a.addEventListener('play',()=>{navigator.mediaSession.metadata=new MediaMetadata({title:ep.querySelector('h2').textContent,artist:ep.querySelector('.meta').textContent.split(' · ')[0],album:'Mis podcasts'});navigator.mediaSession.setActionHandler('seekbackward',()=>seek(-15));navigator.mediaSession.setActionHandler('seekforward',()=>seek(30))})}
+});
+</script></body></html>'''
+open('index.html','w').write(page); print('ok',len(eps),'episodios')
