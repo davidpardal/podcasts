@@ -5,7 +5,7 @@ dentro de cada trozo por número de caracteres. Si no hay trozos, el reproductor
 estima de forma proporcional sobre la duración total."""
 import json, re, subprocess, os
 BASE='/workspace/podcasts'
-EPS={'naval-como-hacerse-rico':'naval','g2o-atractivo-1':'gh0st2offline-2','g2o-atractivo-2':'gh0st2offline','dankoe-curso-negocio':'dankoe-3','dankoe-vida-1-dia':'dankoe-2','alexei-reprogramacion':'alexeixbt','hussain-vender':'hussainibarra','dankoe-human30':'dankoe'}
+EPS={'chamath-gran-descenso':'top20/chamath-gran-descenso','isenberg-ai-rollups':'top20/isenberg-ai-rollups','hormozi-adversidad':'top20/hormozi-adversidad','saylor-que-es-dinero':'top20/saylor-que-es-dinero','bryanjohnson-longevidad':'top20/bryanjohnson-longevidad','codiesanchez-lecciones-20':'top20/codiesanchez-lecciones-20','amasad-empresa-autonoma':'top20/amasad-empresa-autonoma','alexei-arreglate-1-dia':'top20/alexei-arreglate-1-dia','sahilbloom-crisis-al-reves':'top20/sahilbloom-crisis-al-reves','isenberg-vibe-manufacturing':'top20/isenberg-vibe-manufacturing','naval-como-hacerse-rico':'naval','g2o-atractivo-1':'gh0st2offline-2','g2o-atractivo-2':'gh0st2offline','dankoe-curso-negocio':'dankoe-3','dankoe-vida-1-dia':'dankoe-2','alexei-reprogramacion':'alexeixbt','hussain-vender':'hussainibarra','dankoe-human30':'dankoe'}
 def dur(f):
     return float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',f]).decode())
 def md_lines(md):
