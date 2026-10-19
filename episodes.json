@@ -1,0 +1,20 @@
+{
+  "episodes": [
+    {
+      "id": "hussain-vender",
+      "title": "Cómo volverte peligrosamente bueno vendiendo (usa estas 3 estrategias)",
+      "author": "Hussain Ibarra",
+      "audio": "ep/hussain-vender.mp3",
+      "transcript": "ep/hussain-vender.md",
+      "fileRate": 1
+    },
+    {
+      "id": "dankoe-human30",
+      "title": "Human 3.0: un mapa para llegar al 1 % de arriba",
+      "author": "Dan Koe",
+      "audio": "ep/dankoe-human30.mp3",
+      "transcript": "ep/dankoe-human30.md",
+      "fileRate": 1.5
+    }
+  ]
+}
