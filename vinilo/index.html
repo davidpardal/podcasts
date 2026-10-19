@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0d0a08">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vinilos">
+<title>Vinilos de David</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=DM+Sans:opsz,wght@9..40,400..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0a08;--card:#16110d;--card-2:#1d1612;--line:#2b211a;--edge:#3a2c22;
+  --ink:#f3e9dc;--ink-2:#cdbca6;--muted:#8f7d69;--dim:#4a3f35;
+  --brass:#d1a75e;--brass-2:#9b7637;--red:#b8352a;--red-2:#7d1f19;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'DM Sans',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  --mono:'DM Mono',ui-monospace,Menlo,monospace;
+  --gut:18px;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:radial-gradient(120% 60% at 50% -10%,#24170f 0,var(--bg) 60%) fixed,var(--bg);color:var(--ink);font:16px/1.55 var(--sans);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+a{color:var(--brass);text-underline-offset:3px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:6px}
+h1,h2{font-family:var(--serif);font-weight:500;letter-spacing:-.015em;line-height:1.08;margin:0 0 .4em;text-wrap:balance}
+.kicker{font:500 11.5px/1.4 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--brass);margin:0 0 12px}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px var(--gut);padding-top:calc(12px + env(safe-area-inset-top));background:rgba(13,10,8,.9);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font:600 21px var(--serif);letter-spacing:-.01em;text-decoration:none;color:var(--ink);white-space:nowrap}
+.brand svg{width:28px;height:28px}
+.count{font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);border:1px solid var(--edge);border-radius:999px;padding:7px 12px;white-space:nowrap}
+
+/* colección */
+.shelf{max-width:980px;margin:0 auto;padding:30px var(--gut) 70px}
+.shelf h1{font-size:clamp(32px,9vw,52px);max-width:13em}
+.shelf h1 em{color:var(--brass);font-style:italic}
+.lead{color:var(--ink-2);max-width:34em;margin:0 0 24px}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+@media(min-width:760px){.list{grid-template-columns:repeat(2,1fr)}}
+.card{display:flex;flex-direction:column;gap:6px;padding:14px 14px 16px;background:linear-gradient(#1a130f,#130e0b);border:1px solid var(--edge);border-radius:18px;text-decoration:none;color:var(--ink);transition:transform .25s,border-color .25s}
+.card:hover{border-color:#5a4433;transform:translateY(-3px)}
+.card svg{display:block;width:100%;height:auto;margin-bottom:8px;overflow:visible}
+.card .disc-out{transition:transform .5s cubic-bezier(.3,.7,0,1)}
+.card:hover .disc-out{transform:translateX(18px)}
+.c-title{font:500 19px/1.22 var(--serif)}
+.c-meta{font:12.5px var(--mono);color:var(--muted);display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+.c-bar{height:3px;background:#2a2019;border-radius:2px;overflow:hidden;margin-top:6px}.c-bar i{display:block;height:100%;background:var(--brass)}
+.lang{display:inline-block;padding:0 5px;font:500 10px/1.7 var(--mono);letter-spacing:.1em;color:var(--brass);border:1px solid var(--brass-2);border-radius:3px}
+.foot{max-width:980px;margin:0 auto;padding:22px var(--gut) calc(40px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font:500 11.5px var(--mono);letter-spacing:.08em;color:var(--muted);border-top:1px solid var(--line)}
+
+/* escucha */
+.listen{max-width:680px;margin:0 auto;padding:14px var(--gut) 140px}
+.tt{position:relative;touch-action:none;user-select:none;-webkit-user-select:none}
+.tt svg{display:block;width:100%;height:auto;filter:drop-shadow(0 22px 40px rgba(0,0,0,.6))}
+.spin{transform-box:view-box;transform-origin:170px 170px;animation:spin var(--rot,1.8s) linear infinite;animation-play-state:paused}
+.playing .spin{animation-play-state:running}
+@keyframes spin{to{transform:rotate(360deg)}}
+#arm{transition:transform .35s ease;transform-origin:356px 44px;transform-box:view-box}
+.dragging #arm{transition:none}
+.tt-hint{position:absolute;left:12px;bottom:10px;font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#d9c7ae;opacity:.7;pointer-events:none}
+.tt-peek{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);background:rgba(13,10,8,.85);border:1px solid var(--brass-2);color:var(--ink);font:500 15px var(--mono);padding:6px 12px;border-radius:999px;pointer-events:none}
+.listen h1{font-size:clamp(25px,7vw,36px);margin:16px 0 8px}
+.attr{color:var(--ink-2);font-size:15px;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.deck{position:sticky;top:calc(54px + env(safe-area-inset-top));z-index:10;background:linear-gradient(#1c1511,#140f0c);border:1px solid var(--edge);border-radius:18px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.6)}
+.deck>*+*{border-top:1px solid var(--line)}
+.screen{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 16px 9px;background:#0b0806}
+.s-k{font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-k b{color:var(--red);font-weight:500}
+.s-t{font:13px var(--mono);font-variant-numeric:tabular-nums}.s-t small{color:var(--muted);font-size:inherit}
+.s-sec{grid-column:1/-1;font:500 15.5px/1.3 var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tape{padding:8px 16px 6px}
+.scrub{position:relative;height:30px}
+.scrub input{position:absolute;inset:0;width:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;z-index:2;cursor:pointer}
+.scrub input::-webkit-slider-runnable-track{height:4px;background:#3a2c22;border-radius:2px}
+.scrub input::-moz-range-track{height:4px;background:#3a2c22;border-radius:2px}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f3dca8,var(--brass) 55%,var(--brass-2));margin-top:-9px;box-shadow:0 0 0 3px #140f0c}
+.scrub input::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--brass);border:0}
+.marks{position:absolute;left:11px;right:11px;top:50%;height:0;z-index:1;pointer-events:none}
+.marks span{position:absolute;width:3px;height:12px;margin:-6px 0 0 -1.5px;border-radius:1px;background:#6d5644}
+.marks span.past{background:var(--brass)}
+.keys{display:grid;grid-template-columns:1fr 1.35fr 1fr}
+.key{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:62px;background:linear-gradient(#1f1713,#160f0c);border:0;cursor:pointer;font:500 15px var(--mono);color:var(--ink)}
+.key+.key{border-left:1px solid var(--line)}
+.key:active{background:#110c09;transform:translateY(1px)}
+.key svg{width:21px;height:21px;fill:currentColor}.k-play svg{width:28px;height:28px}
+.k-play{color:var(--bg);background:radial-gradient(circle at 50% 30%,#e3bd77,var(--brass) 60%,var(--brass-2))}
+.k-play:active{background:var(--brass-2)}
+.led{position:absolute;top:10px;left:12px;width:7px;height:7px;border-radius:50%;background:#3b2d22}
+.k-play.on .led{background:#ff4535;box-shadow:0 0 8px rgba(255,69,53,.8)}
+.speeds{display:grid;grid-template-columns:repeat(6,1fr)}
+.sp{min-height:46px;border:0;background:#120d0a;font:500 13px var(--mono);color:var(--muted);cursor:pointer;font-variant-numeric:tabular-nums}
+.sp+.sp{border-left:1px solid var(--line)}
+.sp.on{color:var(--ink);background:var(--red-2);box-shadow:inset 0 -3px 0 var(--red)}
+
+.tracks{margin:22px 0 0;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+.tracks summary{list-style:none;cursor:pointer;padding:14px 16px;font:500 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);display:flex;justify-content:space-between}
+.tracks summary::-webkit-details-marker{display:none}
+.tracks summary::after{content:'+';color:var(--brass)}.tracks[open] summary::after{content:'−'}
+.tracks ol{list-style:none;margin:0;padding:0 6px 8px}
+.tracks li button{width:100%;display:grid;grid-template-columns:2.6em 1fr auto;gap:8px;align-items:center;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 10px;min-height:48px;cursor:pointer;color:var(--ink-2)}
+.tracks li button .n{font:12px var(--mono);color:var(--muted)}
+.tracks li button .d{font:12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.tracks li.on button{color:var(--ink)}.tracks li.on .n{color:var(--red)}
+
+.transcript{margin-top:26px;padding-top:22px;border-top:1px solid var(--line);font:500 20.5px/1.48 var(--serif);letter-spacing:-.005em}
+@media(min-width:768px){.transcript{font-size:23px}}
+.tr-note{font:500 11px/1.5 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 18px}
+.pa{display:block;margin:0 0 .85em;color:var(--dim);cursor:pointer;border-radius:8px;padding:.15em .35em;margin-left:-.35em;margin-right:-.35em;transition:color .35s,background .35s,box-shadow .35s}
+.pa.done{color:#9c8b77}
+.pa.cur{color:#fff6ea;background:rgba(209,167,94,.13);box-shadow:inset 3px 0 0 var(--brass)}
+.pa.h{font-weight:650;font-size:1.18em;margin-top:1.4em}
+.pa.h::before{content:attr(data-k);display:block;font:500 11.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--red);margin-bottom:6px}
+.pa.q{font-style:italic;font-weight:400;border-left:2px solid var(--edge);padding-left:14px;margin-left:0}
+.pa.li{padding-left:1.3em;text-indent:-1em}.pa.li::before{content:'— ';color:var(--brass-2)}
+.pa.intro{font:500 12px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.pills{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));z-index:30;display:flex;gap:8px}
+.pill{background:#130e0b;color:var(--ink);border:1px solid var(--edge);border-radius:999px;padding:13px 18px;font:500 15px var(--sans);box-shadow:0 10px 24px rgba(0,0,0,.6);cursor:pointer;white-space:nowrap}
+.pill.follow{background:var(--brass);color:var(--bg);border-color:var(--brass)}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#"><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#050403" stroke="#3a2c22"/><circle cx="14" cy="14" r="9.5" fill="none" stroke="#2a211b"/><circle cx="14" cy="14" r="6.5" fill="none" stroke="#2a211b"/><circle cx="14" cy="14" r="4.6" fill="#b8352a"/><circle cx="14" cy="14" r="1.1" fill="#d1a75e"/></svg>Vinilos de David</a>
+  <span class="count" id="count"></span>
+</header>
+
+<main id="shelf" class="shelf">
+  <p class="kicker">Colección · versión de prueba</p>
+  <h1>Artículos para escuchar <em>en vinilo</em>.</h1>
+  <p class="lead">Cada disco es un artículo entero traducido al castellano y narrado. Ponlo a girar, elige tu velocidad y el texto te sigue mientras escuchas.</p>
+  <ul class="list" id="list"></ul>
+</main>
+
+<main id="listen" class="listen" hidden>
+  <div class="tt" id="tt"></div>
+  <h1 id="l-title"></h1>
+  <p class="attr" id="l-attr"></p>
+  <section class="deck" aria-label="Reproductor">
+    <div class="screen">
+      <span class="s-k" id="s-k">Cara A · En pausa</span>
+      <span class="s-t"><span id="t-cur">0:00</span> <small>/ <span id="t-dur">0:00</span></small></span>
+      <span class="s-sec" id="s-sec"></span>
+    </div>
+    <div class="tape"><div class="scrub"><input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Posición"><div class="marks" id="marks"></div></div></div>
+    <div class="keys">
+      <button class="key" id="k-back" aria-label="Retroceder 15 segundos"><svg viewBox="0 0 24 24"><path d="M11 6V2L5 7l6 5V8a6 6 0 1 1-6 6H3a8 8 0 1 0 8-8z"/></svg>15</button>
+      <button class="key k-play" id="k-play" aria-label="Reproducir"><span class="led"></span><svg viewBox="0 0 24 24" id="i-play"><path d="M7 4.5v15l13-7.5z"/></svg><svg viewBox="0 0 24 24" id="i-pause" hidden><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+      <button class="key" id="k-fwd" aria-label="Avanzar 30 segundos">30<svg viewBox="0 0 24 24"><path d="M13 6V2l6 5-6 5V8a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/></svg></button>
+    </div>
+    <div class="speeds" id="speeds"></div>
+  </section>
+  <details class="tracks" id="tracks"><summary id="tracks-sum">Pistas</summary><ol id="tlist"></ol></details>
+  <article class="transcript">
+    <p class="tr-note">El texto sigue a la voz · toca un párrafo para saltar ahí</p>
+    <div id="paras"></div>
+  </article>
+</main>
+
+<footer class="foot" id="foot"><span>Vinilos de David · prueba</span><span>Narrado en castellano (España)</span></footer>
+<div class="pills"><button class="pill follow" id="p-follow" hidden>↓ Seguir la voz</button><button class="pill" id="p-back" hidden>← Colección</button></div>
+<audio id="au" preload="metadata"></audio>
+
+<script>
+const EPISODES = [{"id": "hussain-vender", "title": "Cómo volverte peligrosamente bueno vendiendo (usa estas 3 estrategias)", "author": "Hussain Ibarra", "date": "2026-10-19", "duration": "21:15", "source": "https://x.com/hussainibarra/status/2112198119672959413"}, {"id": "dankoe-human30", "title": "Human 3.0: un mapa para llegar al 1 % de arriba", "author": "Dan Koe", "date": "2026-10-19", "duration": "31:53", "source": "https://x.com/thedankoe/status/2023779299367809063"}];
+const TIMINGS = {"hussain-vender":[0.0,8.28,13.62,24.36,28.62,41.58,45.78,51.06,55.56,60.79,62.89,66.79,69.97,91.81,114.07,135.85,138.84,152.01,157.31,164.26,175.54,176.8,183.3,194.47,208.09,209.68,217.43,218.69,221.99,226.1,227.35,229.52,235.16,241.09,248.67,256.08,259.5,271.64,277.13,279.67,284.41,290.04,294.48,298.92,304.14,313.49,320.72,326.29,331.62,332.92,339.26,346.48,359.34,366.33,375.8,383.15,386.46,390.96,394.52,398.78,414.0,426.99,433.7,440.89,443.27,449.67,454.79,458.63,466.68,480.71,485.65,494.55,497.11,507.36,513.7,522.48,537.6,542.05,545.53,557.76,564.58,567.25,570.66,580.52,589.53,594.76,604.68,607.72,615.03,619.96,632.01,639.01,643.87,648.93,660.55,669.68,679.96,688.0,691.65,699.6,705.93,709.39,711.05,712.72,714.57,719.11,734.41,736.9,739.65,742.4,744.96,747.52,749.76,753.22,760.0,761.15,769.47,776.18,782.58,785.78,789.81,794.8,801.01,805.17,814.32,826.09,836.2,846.5,854.57,867.41,875.56,880.73,881.8,887.57,895.24,898.33,906.71,917.23,927.82,937.03,947.26,956.06,959.45,960.7,963.91,970.74,976.93,984.24,986.44,987.99,995.89,999.22,1005.97,1016.32,1017.57,1021.22,1022.48,1025.41,1031.15,1036.77,1041.61,1046.52,1050.29,1057.76,1067.09,1075.34,1080.6,1087.18,1088.44,1091.61,1097.53,1110.27,1117.02,1129.94,1135.56,1139.27,1143.74,1159.77,1166.92,1171.86,1178.71,1183.65,1185.04,1188.24,1194.62,1197.24,1198.46,1203.51,1210.66,1220.76,1226.63,1229.18,1240.34,1242.89,1245.51,1247.36,1249.63,1250.73,1251.89,1255.67,1265.6,1271.93],"dankoe-human30":[0.0,7.09,13.56,21.15,42.41,45.87,72.62,86.55,104.12,107.02,152.21,170.64,174.67,197.02,244.68,268.26,271.99,283.96,308.91,313.87,331.32,357.91,364.68,384.87,390.61,392.13,398.66,406.53,420.8,432.39,446.66,458.69,503.43,518.68,541.2,568.78,593.57,602.7,604.85,616.11,641.86,658.58,673.24,699.64,729.61,751.94,776.74,810.59,825.23,838.65,842.04,849.8,850.96,862.11,868.29,881.48,892.57,904.34,915.16,950.6,975.74,986.05,1004.0,1036.51,1053.62,1054.84,1075.22,1084.5,1099.04,1120.87,1133.71,1139.26,1140.54,1147.43,1163.78,1184.39,1187.35,1199.13,1214.06,1223.82,1242.62,1246.37,1279.03,1296.46,1313.77,1315.73,1332.48,1351.66,1367.77,1424.54,1434.5,1445.38,1447.31,1461.56,1470.17,1474.44,1481.57,1488.07,1494.76,1504.49,1516.16,1525.07,1542.13,1577.25,1604.98,1624.61,1642.29,1652.62,1668.23,1673.63,1688.94,1696.0,1711.13,1715.46,1717.42,1720.81,1723.83,1726.86,1734.34,1739.68,1745.37,1750.95,1757.9,1765.26,1774.37,1787.45,1807.73,1809.94,1818.32,1826.42,1860.91,1888.32,1903.56,1907.07]};
+const SPEEDS=[0.75,1,1.25,1.5,1.75,2];
+// paletas cálidas de funda: [fondo, acento, etiqueta]
+const PAL=[['#7d1f19','#d1a75e','#e9d9bd'],['#2b3a2a','#d1a75e','#c9472f'],['#3b2a1c','#e0b56a','#9e2b25'],['#1f2a3a','#d9a65a','#e5d3b3'],['#4a1d2d','#e7c07a','#d1a75e'],['#5a3a17','#f0d8a8','#7d1f19']];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return (h?h+':'+String(m).padStart(2,'0'):m)+':'+x};
+const toSec=d=>String(d||'0').split(':').map(Number).reduce((a,b)=>a*60+b,0);
+const hash=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0};
+const KP=id=>'pos:'+id, KR=id=>'rate:'+id; // mismas claves que la web actual
+const TEST=new URLSearchParams(location.search).has('t')&&!new URLSearchParams(location.search).has('top');
+function wrap(t,n,max){const w=t.split(/\s+/),out=[];let l='';for(const x of w){if((l+' '+x).trim().length>n&&l){out.push(l);l=x}else l=(l+' '+x).trim()}if(l)out.push(l);if(out.length>max){out.length=max;out[max-1]=out[max-1].replace(/\s*\S*$/,'')+'…'}return out}
+
+/* ---------- etiqueta del disco (centro) ---------- */
+function label(ep,i,cx,cy,r){
+  const [bg,acc,lab]=PAL[hash(ep.id)%PAL.length];
+  const tl=wrap(ep.title,18,3),fs=r*.13;
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${lab}"/>
+  <circle cx="${cx}" cy="${cy}" r="${r*.92}" fill="none" stroke="${bg}" stroke-width="${r*.02}" opacity=".6"/>
+  <text x="${cx}" y="${cy-r*.6}" text-anchor="middle" font-family="DM Mono,monospace" font-size="${r*.1}" letter-spacing="${r*.02}" fill="${bg}">LADO A · Nº ${String(i+1).padStart(2,'0')}</text>
+  ${tl.map((l,k)=>`<text x="${cx}" y="${cy-r*.3+k*fs*1.15}" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-weight="650" font-size="${fs}" fill="#1a0f0a">${esc(l)}</text>`).join('')}
+  <text x="${cx}" y="${cy+r*.42}" text-anchor="middle" font-family="DM Sans,Arial,sans-serif" font-weight="600" font-size="${r*.11}" fill="${bg}">${esc(ep.author)}</text>
+  <text x="${cx}" y="${cy+r*.62}" text-anchor="middle" font-family="DM Mono,monospace" font-size="${r*.095}" letter-spacing="${r*.015}" fill="#1a0f0a">${esc(ep.duration)} · ESP · 33⅓</text>
+  <circle cx="${cx}" cy="${cy}" r="${r*.06}" fill="#0d0a08"/>`;
+}
+function grooves(cx,cy,r0,r1,step){let s='';for(let r=r0;r<=r1;r+=step)s+=`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none" stroke="${Math.round(r)%3?'#1a1714':'#24201c'}" stroke-width=".7"/>`;return s}
+
+/* ---------- funda para la colección ---------- */
+function sleeve(ep,i,prog=0){
+  const h=hash(ep.id),[bg,acc,lab]=PAL[h%PAL.length];
+  const tl=wrap(ep.title,17,4);
+  const rings=[...Array(7)].map((_,k)=>`<circle cx="${40+(h%5)*30}" cy="${260-(h>>3)%4*20}" r="${40+k*26}" fill="none" stroke="${acc}" stroke-opacity="${.32-k*.04}" stroke-width="${k%2?1:3}"/>`).join('');
+  return `<svg viewBox="0 0 440 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Funda del disco ${esc(ep.title)}">
+  <defs><clipPath id="sl${i}"><rect x="6" y="6" width="288" height="288" rx="6"/></clipPath>
+  <radialGradient id="vg${i}" cx=".42" cy=".38" r=".7"><stop offset="0" stop-color="#2a2420"/><stop offset=".5" stop-color="#0c0a09"/><stop offset="1" stop-color="#050404"/></radialGradient></defs>
+  <g class="disc-out"><circle cx="300" cy="150" r="138" fill="url(#vg${i})"/>${grooves(300,150,60,134,3.2)}
+  ${label(ep,i,300,150,54)}</g>
+  <g clip-path="url(#sl${i})"><rect x="6" y="6" width="288" height="288" fill="${bg}"/>${rings}
+  <rect x="6" y="6" width="288" height="288" fill="url(#vg${i})" opacity=".18"/></g>
+  <rect x="6" y="6" width="288" height="288" rx="6" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="2"/>
+  <text x="26" y="44" font-family="DM Mono,monospace" font-size="12" letter-spacing="3" fill="${acc}">VINILO Nº ${String(i+1).padStart(2,'0')} · ESP</text>
+  ${tl.map((l,k)=>`<text x="26" y="${90+k*31}" font-family="Fraunces,Georgia,serif" font-weight="600" font-size="27" fill="#f6ead6" letter-spacing="-.3">${esc(l)}</text>`).join('')}
+  <text x="26" y="270" font-family="DM Sans,Arial,sans-serif" font-weight="600" font-size="15" fill="${acc}">${esc(ep.author)}</text>
+  <text x="274" y="270" text-anchor="end" font-family="DM Mono,monospace" font-size="13" fill="#f6ead6" opacity=".8">${esc(ep.duration)}</text>
+  ${prog>0.005?`<rect x="26" y="280" width="248" height="3" rx="1.5" fill="#000" opacity=".35"/><rect x="26" y="280" width="${(248*Math.min(1,prog)).toFixed(1)}" height="3" rx="1.5" fill="${acc}"/>`:''}
+</svg>`}
+
+/* ---------- tocadiscos ---------- */
+const C=[170,170],R1=140,R0=64,PIV=[356,44],ARM=228;
+const D=Math.hypot(C[0]-PIV[0],C[1]-PIV[1]),BASE=Math.atan2(C[1]-PIV[1],C[0]-PIV[0]);
+const REST=82; // grados: brazo aparcado fuera del disco
+function armAngle(p){const r=R1-(R1-R0)*Math.min(1,Math.max(0,p));const phi=Math.acos((ARM*ARM+D*D-r*r)/(2*ARM*D));return (BASE-phi)*180/Math.PI}
+function turntable(ep,i){
+  return `<svg viewBox="0 0 400 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tocadiscos: toca o arrastra sobre el disco para moverte">
+  <defs>
+   <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a3520"/><stop offset=".45" stop-color="#3e2414"/><stop offset="1" stop-color="#26150b"/></linearGradient>
+   <pattern id="grain" width="400" height="12" patternUnits="userSpaceOnUse"><path d="M0 4 Q100 1 200 5 T400 3" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="1.2"/><path d="M0 10 Q120 7 240 11 T400 9" fill="none" stroke="#fff" stroke-opacity=".04"/></pattern>
+   <radialGradient id="vin" cx=".5" cy=".5" r=".5"><stop offset=".4" stop-color="#121010"/><stop offset="1" stop-color="#070606"/></radialGradient>
+   <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3dca8"/><stop offset=".5" stop-color="#c9a25a"/><stop offset="1" stop-color="#7d5a26"/></linearGradient>
+   <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".45" stop-color="#fff" stop-opacity=".09"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect x="2" y="2" width="396" height="336" rx="22" fill="url(#wood)"/><rect x="2" y="2" width="396" height="336" rx="22" fill="url(#grain)"/>
+  <rect x="2" y="2" width="396" height="336" rx="22" fill="none" stroke="#000" stroke-opacity=".6" stroke-width="3"/>
+  <rect x="10" y="10" width="380" height="320" rx="16" fill="none" stroke="#d1a75e" stroke-opacity=".18"/>
+  <circle cx="170" cy="170" r="156" fill="#1b1714" stroke="#000" stroke-width="2"/>
+  ${[...Array(36)].map((_,k)=>`<rect x="168.5" y="15" width="3" height="5" fill="#8a7a69" transform="rotate(${k*10} 170 170)"/>`).join('')}
+  <g id="disc"><circle cx="170" cy="170" r="147" fill="url(#vin)"/>${grooves(170,170,R0+2,R1+4,2.2)}<g id="trk"></g>
+   <g class="spin"><path d="M170 30 A140 140 0 0 1 300 120" fill="none" stroke="#fff" stroke-opacity=".03" stroke-width="20"/>${label(ep,i,170,170,R0-6)}</g>
+   <circle cx="170" cy="170" r="147" fill="url(#sheen)" pointer-events="none"/></g>
+  <circle cx="170" cy="170" r="3.5" fill="url(#brass)"/>
+  <circle cx="356" cy="300" r="16" fill="#140c07" stroke="#000"/><circle cx="356" cy="300" r="11" fill="url(#brass)"/><text x="356" y="326" text-anchor="middle" font-family="DM Mono,monospace" font-size="8" fill="#d9c7ae" letter-spacing="1">33⅓</text>
+  <circle cx="356" cy="44" r="24" fill="#140c07" stroke="#000"/><circle cx="356" cy="44" r="15" fill="url(#brass)"/>
+  <g id="arm" style="transform:rotate(${REST}deg)">
+   <rect x="${356+18}" y="40" width="${ARM-40}" height="8" rx="4" fill="url(#brass)" stroke="#5c421c" stroke-width=".8"/>
+   <rect x="${356-34}" y="38" width="22" height="12" rx="3" fill="#2a1d14" stroke="#000"/>
+   <path d="M${356+ARM-24} 36 h28 l4 8 l-4 8 h-28 z" fill="#1c140e" stroke="#c9a25a" stroke-width="1"/>
+   <rect x="${356+ARM-2}" y="42" width="6" height="4" fill="#f3dca8"/>
+   <circle cx="356" cy="44" r="7" fill="#2a1d14" stroke="#c9a25a"/>
+  </g>
+</svg>
+<span class="tt-hint">Toca o arrastra sobre el disco</span><span class="tt-peek" id="peek" hidden></span>`}
+// el brazo se dibuja apuntando a +x desde el pivote; lo giramos el ángulo que toque
+function setArm(p,parked){$('arm')&&($('arm').style.transform=`rotate(${parked?REST:armAngle(p)}deg)`)}
+
+/* ---------- texto ---------- */
+function parseMd(md){
+  const out=[];
+  for(const raw of md.split('\n')){
+    const s=raw.trim(); if(!s||s==='>') continue;
+    if(out.length===1&&/^Por [^.]{2,40}$/.test(s)) continue;
+    let m;
+    if(out.length===0&&(m=s.match(/^#\s+(.*)/))) out.push({t:'intro',x:m[1]});
+    else if(m=s.match(/^(#{1,3})\s+(.*)/)) out.push({t:'h',x:m[2]});
+    else if(m=s.match(/^>\s*(.*)/)) out.push({t:'q',x:m[1]});
+    else if(m=s.match(/^(?:-|\d+\.)\s+(.*)/)) out.push({t:'li',x:m[1]});
+    else out.push({t:'p',x:s});
+  }
+  return out;
+}
+/* Tiempos medidos por trozos de audio (TIMINGS) si existen; si no, reparto por caracteres
+   sobre la duración real, con la intro hablada («Título. Un artículo de Autor…») como primer bloque. */
+function computeStarts(ep,paras,dur){
+  const t=TIMINGS[ep.id]; if(t&&t.length===paras.length) return t.slice();
+  const w=paras.map((p,i)=>i===0?(`${ep.title}. Un artículo de ${ep.author}, traducido al castellano.`).length+12:p.x.length+12);
+  const tot=w.reduce((a,b)=>a+b,0);let acc=0;return w.map(x=>{const s=acc/tot*dur;acc+=x;return s});
+}
+
+/* ---------- estado y vistas ---------- */
+const au=$('au');let cur=null,paras=[],starts=[],secs=[],curIdx=-1,curSec=-2,follow=true,lastSave=0,dragging=false;
+const dur=()=>au.duration||toSec(cur&&cur.duration);
+function renderShelf(){
+  $('count').textContent=EPISODES.length+' vinilos';
+  $('list').innerHTML=EPISODES.map((e,i)=>{
+    const d=toSec(e.duration),p=Math.min(1,(+localStorage.getItem(KP(e.id))||0)/d);
+    return `<li><a class="card" href="#${encodeURIComponent(e.id)}">${sleeve(e,i,p)}
+    <span class="c-title">${esc(e.title)}</span>
+    <span class="c-meta">${esc(e.author)} · ${Math.round(d/60)} min <abbr class="lang" title="Narrado en castellano (España)">ESP</abbr>${p>0.01?`<span>· ${p>0.98?'escuchado':'vas por '+fmt(p*d)}</span>`:''}</span></a></li>`}).join('');
+}
+async function openEp(id){
+  const i=EPISODES.findIndex(e=>e.id===id); if(i<0) return showShelf();
+  const e=EPISODES[i]; cur=e;
+  $('count').textContent=EPISODES.length+' vinilos';
+  $('shelf').hidden=true;$('listen').hidden=false;$('foot').hidden=true;$('p-back').hidden=false;window.scrollTo(0,0);
+  $('tt').innerHTML=turntable(e,i);
+  $('l-title').textContent=e.title;
+  const d=toSec(e.duration);
+  $('l-attr').innerHTML=`<span>${esc(e.author)} · ${Math.round(d/60)} min</span><abbr class="lang" title="Narrado en castellano (España)">ESP</abbr>${e.source?`<a href="${esc(e.source)}" target="_blank" rel="noopener">Artículo original ↗</a>`:''}`;
+  document.title=e.title+' · Vinilos de David';
+  if(au.dataset.id!==e.id){au.pause();au.src='../ep/'+e.id+'.mp3';au.dataset.id=e.id}
+  setRate(+localStorage.getItem(KR(e.id))||1,false);
+  bindDisc();
+  $('paras').innerHTML='<p class="pa intro">Cargando el texto…</p>';
+  try{paras=parseMd(await (await fetch('../ep/'+e.id+'.md')).text())}
+  catch(err){paras=[];$('paras').innerHTML='<p class="pa">No se ha podido cargar el texto.</p>';return}
+  let n=0;
+  $('paras').innerHTML=paras.map((p,k)=>{if(p.t==='h')n++;
+    const txt=p.t==='intro'?`Lado A · ${esc(e.author)} · traducido al castellano`:esc(p.x);
+    return `<span class="pa ${p.t==='p'?'':p.t}" data-i="${k}"${p.t==='h'?` data-k="Pista ${String(n+1).padStart(2,'0')}"`:''}>${txt}</span>`}).join('');
+  starts=computeStarts(e,paras,dur());
+  curIdx=-1;curSec=-2;follow=true;$('p-follow').hidden=true;
+  drawTracks();sync();
+  if('mediaSession' in navigator) navigator.mediaSession.metadata=new MediaMetadata({title:e.title,artist:e.author,album:'Vinilos de David'});
+}
+/* pistas = la intro + cada apartado del artículo; en el disco se ven como surcos de separación */
+function drawTracks(){
+  const d=dur();
+  secs=[{k:0,x:'Introducción'}].concat(paras.map((p,k)=>p.t==='h'?{k,x:p.x}:null).filter(Boolean));
+  $('trk').innerHTML=secs.slice(1).map(s=>{const r=R1-(R1-R0)*starts[s.k]/d;return `<circle cx="170" cy="170" r="${r.toFixed(1)}" fill="none" stroke="#000" stroke-width="3"/><circle cx="170" cy="170" r="${(r+2).toFixed(1)}" fill="none" stroke="#6b5c4e" stroke-width=".8"/>`}).join('');
+  $('marks').innerHTML=secs.slice(1).map(s=>`<span data-t="${starts[s.k]}" style="left:${(starts[s.k]/d*100).toFixed(2)}%"></span>`).join('');
+  $('tracks-sum').textContent=`Pistas del disco (${secs.length})`;
+  $('tlist').innerHTML=secs.map((s,j)=>{const end=j+1<secs.length?starts[secs[j+1].k]:d;
+    return `<li data-j="${j}"><button data-k="${s.k}"><span class="n">${String(j+1).padStart(2,'0')}</span><span>${esc(s.x)}</span><span class="d">${fmt(end-starts[s.k])}</span></button></li>`}).join('');
+}
+function showShelf(){au.pause();$('listen').hidden=true;$('shelf').hidden=false;$('foot').hidden=false;$('p-back').hidden=true;$('p-follow').hidden=true;document.title='Vinilos de David';renderShelf()}
+function route(){const id=decodeURIComponent(location.hash.slice(1));id?openEp(id):showShelf()}
+
+/* ---------- reproductor ---------- */
+$('speeds').innerHTML=SPEEDS.map(s=>`<button class="sp" data-r="${s}">${String(s).replace('.',',')}×</button>`).join('');
+function setRate(r,save=true){au.defaultPlaybackRate=r;au.playbackRate=r;if(save&&cur)localStorage.setItem(KR(cur.id),r);
+  document.documentElement.style.setProperty('--rot',(1.8/r).toFixed(2)+'s'); // 33⅓ rpm, al ritmo de la velocidad elegida
+  document.querySelectorAll('.sp').forEach(b=>b.classList.toggle('on',+b.dataset.r===r))}
+$('speeds').onclick=ev=>{const b=ev.target.closest('.sp');if(b)setRate(+b.dataset.r)};
+const seek=t=>{au.currentTime=Math.max(0,Math.min(dur()-0.5,t));sync()};
+$('k-back').onclick=()=>seek(au.currentTime-15);
+$('k-fwd').onclick=()=>seek(au.currentTime+30);
+$('k-play').onclick=()=>au.paused?au.play():au.pause();
+$('scrub').oninput=ev=>{dragging=true;const t=ev.target.value/1000*dur();$('t-cur').textContent=fmt(t);setArm(t/dur())};
+$('scrub').onchange=ev=>{dragging=false;seek(ev.target.value/1000*dur());follow=true;$('p-follow').hidden=true};
+$('tlist').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;seek(starts[+b.dataset.k]+.05);follow=true;$('p-follow').hidden=true;if(au.paused)au.play()};
+
+/* tocar/arrastrar sobre el disco = mover la aguja; tocar la etiqueta = play/pausa */
+function bindDisc(){
+  const svg=$('tt').querySelector('svg'),tt=$('tt');let start=null,moved=false;
+  const pt=ev=>{const p=svg.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return Math.hypot(q.x-C[0],q.y-C[1])};
+  const prog=r=>Math.min(1,Math.max(0,(R1-r)/(R1-R0)));
+  svg.addEventListener('pointerdown',ev=>{const r=pt(ev);if(r>150)return;start={r,y:ev.clientY,x:ev.clientX};moved=false;svg.setPointerCapture(ev.pointerId)});
+  svg.addEventListener('pointermove',ev=>{if(!start)return;const r=pt(ev);
+    if(!moved&&Math.hypot(ev.clientX-start.x,ev.clientY-start.y)<6)return;
+    moved=true;dragging=true;tt.classList.add('dragging');const p=prog(r);setArm(p);$('peek').hidden=false;$('peek').textContent=fmt(p*dur())});
+  const end=ev=>{if(!start)return;const r=pt(ev);tt.classList.remove('dragging');$('peek').hidden=true;
+    if(!moved&&start.r<R0-6){au.paused?au.play():au.pause()}
+    else if(start.r<=R1+8||moved){seek(prog(r)*dur());follow=true;$('p-follow').hidden=true}
+    start=null;dragging=false};
+  svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',()=>{start=null;dragging=false;tt.classList.remove('dragging');$('peek').hidden=true;sync()});
+}
+
+au.addEventListener('loadedmetadata',()=>{
+  if(!cur)return;
+  const q=new URLSearchParams(location.search).get('t'); // ?t=segundos, solo para pruebas
+  const pos=q!=null?+q:(+localStorage.getItem(KP(cur.id))||0); if(pos>0&&pos<au.duration-2) au.currentTime=pos;
+  au.playbackRate=au.defaultPlaybackRate;
+  if(paras.length){starts=computeStarts(cur,paras,au.duration);drawTracks()}
+  sync();
+});
+const setPlaying=on=>{$('k-play').classList.toggle('on',on);$('i-play').hidden=on;$('i-pause').hidden=!on;document.body.classList.toggle('playing',on);$('k-play').setAttribute('aria-label',on?'Pausar':'Reproducir');sync()};
+au.addEventListener('play',()=>setPlaying(true));
+au.addEventListener('pause',()=>{setPlaying(false);save(true)});
+au.addEventListener('timeupdate',()=>{sync();save()});
+au.addEventListener('ended',()=>{if(cur)localStorage.setItem(KP(cur.id),0)});
+function save(force){const n=Date.now();if(cur&&(force||n-lastSave>3000)){lastSave=n;localStorage.setItem(KP(cur.id),au.currentTime)}}
+function idxAt(arr,t){let lo=0,hi=arr.length-1,r=0;while(lo<=hi){const m=(lo+hi)>>1;if(arr[m]<=t+0.15){r=m;lo=m+1}else hi=m-1}return r}
+function sync(){
+  if(!cur)return;
+  const d=dur(),t=au.currentTime||0;
+  if(!dragging){$('scrub').value=Math.round(t/d*1000)||0;$('t-cur').textContent=fmt(t);setArm(t/d,au.paused&&t<0.5)}
+  $('t-dur').textContent=fmt(d);
+  $('s-k').innerHTML=au.paused?'Lado A · En pausa':`<b>●</b> Lado A · Sonando a ${String(au.playbackRate).replace('.',',')}×`;
+  document.querySelectorAll('#marks span').forEach(m=>m.classList.toggle('past',+m.dataset.t<=t));
+  if(!starts.length)return;
+  const k=idxAt(starts,t);
+  const sj=idxAt(secs.map(s=>starts[s.k]),t);
+  if(sj!==curSec){curSec=sj;$('s-sec').textContent=`Pista ${String(sj+1).padStart(2,'0')} · ${sj?secs[sj].x:cur.title}`;
+    document.querySelectorAll('#tlist li').forEach(li=>li.classList.toggle('on',+li.dataset.j===sj))}
+  if(k===curIdx)return;
+  const els=$('paras').children;
+  for(let j=0;j<els.length;j++){els[j].classList.toggle('done',j<k);els[j].classList.toggle('cur',j===k)}
+  curIdx=k;
+  if(follow&&els[k]&&(!au.paused||TEST)) els[k].scrollIntoView({block:'center',behavior:TEST?'auto':'smooth'});
+}
+$('paras').onclick=ev=>{const p=ev.target.closest('.pa');if(!p||p.dataset.i==null)return;seek(starts[+p.dataset.i]+0.05);follow=true;$('p-follow').hidden=true;if(au.paused)au.play()};
+const userScroll=ev=>{if(ev.target.closest&&ev.target.closest('.tt'))return;if(!au.paused&&!$('listen').hidden){follow=false;$('p-follow').hidden=false}};
+addEventListener('wheel',userScroll,{passive:true});addEventListener('touchmove',userScroll,{passive:true});
+$('p-follow').onclick=()=>{follow=true;$('p-follow').hidden=true;const el=$('paras').children[curIdx];if(el)el.scrollIntoView({block:'center',behavior:'smooth'})};
+$('p-back').onclick=()=>{location.hash=''};
+if('mediaSession' in navigator){
+  const H={play:()=>au.play(),pause:()=>au.pause(),seekbackward:()=>seek(au.currentTime-15),seekforward:()=>seek(au.currentTime+30),seekto:d=>seek(d.seekTime)};
+  for(const[k,f]of Object.entries(H)){try{navigator.mediaSession.setActionHandler(k,f)}catch{}}
+}
+addEventListener('pagehide',()=>save(true));
+addEventListener('hashchange',route);
+route();
+</script>
+</body>
+</html>
