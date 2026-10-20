@@ -36,7 +36,7 @@ page='''<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Podcasts">
 <meta name="robots" content="noindex,nofollow">
-<title>Mis podcasts</title>
+<title>Vinilos para pensar</title>
 <style>
 :root{color-scheme:light dark}
 body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:16px 14px calc(30px + env(safe-area-inset-bottom));max-width:760px;margin:auto;line-height:1.55;background:#f4f4f6;color:#1c1c1e}
@@ -53,7 +53,7 @@ button.on{background:#007aff;color:#fff;border-color:#007aff;font-weight:600}
 details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 .txt h3{font-size:1.05rem;margin-top:1.2em}blockquote{border-left:4px solid #999;margin:0;padding-left:12px;opacity:.85}
 </style></head><body>
-<h1>🎧 Mis podcasts</h1>
+<h1>🎧 Vinilos para pensar</h1>
 '''+'\n'.join(cards)+'''
 <script>
 const fmt=s=>{s=Math.floor(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return (h?h+':'+String(m).padStart(2,'0'):m)+':'+x};
@@ -77,7 +77,7 @@ document.querySelectorAll('.ep').forEach(ep=>{
   ep.querySelector('.fw').onclick=()=>seek(30);
   pp.onclick=()=>a.paused?a.play():a.pause();
   const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0)pos.textContent='Seguirás en '+fmt(p);
-  if('mediaSession' in navigator){a.addEventListener('play',()=>{navigator.mediaSession.metadata=new MediaMetadata({title:ep.querySelector('h2').textContent,artist:ep.querySelector('.meta').textContent.split(' · ')[0],album:'Mis podcasts'});navigator.mediaSession.setActionHandler('seekbackward',()=>seek(-15));navigator.mediaSession.setActionHandler('seekforward',()=>seek(30))})}
+  if('mediaSession' in navigator){a.addEventListener('play',()=>{navigator.mediaSession.metadata=new MediaMetadata({title:ep.querySelector('h2').textContent,artist:ep.querySelector('.meta').textContent.split(' · ')[0],album:'Vinilos para pensar'});navigator.mediaSession.setActionHandler('seekbackward',()=>seek(-15));navigator.mediaSession.setActionHandler('seekforward',()=>seek(30))})}
 });
 </script></body></html>'''
 open('index.html','w').write(page); print('ok',len(eps),'episodios')
