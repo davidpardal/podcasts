@@ -1,0 +1,50 @@
+/* Añadidos del panel adaptado: etiqueta Demo, nº de personas variable y Ajustes. */
+.demo-tag {
+  display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 7px 1px;
+  border-radius: 6px; border: 1.5px dashed currentColor; font: 700 11px/1.2 var(--sans);
+  letter-spacing: .08em; text-transform: uppercase; opacity: .7; white-space: nowrap;
+}
+.h-presence { position: relative; }
+.h-presence > .demo-tag { position: absolute; right: 0; top: -17px; margin: 0; color: var(--mute); font-size: 10px; padding: 0 5px; }
+.h-wx-meta b .demo-tag { font-size: 10px; }
+
+/* El original tiene 4 personas fijas; aquí sale de Ajustes (--np, por defecto 4) */
+.h-lanes { grid-template-columns: repeat(var(--np, 4), 1fr); }
+.lanes-head { grid-template-columns: 64px repeat(var(--np, 4), 1fr); }
+.cal-3 .lanes-head { grid-template-columns: 64px repeat(3, 1fr); }
+.allday-grid { grid-template-columns: repeat(var(--np, 4), 1fr); }
+.allday-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.lanes { grid-template-columns: repeat(var(--np, 4), 1fr); }
+.lanes--3 { grid-template-columns: repeat(3, 1fr); }
+.ch-lanes { grid-template-columns: repeat(calc(var(--np, 4) + 1), 1fr); }
+
+/* Ajustes */
+.sheet--settings { width: 1040px; }
+.set .sheet-h { margin-bottom: 10px; }
+.set-body { max-height: 470px; overflow-y: auto; padding-right: 8px; -webkit-overflow-scrolling: touch; }
+.set section { padding: 14px 0; border-top: 1px solid var(--line); }
+.set h3 { font: 800 15px/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; }
+.set-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+.set-in, .set-ta {
+  flex: 1; min-width: 180px; height: 52px; padding: 0 14px; border-radius: var(--r-s); border: 2px solid var(--line);
+  background: var(--card); font: 500 18px var(--sans); color: var(--ink);
+}
+.set-ta { height: auto; padding: 10px 14px; width: 100%; resize: vertical; margin-bottom: 8px; }
+.set-in--s { flex: 0 0 220px; min-width: 0; }
+.set-in--xs { flex: 0 0 96px; min-width: 0; width: 96px; }
+.set-in:focus, .set-ta:focus { outline: none; border-color: var(--ink); }
+.set-color { width: 52px; height: 52px; border: 0; background: none; padding: 0; }
+.set-x { height: 52px; }
+.set-chk { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+.set-chk input, .set-who input { width: 24px; height: 24px; }
+.set-lbl { font-size: 15px; color: var(--mute); }
+.set-note { font-size: 16px; color: var(--ink-2); margin: 4px 0 8px; line-height: 1.4; }
+.set-who { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 16px; margin-bottom: 12px; }
+.set-who label { display: flex; align-items: center; gap: 6px; }
+.set-shifts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 16px; }
+.set-shifts label { display: flex; align-items: center; gap: 6px; font-size: 15px; justify-content: space-between; }
+.set-file { display: inline-flex; align-items: center; cursor: pointer; }
+.set .sheet-actions { margin-top: 14px; }
+.th-now span { white-space: nowrap; }
+.h-photo-cap .demo-tag, .cap .demo-tag, .amb-right .demo-tag { font: 700 10px/1.2 var(--sans); font-style: normal; letter-spacing: .08em; color: #fff; }
+.amb-right .demo-tag { align-self: flex-end; }
