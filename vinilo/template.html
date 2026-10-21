@@ -42,11 +42,44 @@ h1,h2{font-family:var(--serif);font-weight:500;letter-spacing:-.015em;line-heigh
 .lead{color:var(--ink-2);max-width:34em;margin:0 0 24px}
 .list{list-style:none;margin:0;padding:0;display:grid;gap:16px}
 @media(min-width:760px){.list{grid-template-columns:repeat(2,1fr)}}
-.card{display:flex;flex-direction:column;gap:6px;padding:14px 14px 16px;background:linear-gradient(#1a130f,#130e0b);border:1px solid var(--edge);border-radius:18px;text-decoration:none;color:var(--ink);transition:transform .25s,border-color .25s}
-.card:hover{border-color:#5a4433;transform:translateY(-3px)}
+.item{display:flex;flex-direction:column;background:linear-gradient(#1a130f,#130e0b);border:1px solid var(--edge);border-radius:18px;overflow:hidden;transition:transform .25s,border-color .25s}
+.item:hover{border-color:#5a4433;transform:translateY(-3px)}
+.card{display:flex;flex-direction:column;gap:6px;padding:14px 14px 14px;text-decoration:none;color:var(--ink);flex:1}
 .card svg{display:block;width:100%;height:auto;margin-bottom:8px;overflow:visible}
 .card .disc-out{transition:transform .5s cubic-bezier(.3,.7,0,1)}
-.card:hover .disc-out{transform:translateX(18px)}
+.item:hover .disc-out{transform:translateX(18px)}
+.c-prog{display:flex;align-items:center;gap:10px;margin-top:4px;font:500 12px var(--mono);color:var(--brass);font-variant-numeric:tabular-nums}
+.c-prog .c-bar{flex:1;margin:0;height:4px}
+.badge{display:inline-block;padding:0 6px;font:500 10px/1.8 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--brass);border-radius:3px}
+.mark{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:0;border-top:1px solid var(--line);background:#120d0a;color:var(--ink-2);font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.mark:hover{color:var(--ink)}.mark:active{background:#0b0806}
+.mark .ck{color:var(--brass);font-size:15px;letter-spacing:0}
+/* secciones */
+.seg{position:sticky;top:calc(64px + env(safe-area-inset-top));z-index:15;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 0 6px;background:#0b0806;box-shadow:0 8px 20px rgba(13,10,8,.85);border:1px solid var(--edge);border-radius:999px}
+.seg button{min-height:44px;border:0;border-radius:999px;background:none;cursor:pointer;font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.seg button b{font-weight:500;color:var(--brass);margin-left:4px}
+.seg button.on{background:var(--red-2);color:var(--ink);box-shadow:inset 0 -3px 0 var(--red)}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:30px 0 14px;padding:0 0 10px;border-bottom:1px solid var(--line);list-style:none;cursor:default;scroll-margin-top:calc(124px + env(safe-area-inset-top))}
+.sec-h::-webkit-details-marker{display:none}
+.sec-h h2{font-size:26px;margin:0}
+.sec-h .n{font:500 11px var(--mono);letter-spacing:.14em;color:var(--brass);border:1px solid var(--brass-2);border-radius:999px;padding:4px 11px;margin-left:auto}
+.done-sec>summary{cursor:pointer}
+.done-sec>summary::after{content:'+';font:500 20px var(--mono);color:var(--brass);width:18px;text-align:center}
+.done-sec[open]>summary::after{content:'−'}
+.empty{padding:22px 18px;border:1px dashed var(--edge);border-radius:16px;color:var(--ink-2);font-size:15px;text-align:center}
+.dlist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+@media(min-width:760px){.dlist{grid-template-columns:repeat(2,1fr)}}
+.row{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.r-link{flex:1;min-width:0;display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink)}
+.r-link svg{flex:none;width:54px;height:54px}
+.r-txt{min-width:0;display:flex;flex-direction:column;gap:2px}
+.r-title{font:500 15.5px/1.25 var(--serif);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--ink-2)}
+.r-meta{font:11.5px var(--mono);color:var(--muted)}.r-meta .ck{color:var(--brass)}
+.mark.sm{flex:none;min-height:44px;padding:0 12px;border:1px solid var(--edge);border-radius:999px;font-size:11px;letter-spacing:.08em}
+.lmark{display:inline-flex;align-items:center;gap:8px;min-height:40px;margin:0 0 14px;padding:0 14px;border:1px solid var(--edge);border-radius:999px;background:#120d0a;color:var(--ink-2);font:500 11.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.lmark.on{color:var(--bg);background:var(--brass);border-color:var(--brass)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;display:flex;align-items:center;gap:14px;max-width:calc(100% - 28px);background:#1d1612;color:var(--ink);border:1px solid var(--brass-2);border-radius:999px;padding:8px 8px 8px 18px;font:500 14px var(--sans);box-shadow:0 10px 24px rgba(0,0,0,.6);white-space:nowrap}
+.toast button{border:0;border-radius:999px;background:var(--brass);color:var(--bg);font:600 13px var(--sans);padding:9px 14px;cursor:pointer}
 .c-title{font:500 19px/1.22 var(--serif)}
 .c-meta{font:12.5px var(--mono);color:var(--muted);display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
 .c-bar{height:3px;background:#2a2019;border-radius:2px;overflow:hidden;margin-top:6px}.c-bar i{display:block;height:100%;background:var(--brass)}
@@ -134,13 +167,18 @@ h1,h2{font-family:var(--serif);font-weight:500;letter-spacing:-.015em;line-heigh
   <p class="kicker">Colección · versión de prueba</p>
   <h1>Artículos para escuchar <em>en vinilo</em>.</h1>
   <p class="lead">Cada disco es un artículo entero traducido al castellano y narrado. Ponlo a girar, elige tu velocidad y el texto te sigue mientras escuchas.</p>
-  <ul class="list" id="list"></ul>
+  <nav class="seg" id="seg" aria-label="Secciones"><button data-go="sec-pend" class="on">Sin escuchar<b id="g-pend"></b></button><button data-go="sec-done">Escuchados<b id="g-done"></b></button></nav>
+  <section aria-labelledby="h-pend"><div class="sec-h" id="sec-pend"><h2 id="h-pend">Sin escuchar</h2><span class="n" id="n-pend"></span></div>
+  <ul class="list" id="list"></ul></section>
+  <details class="done-sec" id="done-sec" open><summary class="sec-h" id="sec-done"><h2>Escuchados</h2><span class="n" id="n-done"></span></summary>
+  <ul class="dlist" id="dlist"></ul></details>
 </main>
 
 <main id="listen" class="listen" hidden>
   <div class="tt" id="tt"></div>
   <h1 id="l-title"></h1>
   <p class="attr" id="l-attr"></p>
+  <button class="lmark" id="l-mark"></button>
   <section class="deck" aria-label="Reproductor">
     <div class="screen">
       <span class="s-k" id="s-k">Cara A · En pausa</span>
@@ -164,6 +202,7 @@ h1,h2{font-family:var(--serif);font-weight:500;letter-spacing:-.015em;line-heigh
 
 <footer class="foot" id="foot"><span>Vinilos para pensar</span><span>Narrado en castellano (España)</span></footer>
 <div class="pills"><button class="pill follow" id="p-follow" hidden>↓ Seguir la voz</button><button class="pill" id="p-back" hidden>← Colección</button></div>
+<div class="toast" id="toast" hidden><span id="toast-t"></span><button id="toast-u">Deshacer</button></div>
 <audio id="au" preload="metadata"></audio>
 
 <script>
@@ -178,6 +217,16 @@ const fmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.f
 const toSec=d=>String(d||'0').split(':').map(Number).reduce((a,b)=>a*60+b,0);
 const hash=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0};
 const KP=id=>'pos:'+id, KR=id=>'rate:'+id; // mismas claves que la web actual
+/* escuchado: done:<id> = fecha (ms). Se marca solo al pasar del 95 % o al terminar; compartido con la web principal */
+const KD=id=>'done:'+id, THR=0.95;
+const isDone=id=>!!localStorage.getItem(KD(id));
+const progOf=e=>{const d=toSec(e.duration);return d?Math.min(1,(+localStorage.getItem(KP(e.id))||0)/d):0};
+function setDone(id,on){
+  if(on){if(!isDone(id))localStorage.setItem(KD(id),String(Date.now()))}
+  else{localStorage.removeItem(KD(id));const e=EPISODES.find(x=>x.id===id);if(e&&progOf(e)>=THR)localStorage.setItem(KP(id),0)} // pendiente al final = empezar de cero
+}
+// migración: lo que ya tenías guardado casi al final cuenta como escuchado
+const migrate=()=>EPISODES.forEach(e=>{if(!isDone(e.id)&&progOf(e)>=THR)setDone(e.id,true)});
 const TEST=new URLSearchParams(location.search).has('t')&&!new URLSearchParams(location.search).has('top');
 function wrap(t,n,max){const w=t.split(/\s+/),out=[];let l='';for(const x of w){if((l+' '+x).trim().length>n&&l){out.push(l);l=x}else l=(l+' '+x).trim()}if(l)out.push(l);if(out.length>max){out.length=max;out[max-1]=out[max-1].replace(/\s*\S*$/,'')+'…'}return out}
 
@@ -194,6 +243,9 @@ function label(ep,i,cx,cy,r){
   <circle cx="${cx}" cy="${cy}" r="${r*.06}" fill="#0d0a08"/>`;
 }
 function grooves(cx,cy,r0,r1,step){let s='';for(let r=r0;r<=r1;r+=step)s+=`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none" stroke="${Math.round(r)%3?'#1a1714':'#24201c'}" stroke-width=".7"/>`;return s}
+
+function miniDisc(ep){const [bg,acc,lab]=PAL[hash(ep.id)%PAL.length];
+  return `<svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="29" fill="#0c0a09" stroke="#2b211a"/>${grooves(30,30,15,27,2.4)}<circle cx="30" cy="30" r="12" fill="${lab}"/><circle cx="30" cy="30" r="12" fill="none" stroke="${bg}" stroke-width="3" opacity=".7"/><path d="M24.5 30.5l4 4 7-8" fill="none" stroke="${bg}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
 
 /* ---------- funda para la colección ---------- */
 function sleeve(ep,i,prog=0){
@@ -279,13 +331,47 @@ function computeStarts(ep,paras,dur){
 const au=$('au');let cur=null,paras=[],starts=[],secs=[],curIdx=-1,curSec=-2,follow=true,lastSave=0,dragging=false;
 const dur=()=>au.duration||toSec(cur&&cur.duration);
 function renderShelf(){
+  migrate();
   $('count').textContent=EPISODES.length+' vinilos';
-  $('list').innerHTML=EPISODES.map((e,i)=>{
-    const d=toSec(e.duration),p=Math.min(1,(+localStorage.getItem(KP(e.id))||0)/d);
-    return `<li><a class="card" href="#${encodeURIComponent(e.id)}">${sleeve(e,i,p)}
+  const pend=[],done=[];
+  EPISODES.forEach((e,i)=>(isDone(e.id)?done:pend).push([e,i])); // EPISODES ya va del más nuevo al más antiguo
+  $('n-pend').textContent=$('g-pend').textContent=pend.length;
+  $('n-done').textContent=$('g-done').textContent=done.length;
+  $('list').innerHTML=pend.length?pend.map(([e,i])=>{
+    const d=toSec(e.duration),p=progOf(e),on=p>0.01;
+    return `<li class="item"><a class="card" href="#${encodeURIComponent(e.id)}">${sleeve(e,i,p)}
     <span class="c-title">${esc(e.title)}</span>
-    <span class="c-meta">${esc(e.author)} · ${Math.round(d/60)} min <abbr class="lang" title="Narrado en castellano (España)">ESP</abbr>${p>0.01?`<span>· ${p>0.98?'escuchado':'vas por '+fmt(p*d)}</span>`:''}</span></a></li>`}).join('');
+    <span class="c-meta">${esc(e.author)} · ${Math.round(d/60)} min <abbr class="lang" title="Narrado en castellano (España)">ESP</abbr>${on?'<span class="badge">A medias</span>':''}</span>
+    ${on?`<span class="c-prog"><span class="c-bar"><i style="width:${(p*100).toFixed(1)}%"></i></span><span>${Math.round(p*100)} % · quedan ${fmt(d-p*d)}</span></span>`:''}</a>
+    <button class="mark" data-id="${esc(e.id)}" data-on="1"><span class="ck">✓</span> Marcar como escuchado</button></li>`}).join('')
+    :'<li class="empty">Lo tienes todo escuchado. Pásame otro artículo de X y lo grabo.</li>';
+  $('dlist').innerHTML=done.length?done.map(([e,i])=>{const d=toSec(e.duration);
+    return `<li class="row"><a class="r-link" href="#${encodeURIComponent(e.id)}">${miniDisc(e)}<span class="r-txt"><span class="r-title">${esc(e.title)}</span><span class="r-meta">${esc(e.author)} · ${Math.round(d/60)} min</span></span></a>
+    <button class="mark sm" data-id="${esc(e.id)}" data-on="0" aria-label="Marcar como pendiente" title="Marcar como pendiente">↺ Pendiente</button></li>`}).join('')
+    :'<li class="empty">Aún no has terminado ningún vinilo. Se marcan solos al llegar al 95 %, o con el botón «Marcar como escuchado».</li>';
 }
+let toastT=0,undo=null;
+function toast(msg,fn){$('toast-t').textContent=msg;undo=fn;$('toast').hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{$('toast').hidden=true;undo=null},5000)}
+$('toast-u').onclick=()=>{$('toast').hidden=true;if(undo)undo();undo=null};
+$('shelf').addEventListener('click',ev=>{
+  const b=ev.target.closest('.mark');
+  if(b){ev.preventDefault();const id=b.dataset.id,on=b.dataset.on==='1',before=localStorage.getItem(KP(id));
+    setDone(id,on);renderShelf();
+    toast(on?'Movido a Escuchados':'Movido a Sin escuchar',()=>{setDone(id,!on);if(before!=null)localStorage.setItem(KP(id),before);renderShelf()});return}
+  const g=ev.target.closest('.seg button');
+  if(g){if(g.dataset.go==='sec-done')$('done-sec').open=true;$(g.dataset.go).scrollIntoView({behavior:'smooth',block:'start'})}
+});
+$('done-sec').open=localStorage.getItem('ui:doneOpen')!=='0';
+$('done-sec').addEventListener('toggle',()=>localStorage.setItem('ui:doneOpen',$('done-sec').open?'1':'0'));
+// resalta en el selector la sección que tienes a la vista
+addEventListener('scroll',()=>{if($('shelf').hidden)return;const y=$('sec-done').getBoundingClientRect().top;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',(b.dataset.go==='sec-done')===(y<innerHeight*.6)))},{passive:true});
+addEventListener('storage',ev=>{if(!$('shelf').hidden&&ev.key&&/^(done|pos):/.test(ev.key))renderShelf();else if(cur)updMark()});
+function updMark(){if(!cur)return;const on=isDone(cur.id);$('l-mark').classList.toggle('on',on);
+  $('l-mark').innerHTML=on?'✓ Escuchado · marcar como pendiente':'Marcar como escuchado'}
+$('l-mark').onclick=()=>{if(!cur)return;const on=!isDone(cur.id);
+  if(!on&&dur()&&au.currentTime/dur()>=THR)seek(0); // si estabas al final, vuelve a empezar
+  setDone(cur.id,on);if(!on)save(true);updMark()};
 async function openEp(id){
   const i=EPISODES.findIndex(e=>e.id===id); if(i<0) return showShelf();
   const e=EPISODES[i]; cur=e;
@@ -296,6 +382,7 @@ async function openEp(id){
   const d=toSec(e.duration);
   $('l-attr').innerHTML=`<span>${esc(e.author)} · ${Math.round(d/60)} min</span><abbr class="lang" title="Narrado en castellano (España)">ESP</abbr>${e.source?`<a href="${esc(e.source)}" target="_blank" rel="noopener">Artículo original ↗</a>`:''}`;
   document.title=e.title+' · Vinilos para pensar';
+  updMark();
   if(au.dataset.id!==e.id){au.pause();au.src='../ep/'+e.id+'.mp3';au.dataset.id=e.id}
   setRate(+localStorage.getItem(KR(e.id))||1,false);
   bindDisc();
@@ -365,8 +452,9 @@ au.addEventListener('loadedmetadata',()=>{
 const setPlaying=on=>{$('k-play').classList.toggle('on',on);$('i-play').hidden=on;$('i-pause').hidden=!on;document.body.classList.toggle('playing',on);$('k-play').setAttribute('aria-label',on?'Pausar':'Reproducir');sync()};
 au.addEventListener('play',()=>setPlaying(true));
 au.addEventListener('pause',()=>{setPlaying(false);save(true)});
-au.addEventListener('timeupdate',()=>{sync();save()});
-au.addEventListener('ended',()=>{if(cur)localStorage.setItem(KP(cur.id),0)});
+au.addEventListener('timeupdate',()=>{sync();save();
+  if(cur&&au.duration&&au.currentTime/au.duration>=THR&&!isDone(cur.id)){setDone(cur.id,true);updMark()}});
+au.addEventListener('ended',()=>{if(cur){localStorage.setItem(KP(cur.id),0);setDone(cur.id,true);updMark()}});
 function save(force){const n=Date.now();if(cur&&(force||n-lastSave>3000)){lastSave=n;localStorage.setItem(KP(cur.id),au.currentTime)}}
 function idxAt(arr,t){let lo=0,hi=arr.length-1,r=0;while(lo<=hi){const m=(lo+hi)>>1;if(arr[m]<=t+0.15){r=m;lo=m+1}else hi=m-1}return r}
 function sync(){

@@ -17,16 +17,32 @@ button{font-size:1.15rem;padding:14px 4px;border-radius:12px;border:1px solid #c
 button.on{background:#007aff;color:#fff;border-color:#007aff;font-weight:600}
 .pos{font-size:.85rem;color:#666;margin-top:6px;text-align:center}
 details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
+h2.sec,summary.sec{display:flex;align-items:center;gap:10px;font-size:1.25rem;margin:22px 4px 12px;scroll-margin-top:12px}
+.sec .n{font-size:.85rem;font-weight:600;padding:2px 10px;border-radius:999px;background:#0001}
+#s-done>summary.sec{cursor:pointer;padding:0}
+#s-done>summary.sec::after{content:'+';margin-left:auto;opacity:.6}#s-done[open]>summary.sec::after{content:'−'}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 6px}
+.bar{height:5px;border-radius:3px;background:#0001;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;width:0;background:#007aff}
+.bar.z{display:none}
+button.mk{width:100%;margin-top:10px;font-size:1rem;padding:12px 4px}
+.ep.done{opacity:.92}.ep.done h2::before{content:'✓ ';color:#34c759}
+.empty{padding:18px;text-align:center;opacity:.7;border:1px dashed #8886;border-radius:14px}
+@media(prefers-color-scheme:dark){.sec .n,.bar{background:#ffffff1a!important}.bar i{background:#0a84ff}}
 .txt h3{font-size:1.05rem;margin-top:1.2em}blockquote{border-left:4px solid #999;margin:0;padding-left:12px;opacity:.85}
 </style></head><body>
 <h1>🎧 Vinilos para pensar</h1>
-<section class="ep" data-id="siddharth-negocio-unipersonal">
+<nav class="seg"><button data-go="s-pend">Sin escuchar (<b class="np">0</b>)</button><button data-go="s-done">Escuchados (<b class="nd">0</b>)</button></nav>
+<h2 class="sec" id="s-pend">Sin escuchar <span class="n np">0</span></h2>
+<div id="pend">
+<section class="ep" data-id="siddharth-negocio-unipersonal" data-n="0" data-dur="1833">
 <h2>Cómo crear un negocio unipersonal rentable con IA (masterclass completa de 2026)</h2>
 <div class="meta">Siddharth · 30:33 · <a href="https://x.com/siddharthwv/status/2112549278619185518">original</a></div>
 <audio controls preload="metadata" src="ep/siddharth-negocio-unipersonal.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>En los primeros 90 días de 2026, Amazon anunció 16.000 despidos. Dell recortó otros 11.000. Oracle también inició una gran ronda de despidos, y algunas informaciones calculaban que podrían verse afectados hasta 30.000 empleos.</p>
 <p>A principios de mayo de 2026 ya se habían recortado más de 100.000 empleos tecnológicos en todo el mundo, según los datos que recopila Layoffs.fyi.</p>
 <p>Detrás de cada titular hay alguien que pensaba que por fin lo había conseguido.</p>
@@ -322,13 +338,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>Haré lo que pueda por ayudarte.</p>
 <p>Sidd</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-foco">
+<section class="ep" data-id="dankoe-foco" data-n="1" data-dur="2099">
 <h2>Guía completa: cómo desbloquear una concentración extrema cuando quieras</h2>
 <div class="meta">Dan Koe · 34:59 · <a href="https://x.com/thedankoe/status/2012956603297964167">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-foco.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>No has experimentado nada que se acerque a lo que eres capaz de hacer.</p>
 <p>Y si aprendes a desbloquear ese poder, puedes hacer lo que la mayoría de la gente considera imposible.</p>
 <p>Creen que tienen que matarse a trabajar 12 horas al día, como su emprendedor favorito, para ver algún tipo de resultado.</p>
@@ -558,13 +576,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>Tienes que invertir en tu cartera de fracasos hasta que puedas permitirte triunfar.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-intereses">
+<section class="ep" data-id="dankoe-intereses" data-n="2" data-dur="2099">
 <h2>Si tienes muchos intereses, no desperdicies los próximos 2 o 3 años</h2>
 <div class="meta">Dan Koe · 34:59 · <a href="https://x.com/thedankoe/status/2010042119121957316">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-intereses.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>La sociedad te hizo creer que tener muchos intereses era una debilidad.</p>
 <p>Ve al colegio.</p>
 <p>Saca un título.</p>
@@ -811,13 +831,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>Gracias por leer.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-articular">
+<section class="ep" data-id="dankoe-articular" data-n="3" data-dur="1124">
 <h2>Cómo expresarte con inteligencia</h2>
 <div class="meta">Dan Koe · 18:44 · <a href="https://x.com/thedankoe/status/2011827303962329458">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-articular.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>De pequeño, siempre me atraía la gente que sonaba inteligente.</p>
 <p>Gente como Alan Watts, Jordan Peterson, Daniel Schmachtenberger u otras personas capaces de explicar ideas profundas de una forma interesante. La mayoría de las veces no entendía lo que decían (o porque era demasiado joven o porque lo complicaban todo en exceso), pero, como sonaba inteligente y bien articulado, los escuchaba de todos modos y les daba mi respeto.</p>
 <p>La cuestión es que nunca pensé que yo pudiera hacer lo mismo.</p>
@@ -931,13 +953,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>– Dan</p>
 <p>Envío cartas como esta una o dos veces por semana. Si prefieres recibirlas en tu bandeja de entrada para no depender de que el algoritmo te las enseñe, apúntate aquí. También puedes leer gratis mi libro, otras cartas, etcétera.</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-recordar">
+<section class="ep" data-id="dankoe-recordar" data-n="4" data-dur="1541">
 <h2>Cómo recordar todo lo que lees (deja de intentarlo)</h2>
 <div class="meta">Dan Koe · 25:41 · <a href="https://x.com/thedankoe/status/2081415714636996844">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-recordar.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><blockquote><p>Si necesitas recordarlo, no es importante. Si es importante, lo recordarás.</p></blockquote>
 <p>La gente siente que, si no retiene el conocimiento de lo que lee, es un fracaso o ha perdido el tiempo, cuando ese no es en absoluto el sentido de leer.</p>
 <p>Para empezar, ¿por qué ibas a querer memorizar cada palabra de un libro?</p>
@@ -1111,13 +1135,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>– Dan</p>
 <p>Si quieres escribir pero no sabes por dónde empezar, sobre qué escribir o nada sobre cómo crecer en redes sociales, plantéate apuntarte al bootcamp aquí.</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-delirante">
+<section class="ep" data-id="dankoe-delirante" data-n="5" data-dur="1110">
 <h2>Tienes que ser un iluso si quieres triunfar</h2>
 <div class="meta">Dan Koe · 18:30 · <a href="https://x.com/thedankoe/status/2098813973714149757">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-delirante.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Dime si te reconoces en alguna de estas:</p>
 <p>1) Sientes que te han mentido sobre cómo es una buena vida.</p>
 <p>Persigues un objetivo que suena bien cuando lo mencionas en una cena con la abuela. O un objetivo que no haría que tus padres te vieran como una decepción. Y no ves que vaya a ninguna parte.</p>
@@ -1239,13 +1265,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>En la próxima carta, hablaremos de cómo darle gravedad a tus objetivos. Es decir, de cómo hacer que tus objetivos tengan tanto sentido que no puedas evitar alcanzarlos.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-habilidad">
+<section class="ep" data-id="dankoe-habilidad" data-n="6" data-dur="1809">
 <h2>La habilidad más importante que debes aprender en los próximos 10 años</h2>
 <div class="meta">Dan Koe · 30:09 · <a href="https://x.com/thedankoe/status/2009320195848872014">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-habilidad.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>La mayoría de las habilidades serán irrelevantes dentro de 10 o 20 años.</p>
 <p>Bueno, quizá… Al menos eso es lo que dice todo el mundo, y desde luego lo parece.</p>
 <p>Pero si eres una persona con mucha agencia, eso da igual. ¿Por qué? Porque tu éxito no depende de una habilidad concreta. No eres un especialista. No centraste tu mente (impidiéndote aprender fuera de ese foco) en el estatus de un trabajo bien pagado o de un título. Tienes una visión, y entiendes que, en el mundo actual, puedes adquirir cualquier habilidad o cualquier conocimiento para conseguir la vida que quieres.</p>
@@ -1413,13 +1441,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>Dejo en tus manos decidir qué quieres hacer con esta información.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-disciplina">
+<section class="ep" data-id="dankoe-disciplina" data-n="7" data-dur="1131">
 <h2>Cómo volverte asquerosamente disciplinado</h2>
 <div class="meta">Dan Koe · 18:51 · <a href="https://x.com/thedankoe/status/2101361833940791607">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-disciplina.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Dime si esto te suena.</p>
 <p>Quieres cambiar tu vida.</p>
 <p>Pero de verdad, con muchísimas ganas.</p>
@@ -1537,13 +1567,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>Hablamos pronto.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-renacimiento">
+<section class="ep" data-id="dankoe-renacimiento" data-n="8" data-dur="1392">
 <h2>Estamos en pleno Renacimiento digital, aprovéchalo, por favor</h2>
 <div class="meta">Dan Koe · 23:12 · <a href="https://x.com/thedankoe/status/2093051293078261973">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-renacimiento.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>En el futuro habrá 3 tipos de personas.</p>
 <p>Y la brecha entre ellas se hace más grande cada día.</p>
 <p>Si quieres ganar en los próximos 5 a 10 años, es fundamental que evites convertirte en el número 1 o el 2.</p>
@@ -1707,13 +1739,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>Gracias por leer.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="alexei-neuroplasticidad">
+<section class="ep" data-id="alexei-neuroplasticidad" data-n="9" data-dur="1352">
 <h2>Neuroplasticidad: cómo la repetición decide en silencio en quién te conviertes</h2>
 <div class="meta">alexei · 22:32 · <a href="https://x.com/alexeixbt/status/2086051211271196886">original</a></div>
 <audio controls preload="metadata" src="ep/alexei-neuroplasticidad.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>En algún lugar existe una versión de ti más rica, más tranquila, más segura de sí misma, que se maneja mejor con la gente, más disciplinada y con menos miedo. Y esta es la parte que casi nadie explica bien: la distancia entre tú y esa persona no es talento, suerte ni genética. Es cableado. Cableado literal, físico, dentro de tu cráneo. Y el cableado puede cambiar.</p>
 <p>Eso es la neuroplasticidad. Cuando entiendes de verdad cómo funciona, dejas de verla como un dato científico curioso y empiezas a verla como lo que es: el único mecanismo que hay debajo de cada transformación que ha hecho jamás un ser humano. Toda persona que pasó de no tener un duro a ser rica, de la ansiedad a la calma, de la debilidad a la fuerza, de la falta de disciplina a la constancia implacable, lo hizo exactamente a través de este proceso, supiera cómo se llamaba o no. Y el mismo mecanismo, funcionando al revés, es la razón por la que la gente se queda atrapada justo en los patrones que le están arruinando la vida. La misma herramienta. Resultados opuestos. Solo depende de con qué la alimentes.</p>
 <h3>El siglo en que la ciencia se equivocó</h3>
@@ -1779,13 +1813,15 @@ details{margin-top:12px}summary{font-weight:600;padding:8px 0;cursor:pointer}
 <p>La herramienta nunca faltó. Lleva funcionando todo este tiempo. La única elección real que tienes es si la repetición es intencionada.</p>
 <p>Espero que te haya servido para empezar. Apúntate aquí si quieres recibir más reflexiones, vídeos, libros, estrategias, artículos, etcétera.</p></div></details>
 </section>
-<section class="ep" data-id="saylor-ideologias-bitcoin">
+<section class="ep" data-id="saylor-ideologias-bitcoin" data-n="10" data-dur="1217">
 <h2>Las cuatro ideologías de Bitcoin</h2>
 <div class="meta">Michael Saylor · 20:17 · <a href="https://x.com/saylor/status/2062853047991103638">original</a></div>
 <audio controls preload="metadata" src="ep/saylor-ideologias-bitcoin.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><h3>Introducción</h3>
 <p>Bitcoin ya no es un experimento técnico limitado ni una protesta monetaria de nicho. Se ha convertido en la red monetaria digital dominante y en un activo global con profundas implicaciones para particulares, instituciones, empresas, bancos, mercados de capitales y Estados.</p>
 <p>A medida que Bitcoin crece, la comunidad que lo rodea se está diferenciando de forma natural en distintas escuelas de pensamiento. Estos grupos comparten la convicción de que Bitcoin es importante, pero difieren en cómo creen que Bitcoin debe evolucionar, integrarse, escalar y protegerse.</p>
@@ -1943,13 +1979,15 @@ Puede ser esperanza para cualquiera que se enfrente a la miseria económica.</p>
 <p>La misión no es elegir entre pureza y adopción, ni entre innovación y estabilidad. La misión es garantizar que Bitcoin siga siendo Bitcoin mientras el mundo construye sobre él.</p>
 <p>Así es como Bitcoin alcanza todo su potencial.</p></div></details>
 </section>
-<section class="ep" data-id="chamath-gran-descenso">
+<section class="ep" data-id="chamath-gran-descenso" data-n="11" data-dur="791">
 <h2>El gran descenso</h2>
 <div class="meta">Chamath Palihapitiya · 13:11 · <a href="https://x.com/chamath/status/2072618494324027489">original</a></div>
 <audio controls preload="metadata" src="ep/chamath-gran-descenso.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Hace quince años, Marc Andreessen escribió una tesis que en su momento iba a contracorriente: que el software se estaba comiendo el mundo. Tenía toda la razón. El ensayo ha envejecido hasta convertirse en algo muy poco común: una predicción que se cumplió de forma tan completa que su tesis es hoy el agua en la que nadamos todos. Todas las industrias que nombró acabaron devoradas. Y la mayoría de las que no nombró, también.</p>
 <p>Pero un ensayo tan bueno no solo cierra un tema: también abre el siguiente. Andreessen describió un mundo en el que el software iría consumiendo una industria tras otra. Lo que no describió del todo, porque la tecnología aún no existía de forma creíble, es qué ocurre cuando el software empieza a pensar.</p>
 <p>Esa es la historia ahora. Y para entender hacia dónde va, hay que entender la forma de lo que está pasando, porque es una forma que ya hemos visto antes.</p>
@@ -1989,13 +2027,15 @@ Puede ser esperanza para cualquiera que se enfrente a la miseria económica.</p>
 <p>Andreessen tenía razón en que el software se comería el mundo. Lo que viene ahora es que la inteligencia hará lo mismo. El descenso, en sí mismo, es la clave de todo. El coste de la pericia está cayendo hacia cero y, cuando llegue ahí, la capacidad de construir algo extraordinario a partir de la ventaja propia ya no pertenecerá a unos pocos, sino a todos.</p>
 <p>Esa es la oportunidad, y es la mayor que he visto nunca.</p></div></details>
 </section>
-<section class="ep" data-id="isenberg-ai-rollups">
+<section class="ep" data-id="isenberg-ai-rollups" data-n="12" data-dur="1377">
 <h2>Una oportunidad de 5 billones de dólares: las consolidaciones con IA</h2>
 <div class="meta">Greg Isenberg · 22:57 · <a href="https://x.com/gregisenberg/status/2103927365977928019">original</a></div>
 <audio controls preload="metadata" src="ep/isenberg-ai-rollups.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Voy a explicarte por qué deberías comprar una empresa y usar agentes de IA para triplicar su EBITDA. Al final de esta guía facilísima sabrás cómo encontrar la empresa adecuada, comprarla y gestionarla con agentes, hasta el nivel de las carpetas y las instrucciones. Es algo largo (unos 10-15 minutos de lectura), pero, si te interesa, merece la pena.</p>
 <p>Según McKinsey, de aquí a 2035 cambiarán de manos empresas estadounidenses por valor de unos 5 billones de dólares. La mayoría pertenecen a baby boomers que se acercan a la jubilación, y muchos de esos dueños no tienen a nadie preparado para comprárselas.</p>
 <p>En Bellingham, en el estado de Washington, hay una gestoría contable llamada Larson Gross. Se fundó en 1949. Tiene cinco oficinas y unos 200 empleados, y Thrive Holdings compró hace poco una participación en ella.</p>
@@ -2103,13 +2143,15 @@ Pasa a producción las 2 tareas siguientes del mapa. Pon en marcha el agente de 
 <p>Estoy contigo.</p>
 <p>Greg Isenberg</p></div></details>
 </section>
-<section class="ep" data-id="hormozi-adversidad">
+<section class="ep" data-id="hormozi-adversidad" data-n="13" data-dur="1253">
 <h2>Cómo salir de la adversidad permanentemente más fuerte, y no más débil</h2>
 <div class="meta">Alex Hormozi · 20:53 · <a href="https://x.com/AlexHormozi/status/2012971319315563010">original</a></div>
 <audio controls preload="metadata" src="ep/hormozi-adversidad.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Este año empezó de forma distinta a todos los demás: sin mi madre. Murió de forma inesperada a finales de 2025. Con este telón de fondo, me sorprendí pensando qué hace que algunas personas mantengan sus compromisos y otras los rompan. Ese «o te hace o te rompe» tiene muchos nombres, pero yo lo llamaré fortaleza mental.</p>
 <p>La fortaleza mental no es algo que se tiene o no se tiene. Son cuatro habilidades distintas que puedes medir y mejorar: la tolerancia (cuánta adversidad aguantas antes de que cambie tu conducta), la entereza (lo drásticamente que cambias cuando ocurre), la resiliencia (lo rápido que te recuperas) y la adaptabilidad (si acabas mejor o peor que antes). Voy a explicar cómo creo que funciona cada una y cómo desarrollarlas.</p>
 <p>Y antes de entrar en materia, quiero dejar claro que no digo que el duelo sea algo malo, ni que haya una forma correcta o incorrecta de vivirlo. Ni que tengas que «aguantarte y tirar». Por favor, haz lo que quieras. Esto no es un púlpito.</p>
@@ -2182,13 +2224,15 @@ Pasa a producción las 2 tareas siguientes del mapa. Pon en marcha el agente de 
 <p>Para que no haya dudas: no digo que tengas que anestesiarte ni dejar de sentir tus emociones. Digo que no necesitas actuar según tus emociones. Dicho de otro modo, que te sientas fatal no significa que tengas que comportarte fatal, tratar fatal a los demás ni tratarte fatal a ti mismo. Creo que separar lo que sentimos de cómo nos comportamos es una señal de madurez, que no tiene casi nada que ver con la edad que tengas, sino con lo hábil que seas.</p>
 <p>Y eso significa que puedes trabajarlo. Y si eso no es un mensaje de esperanza, no sé qué lo es.</p></div></details>
 </section>
-<section class="ep" data-id="saylor-que-es-dinero">
+<section class="ep" data-id="saylor-que-es-dinero" data-n="14" data-dur="867">
 <h2>¿Qué es el dinero?</h2>
 <div class="meta">Michael Saylor · 14:27 · <a href="https://x.com/saylor/status/2088600395257934028">original</a></div>
 <audio controls preload="metadata" src="ep/saylor-que-es-dinero.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><h3>El dinero es energía</h3>
 <p>En *What Is Money? The Saylor Series*, Robert Breedlove y yo partimos de una pregunta sencilla y la seguimos a lo largo de la historia de la civilización, la tecnología, la economía y Bitcoin.</p>
 <p>La respuesta es directa:</p>
@@ -2307,13 +2351,15 @@ Pasa a producción las 2 tareas siguientes del mapa. Pon en marcha el agente de 
 <p>Bitcoin es la solución de ingeniería al problema del dinero.</p>
 <p>El dinero es energía. Bitcoin es energía monetaria digital.</p></div></details>
 </section>
-<section class="ep" data-id="bryanjohnson-longevidad">
+<section class="ep" data-id="bryanjohnson-longevidad" data-n="15" data-dur="483">
 <h2>2025: mis mejores terapias de longevidad</h2>
 <div class="meta">Bryan Johnson · 8:03 · <a href="https://x.com/bryan_johnson/status/2013421487336890670">original</a></div>
 <audio controls preload="metadata" src="ep/bryanjohnson-longevidad.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Te conviene guardarte esto.</p>
 <p>Llevo ya cinco años con esto de la longevidad y 2025 ha sido nuestro mejor año hasta ahora.</p>
 <p>+ lo que empecé
@@ -2392,13 +2438,15 @@ Nunca dejes que decida la mente.</p>
 + ejercicio (fuerza, cardio, flexibilidad)</p>
 <p>Haz estas cosas y tu fuerza de voluntad aumentará, lo que te permitirá crear hábitos más duraderos. El sueño es lo número uno porque es el interruptor maestro de todas tus demás funciones biológicas. Construye tu vida en torno al sueño.</p></div></details>
 </section>
-<section class="ep" data-id="codiesanchez-lecciones-20">
+<section class="ep" data-id="codiesanchez-lecciones-20" data-n="16" data-dur="330">
 <h2>Lecciones que ojalá hubiera aprendido con veintitantos</h2>
 <div class="meta">Codie Sanchez · 5:30 · <a href="https://x.com/Codie_Sanchez/status/2009723215925653671">original</a></div>
 <audio controls preload="metadata" src="ep/codiesanchez-lecciones-20.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Tengo 39 años.</p>
 <p>Si tienes veintitantos, esto no es un consejo del tipo «haz esto y ganarás». Es más bien una perspectiva que no tienes hasta que has vivido unos cuantos ciclos y has visto cómo muchas cosas que antes te tomabas muy en serio o salían bien… o no importaban en absoluto.</p>
 <p>Así que léelo despacio, quédate con lo que te resuene e ignora el resto.</p>
@@ -2441,13 +2489,15 @@ Nunca dejes que decida la mente.</p>
 <p>37. Ser rico es genial. Cualquiera que te diga lo contrario te está mintiendo.</p>
 <p>38. Hay una correlación curiosamente alta entre trabajar más y ganar más. No eres un maleducado: estás en modo construcción.</p></div></details>
 </section>
-<section class="ep" data-id="amasad-empresa-autonoma">
+<section class="ep" data-id="amasad-empresa-autonoma" data-n="17" data-dur="843">
 <h2>La empresa que se conduce sola</h2>
 <div class="meta">Amjad Masad · 14:03 · <a href="https://x.com/amasad/status/2077802290304684404">original</a></div>
 <audio controls preload="metadata" src="ep/amasad-empresa-autonoma.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Estamos empezando a ver qué pasa cuando una empresa aprende a funcionar por sí misma.</p>
 <p>En los últimos seis meses, los ingenieros de Replit casi han triplicado su producción de código. Los tiempos de revisión se han mantenido estables. Las reversiones y los incidentes de producto no han subido. Las métricas de calidad han mejorado y los lanzamientos se han acelerado. No se ha producido ninguna de las contrapartidas típicas que cabría esperar.</p>
 <p>Aunque el código es la parte visible, lo que está pasando bajo la superficie es mucho más interesante.</p>
@@ -2496,13 +2546,15 @@ Nunca dejes que decida la mente.</p>
 <p>Estamos trabajando duro en construirlo ahora mismo.</p>
 <p>Viendo todos los gráficos de arriba, no tendrás que esperar mucho.</p></div></details>
 </section>
-<section class="ep" data-id="alexei-arreglate-1-dia">
+<section class="ep" data-id="alexei-arreglate-1-dia" data-n="18" data-dur="425">
 <h2>Arréglate en un día (o lo haces o mueres)</h2>
 <div class="meta">alexei · 7:05 · <a href="https://x.com/alexeixbt/status/2030706322346230270">original</a></div>
 <audio controls preload="metadata" src="ep/alexei-arreglate-1-dia.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>No necesitas 21 días para arreglar tu vida. Ni 90, ni siquiera siete. Necesitas un día, una decisión, un momento en el que dejes de mentirte y por fin hagas lo que hay que hacer. Porque la verdad es que no necesitas más tiempo. Necesitas más verdad.</p>
 <p>Hoy te voy a dar algo que nadie más te dará. Un sistema de 24 horas para reiniciar tu mente, tu energía y tu rumbo. Esto no es motivación. ¡Esto es la guerra!</p>
 <p>Vamos a arreglarte hoy.</p>
@@ -2550,13 +2602,15 @@ Nunca dejes que decida la mente.</p>
 <p>No estás roto. Solo estás enterrado bajo la comodidad, bajo el miedo, bajo el ruido. Pero un día, un solo día sincero, centrado e intenso, puede cambiar la trayectoria de toda tu vida. No porque te hayas convertido en otra persona, sino porque por fin has dejado de fingir.</p>
 <p>Si esto te ha llegado, no te limites a seguir deslizando: actúa, arréglate hoy y haz clic aquí para unirte a mi Telegram, donde comparto cada día ideas sobre mentalidad. Subamos de nivel cada día.</p></div></details>
 </section>
-<section class="ep" data-id="sahilbloom-crisis-al-reves">
+<section class="ep" data-id="sahilbloom-crisis-al-reves" data-n="19" data-dur="616">
 <h2>Creo que estoy teniendo una crisis de la mediana edad al revés</h2>
 <div class="meta">Sahil Bloom · 10:16 · <a href="https://x.com/SahilBloom/status/2086461221067215058">original</a></div>
 <audio controls preload="metadata" src="ep/sahilbloom-crisis-al-reves.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>«Creo que estoy teniendo una crisis de la mediana edad».</p>
 <p>Eso es lo que me dijo durante una cena, hace unas semanas, un amigo al que llamaré Joe. Joe tiene cuarenta y pocos. Ha tenido una buena carrera, en ascenso constante, en el mundo de las finanzas. Está casado y tiene dos hijos, de 7 y 4 años. Vive en las afueras de Nueva York y va y viene a la ciudad para trabajar.</p>
 <p>En muchos sentidos, veo a Joe como una especie de arquetipo del sueño. Buen trabajo. Buena familia. Buena vida.</p>
@@ -2614,13 +2668,15 @@ Nunca dejes que decida la mente.</p>
 <p>Estoy teniendo una crisis de la mediana edad al revés. Y no podría estar más contento.</p>
 <p>¿Quién se apunta?</p></div></details>
 </section>
-<section class="ep" data-id="isenberg-vibe-manufacturing">
+<section class="ep" data-id="isenberg-vibe-manufacturing" data-n="20" data-dur="2302">
 <h2>Ya está aquí la vibe manufacturing</h2>
 <div class="meta">Greg Isenberg · 38:22 · <a href="https://x.com/gregisenberg/status/2106737353431581132">original</a></div>
 <audio controls preload="metadata" src="ep/isenberg-vibe-manufacturing.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Eso es la VIBE MANUFACTURING, la fabricación «a golpe de intuición», y está a punto de hacerles a los productos físicos lo que el vibe coding le hizo al software. Quizá no hoy, pero sí en los próximos 24 meses.</p>
 <p>El vibe coding permitió crear aplicaciones a gente que nunca había escrito código. La vibe manufacturing permite a cualquiera fabricar cosas reales. Describes lo que quieres. Una IA lo convierte en un archivo de diseño preciso. Una impresora encima de tu mesa lo prueba durante la noche. Una fábrica que encontraste en una web te da presupuesto en segundos y te envía las piezas en días. Un chip de 5 dólares lo vuelve inteligente y tu agente de IA lo maneja.</p>
 <p>Ya está pasando sin hacer ruido. Unas 30.000 personas tienen ya una impresora 3D funcionando más de siete horas al día, según Bambu Lab, la empresa que fabrica las impresoras de consumo más populares del mundo. Eso es una jornada completa. Están montando pequeñas fábricas en habitaciones libres y garajes, imprimiendo productos, vendiéndolos en Etsy y TikTok Shop y volviendo a imprimir lo que se vende. La web de Bambu para compartir diseños, MakerWorld, tiene 10 millones de usuarios al mes y 2,6 millones de diseños originales, y sus usuarios registraron 290 millones de horas de impresión en 2025. Dentro de las casas de la gente está creciendo una economía manufacturera oculta, y la IA está a punto de echarle gasolina.</p>
@@ -2743,13 +2799,15 @@ Nunca dejes que decida la mente.</p>
 <p>Estoy contigo.</p>
 <p>Greg Isenberg</p></div></details>
 </section>
-<section class="ep" data-id="naval-como-hacerse-rico">
+<section class="ep" data-id="naval-como-hacerse-rico" data-n="21" data-dur="330">
 <h2>Cómo hacerse rico (sin tener suerte)</h2>
 <div class="meta">Naval · 5:30 · <a href="https://x.com/naval/status/1002103360646823936">original</a></div>
 <audio controls preload="metadata" src="ep/naval-como-hacerse-rico.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Busca riqueza, no dinero ni estatus. La riqueza es tener activos que generan ingresos mientras duermes. El dinero es la forma en que transferimos tiempo y riqueza. El estatus es tu lugar en la jerarquía social.</p>
 <p>Entiende que es posible crear riqueza de forma ética. Si en secreto desprecias la riqueza, se te escapará.</p>
 <p>Ignora a quienes juegan a juegos de estatus. Ganan estatus atacando a quienes juegan a juegos de creación de riqueza.</p>
@@ -2790,13 +2848,15 @@ Nunca dejes que decida la mente.</p>
 <p>Aplica conocimiento específico, con apalancamiento, y al final conseguirás lo que mereces.</p>
 <p>Cuando por fin seas rico, te darás cuenta de que no era lo que buscabas. Pero eso lo dejamos para otro día.</p></div></details>
 </section>
-<section class="ep" data-id="g2o-atractivo-1">
+<section class="ep" data-id="g2o-atractivo-1" data-n="22" data-dur="670">
 <h2>Cómo volverte tan atractivo que convertirás a cualquier chica en tu zorra (parte 1)</h2>
 <div class="meta">g2Ø · 11:10 · <a href="https://x.com/gh0st2offline/status/2089063940680532376">original</a></div>
 <audio controls preload="metadata" src="ep/g2o-atractivo-1.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>es un privilegio tener buena pinta siendo hombre.</p>
 <p>me atrevería a decir que es sencillamente mejor que tener mucho dinero.</p>
 <p>porque con el buen físico llega el buen dinero.</p>
@@ -2922,13 +2982,15 @@ Nunca dejes que decida la mente.</p>
 <p>es esencial.</p>
 <p>haz clic aquí para empezar tu iniciación.</p></div></details>
 </section>
-<section class="ep" data-id="g2o-atractivo-2">
+<section class="ep" data-id="g2o-atractivo-2" data-n="23" data-dur="945">
 <h2>Cómo volverte tan atractivo que convertirás a cualquier chica en tu zorra (parte 2)</h2>
 <div class="meta">g2Ø · 15:45 · <a href="https://x.com/gh0st2offline/status/2104019235882045661">original</a></div>
 <audio controls preload="metadata" src="ep/g2o-atractivo-2.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>todo lo que necesitas saber para que las chicas se obsesionen con tu estética, tu atractivo y tu físico</p>
 <p>esto es una parte 2. si no has leído la parte 1, hazlo primero. no tiene sentido hacer a medias lo que de verdad quieres, ¿no?</p>
 <p>hay ciertas razones por las que algunos tíos parecen ligar más que otros. quizá incluso tú.</p>
@@ -3098,13 +3160,15 @@ Nunca dejes que decida la mente.</p>
 <p>es esencial.</p>
 <p>haz clic aquí para empezar tu viaje</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-curso-negocio">
+<section class="ep" data-id="dankoe-curso-negocio" data-n="24" data-dur="2796">
 <h2>Curso completo: cómo convertir tus intereses en un negocio rentable que encaje con tu estilo de vida</h2>
 <div class="meta">Dan Koe · 46:36 · <a href="https://x.com/thedankoe/status/2107151068446789829">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-curso-negocio.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Si tienes muchos intereses, probablemente no tengas ni idea de qué hacer con tu vida.</p>
 <p>Sentías que el colegio era una pérdida de tiempo. Quizá fuiste a la universidad, pero sentías que elegir algo para estudiar durante 4 años era la muerte de tu curiosidad (yo cambié de carrera 5 veces, creo… y no me gradué después de 5 años y decenas de miles en deuda de estudios).</p>
 <p>Y no sabes a qué dedicarte profesionalmente, porque quieres hacer muchísimas cosas distintas.</p>
@@ -3450,13 +3514,15 @@ Nunca dejes que decida la mente.</p>
 <p>Dale 2 o 3 meses. Aunque solo pague una persona, habrás demostrado que hay demanda. Entonces puedes subir el precio, convertir tus llamadas en un curso o crear el producto que de verdad quieres crear, porque ahora sabes exactamente por qué va a pagar la gente.</p>
 <p>Eso es riqueza blanda.</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-vida-1-dia">
+<section class="ep" data-id="dankoe-vida-1-dia" data-n="25" data-dur="2032">
 <h2>Cómo arreglar tu vida entera en 1 día</h2>
 <div class="meta">Dan Koe · 33:52 · <a href="https://x.com/thedankoe/status/2010751592346030461">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-vida-1-dia.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Si te pareces en algo a mí, pensarás que los propósitos de Año Nuevo son una estupidez.</p>
 <p>Porque la mayoría de la gente intenta cambiar su vida de la forma completamente equivocada. Se ponen esos propósitos porque los demás también lo hacen (creamos un significado superficial a partir de juegos de estatus), pero no cumplen los requisitos de un cambio de verdad, que va mucho más allá de convencerte de que este año vas a ser más disciplinado o más productivo.</p>
 <p>Si eres una de esas personas, no vengo a mirarte por encima del hombro (tiendo a ser un poco duro cuando escribo). He abandonado diez veces más objetivos de los que he conseguido. Creo que debería ser así para la mayoría de la gente. Pero sigue siendo cierto que la gente intenta cambiar su vida y fracasa estrepitosamente casi siempre.</p>
@@ -3673,13 +3739,15 @@ Nunca dejes que decida la mente.</p>
 <p>Cuanto más juegas, más fuerte se vuelve esta fuerza, y antes de que te des cuenta se convierte en quien eres, y no lo querrías de ninguna otra manera.</p>
 <p>– Dan</p></div></details>
 </section>
-<section class="ep" data-id="alexei-reprogramacion">
+<section class="ep" data-id="alexei-reprogramacion" data-n="26" data-dur="1102">
 <h2>Reprogramación subconsciente: por qué tu cerebro se fía más de la repetición que de ti</h2>
 <div class="meta">alexei · 18:22 · <a href="https://x.com/alexeixbt/status/2092254375901044796">original</a></div>
 <audio controls preload="metadata" src="ep/alexei-reprogramacion.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>Hay una versión de ti que se encoge antes de que nadie haya dicho siquiera nada crítico. Una versión que sabotea lo bueno justo cuando empieza a funcionar. Una versión que dice «es que no soy una persona disciplinada» igual que dirías que el cielo es azul, como si fuera simplemente un hecho del mundo y no una decisión que alguien tomó por ti hace mucho tiempo.</p>
 <p>Aquí viene la parte incómoda. No elegiste nada de eso. Alguien, o algo, o una sucesión de tardes de martes corrientes de tu infancia te grabó ese guion antes de que tuvieras herramientas para discutirlo, y desde entonces lo llevas ejecutando en piloto automático. Casi todo el mundo lo llama «es que yo soy así». La neurociencia tiene un nombre menos poético para ello. Se llama programación subconsciente y, a diferencia de casi todo lo que se escribe sobre ella en internet, el mecanismo que hay detrás no tiene nada de místico. Es físico, es medible y es algo que de verdad puedes cambiar si entiendes cómo se construyó en primer lugar. De eso va este artículo. No de manifestación. No de buenas vibras. De la mecánica real de cómo una creencia se instala en tu sistema nervioso, y de cómo se desinstala.</p>
 <h3>Dos mentes, un cuerpo, y solo una de ellas va realmente al volante</h3>
@@ -3727,13 +3795,15 @@ Nunca dejes que decida la mente.</p>
 <p>Tu cerebro lleva toda tu vida escuchándote, tomando nota cuidadosa y literal de todo lo que repetiste las veces suficientes como para que importara. Sigue escuchando ahora mismo, en este preciso instante. La única pregunta real que queda es qué le vas a decir a continuación, y si de verdad se lo vas a decir las veces suficientes como para que por fin te crea.</p>
 <p>Espero que esto te haya servido para empezar. Únete [aquí](https://t.me/alexeixbt) si quieres recibir más reflexiones, vídeos, libros, estrategias, artículos, etc.</p></div></details>
 </section>
-<section class="ep" data-id="hussain-vender">
+<section class="ep" data-id="hussain-vender" data-n="27" data-dur="1275">
 <h2>Cómo volverte peligrosamente bueno vendiendo (usa estas 3 estrategias)</h2>
 <div class="meta">Hussain Ibarra · 21:15 · <a href="https://x.com/hussainibarra/status/2112198119672959413">original</a></div>
 <audio controls preload="metadata" src="ep/hussain-vender.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>La mayoría de los creadores nunca llegarán a vivir de esto a tiempo completo.</p>
 <p>Puedes ser el mejor del mundo en algo, pero si nadie sabe quién eres, qué haces ni qué valor aportas, nadie se enterará, y acabarás siendo un artista muerto de hambre.</p>
 <p>La mayoría de los creadores son artistas muertos de hambre.</p>
@@ -3931,13 +4001,15 @@ Nunca dejes que decida la mente.</p>
 <p>Si vas en serio con empezar y construir un negocio de una sola persona, necesitas conseguir Eden.</p>
 <p>Empieza hoy con Eden gratis.</p></div></details>
 </section>
-<section class="ep" data-id="dankoe-human30">
+<section class="ep" data-id="dankoe-human30" data-n="28" data-dur="1913">
 <h2>Human 3.0: un mapa para llegar al 1 % de arriba</h2>
 <div class="meta">Dan Koe · 31:53 · <a href="https://x.com/thedankoe/status/2023779299367809063">original</a></div>
 <audio controls preload="metadata" src="ep/dankoe-human30.mp3"></audio>
 <div class="speeds"><button class="sp" data-r="0.75">0,75×</button><button class="sp" data-r="1">1×</button><button class="sp" data-r="1.25">1,25×</button><button class="sp" data-r="1.5">1,5×</button><button class="sp" data-r="1.75">1,75×</button><button class="sp" data-r="2">2×</button></div>
 <div class="nav"><button class="bk">⟲ 15 s</button><button class="pp">▶︎ Reproducir</button><button class="fw">30 s ⟳</button></div>
 <div class="pos"></div>
+<div class="bar"><i></i></div>
+<button class="mk"></button>
 <details><summary>Leer el texto</summary><div class="txt"><p>No solo tener un cuerpo bonito y musculado, sino estar plenamente desarrollado en todos los ámbitos de la vida.</p>
 <p>Quería estar fuerte en todas las dimensiones. Quería subir al máximo todas mis estadísticas. No quería ser un NPC. Quería ser un jugador de nivel 100. Todas las zonas del mapa desbloqueadas. El físico, el intelecto y las profesiones al máximo. El banco rebosando de oro. Lo quería todo. Mente, cuerpo, espíritu, relaciones, dinero.</p>
 <p>Este deseo ha influido muchísimo en mi vida.</p>
@@ -4052,7 +4124,29 @@ Nunca dejes que decida la mente.</p>
 <p>Si de verdad has leído hasta el final, bien hecho.</p>
 <p>Apúntate aquí si quieres recibir estos artículos directamente, por si el algoritmo no te los muestra.</p></div></details>
 </section>
+</div>
+<details id="s-done" open><summary class="sec">Escuchados <span class="n nd">0</span></summary><div id="done"></div></details>
 <script>
+const KD=id=>'done:'+id,THR=0.95,isDone=id=>!!localStorage.getItem(KD(id));
+const EPS=[...document.querySelectorAll('.ep')];
+// migración: lo guardado casi al final cuenta como escuchado (mismas claves que /vinilo/)
+EPS.forEach(ep=>{const id=ep.dataset.id,d=+ep.dataset.dur,p=+localStorage.getItem('pos:'+id)||0;if(d&&p/d>=THR&&!isDone(id))localStorage.setItem(KD(id),String(Date.now()))});
+function setDone(id,on){if(on){if(!isDone(id))localStorage.setItem(KD(id),String(Date.now()))}else{localStorage.removeItem(KD(id));const ep=EPS.find(x=>x.dataset.id===id),d=+ep.dataset.dur,p=+localStorage.getItem('pos:'+id)||0;if(d&&p/d>=THR){localStorage.setItem('pos:'+id,0);const a=ep.querySelector('audio');if(a.currentTime/(a.duration||d)>=THR)a.currentTime=0}}}
+function place(){ // mueve cada episodio a su sección (sin tocar el que está sonando), del más nuevo al más antiguo
+  let np=0,nd=0;
+  EPS.forEach(ep=>{const id=ep.dataset.id,on=isDone(id),a=ep.querySelector('audio');on?nd++:np++;
+    ep.classList.toggle('done',on);
+    ep.querySelector('.mk').textContent=on?'↺ Marcar como pendiente':'✓ Marcar como escuchado';
+    const d=a.duration||+ep.dataset.dur,p=Math.min(1,(a.currentTime||+localStorage.getItem('pos:'+id)||0)/d)||0;
+    ep.querySelector('.bar').classList.toggle('z',on||p<0.01);ep.querySelector('.bar i').style.width=(p*100).toFixed(1)+'%';
+    const box=document.getElementById(on?'done':'pend');
+    if(ep.parentNode!==box&&a.paused){const next=[...box.children].find(x=>+x.dataset.n>+ep.dataset.n);box.insertBefore(ep,next||null)}});
+  document.querySelectorAll('.np').forEach(x=>x.textContent=np);document.querySelectorAll('.nd').forEach(x=>x.textContent=nd);
+  ['pend','done'].forEach(k=>{const b=document.getElementById(k);let m=b.querySelector('.empty');const has=b.querySelector('.ep');
+    if(!has&&!m){m=document.createElement('p');m.className='empty';m.textContent=k==='pend'?'Lo tienes todo escuchado.':'Aún no has terminado ninguno. Se marcan solos al llegar al 95 %.';b.appendChild(m)}
+    if(has&&m)m.remove()});
+}
+document.querySelector('.seg').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;if(b.dataset.go==='s-done')document.getElementById('s-done').open=true;document.getElementById(b.dataset.go).scrollIntoView({behavior:'smooth'})};
 const fmt=s=>{s=Math.floor(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return (h?h+':'+String(m).padStart(2,'0'):m)+':'+x};
 document.querySelectorAll('.ep').forEach(ep=>{
   const id=ep.dataset.id,a=ep.querySelector('audio'),KP='pos:'+id,KR='rate:'+id,pos=ep.querySelector('.pos'),pp=ep.querySelector('.pp');
@@ -4064,11 +4158,14 @@ document.querySelectorAll('.ep').forEach(ep=>{
   let restored=false;
   a.addEventListener('loadedmetadata',()=>{if(!restored){const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0&&p<a.duration-5)a.currentTime=p;restored=true}upd()});
   a.addEventListener('play',()=>{a.playbackRate=rate();document.querySelectorAll('audio').forEach(o=>{if(o!==a)o.pause()});pp.textContent='❚❚ Pausa'});
-  a.addEventListener('pause',()=>{pp.textContent='▶︎ Reproducir';localStorage.setItem(KP,a.currentTime)});
+  a.addEventListener('pause',()=>{pp.textContent='▶︎ Reproducir';localStorage.setItem(KP,a.currentTime);place()});
   a.addEventListener('ratechange',()=>{if(Math.abs(a.playbackRate-rate())>0.01&&a.playbackRate>0)setR(a.playbackRate)});
   const upd=()=>{pos.textContent=fmt(a.currentTime)+' / '+fmt(a.duration)+' · quedan '+fmt((a.duration-a.currentTime)/rate())+' a '+String(rate()).replace('.',',')+'×'};
-  a.addEventListener('timeupdate',()=>{upd();if(!a.paused)localStorage.setItem(KP,a.currentTime)});
-  a.addEventListener('ended',()=>localStorage.setItem(KP,0));
+  a.addEventListener('timeupdate',()=>{upd();if(!a.paused)localStorage.setItem(KP,a.currentTime);
+    const d=a.duration||+ep.dataset.dur;ep.querySelector('.bar i').style.width=(Math.min(1,a.currentTime/d)*100).toFixed(1)+'%';
+    if(d&&a.currentTime/d>=THR&&!isDone(id)){setDone(id,true);place()}});
+  a.addEventListener('ended',()=>{localStorage.setItem(KP,0);setDone(id,true);place()});
+  ep.querySelector('.mk').onclick=()=>{setDone(id,!isDone(id));place()};
   const seek=d=>{a.currentTime=Math.max(0,Math.min((a.duration||1e9)-1,a.currentTime+d))};
   ep.querySelector('.bk').onclick=()=>seek(-15);
   ep.querySelector('.fw').onclick=()=>seek(30);
@@ -4076,4 +4173,6 @@ document.querySelectorAll('.ep').forEach(ep=>{
   const p=parseFloat(localStorage.getItem(KP)||'0');if(p>0)pos.textContent='Seguirás en '+fmt(p);
   if('mediaSession' in navigator){a.addEventListener('play',()=>{navigator.mediaSession.metadata=new MediaMetadata({title:ep.querySelector('h2').textContent,artist:ep.querySelector('.meta').textContent.split(' · ')[0],album:'Vinilos para pensar'});navigator.mediaSession.setActionHandler('seekbackward',()=>seek(-15));navigator.mediaSession.setActionHandler('seekforward',()=>seek(30))})}
 });
+place();
+addEventListener('storage',ev=>{if(ev.key&&/^(done|pos):/.test(ev.key))place()});
 </script></body></html>

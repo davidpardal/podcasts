@@ -3,4 +3,4 @@
 - Nuevo episodio: `./add_episode.sh <id> <carpeta con articulo-es.mp3/.md> "<título>" "<autor>" [url]`.
 - Servir localmente (con soporte Range para iPhone): `nohup python3 serve.py > server.log 2>&1 &` → http://127.0.0.1:8765
 - Publicación pública: PENDIENTE. Cloudflare quick tunnel (puerto 7844) y tunnelmole (8083) bloqueados por la red del box; sin ssh.
-- Velocidad y posición se guardan por episodio en localStorage (claves rate:<id>, pos:<id>).
+- Velocidad, posición y estado escuchado se guardan por episodio en localStorage (claves rate:<id>, pos:<id>, done:<id>), compartidos entre la raíz y /vinilo/. Un episodio pasa a «Escuchados» solo al llegar al 95 % o al terminar, o con el botón; una posición guardada ≥95 % también cuenta (migración).
