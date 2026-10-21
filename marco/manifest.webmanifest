@@ -1,0 +1,10 @@
+{
+  "name": "Marco familiar",
+  "short_name": "Marco",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#F7EEE2",
+  "theme_color": "#F7EEE2",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
