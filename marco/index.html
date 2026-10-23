@@ -20,14 +20,16 @@
     <button data-go="luz" class="nav"><span class="ic">⚡</span><span>Luz</span></button>
     <button data-go="ninos" class="nav"><span class="ic">⭐</span><span>Niños</span></button>
     <button data-go="compra" class="nav"><span class="ic">🛒</span><span>Compra</span></button>
-    <button data-act="refresh" class="nav sec"><span class="ic">🔄</span><span>Actualizar</span></button>
+    <button data-go="menu" class="nav"><span class="ic">🍲</span><span>Menú</span></button>
+    <button data-act="refresh" class="nav sec nav-break"><span class="ic">🔄</span><span>Actualizar</span></button>
     <button data-go="ajustes" class="nav sec"><span class="ic">⚙️</span><span>Ajustes</span></button>
     <button data-act="sleep" class="nav sec"><span class="ic">🌙</span><span>Dormir</span></button>
     <div class="rail-clock" data-clock="rail"></div>
   </nav>
 </div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
-<div id="night" class="night hidden"><div class="night-time" data-clock="night"></div><div class="night-date" data-clock="nightdate"></div><div class="night-hint">Toca para despertar</div></div>
+<div id="night" class="night hidden"><div class="night-time" data-clock="night"></div><div class="night-date" data-clock="nightdate"></div><div class="night-next" data-clock="nightnext"></div><div class="night-hint">Toca para despertar</div></div>
+<div id="offline" class="offline hidden" role="status"></div>
 <div id="toast" class="toast hidden"></div>
 <script src="vendor/ical.min.js"></script>
 <script src="js/config.js"></script>

@@ -13,16 +13,18 @@ y 1920×1200, y también en móvil.
 
 | Pantalla | Qué tiene |
 |---|---|
-| **Hoy** | Bloque «cielo» que cambia de color con el sol (amanecer, día, atardecer, noche) con la hora, la fecha y el tiempo de 6 días con % de lluvia (Open-Meteo). **Lo próximo / Ahora** con cuenta atrás. La semana con las citas de cada día, la **jornada** de cada día y, si activas la custodia, los días con los niños sombreados y un aviso de **con quién están** y cuándo es el próximo cambio. Abajo, resúmenes de niños, compra y luz. |
-| **Calendario** | 13 semanas de lunes a domingo, con el mes, el día 1 resaltado, el tiempo de los próximos 16 días, la jornada, las citas y las **semanas de custodia sombreadas**. «+N más» abre el día entero. |
+| **Hoy** | Bloque «cielo» que cambia de color con el sol (amanecer, día, atardecer, noche) con la hora, la fecha, el tiempo de varios días y las **próximas horas** (Open-Meteo), con un aviso si llueve o hace frío a la hora de una cita. **Ahora**: lo siguiente con cuenta atrás, la comida y la cena de hoy, y mañana de un vistazo. La semana con las citas (las de fondo, tenues), la **jornada** y, si activas la custodia, los días con los niños sombreados y **con quién están**. Abajo, resúmenes de niños, compra y luz. |
+| **Calendario** | 13 semanas de lunes a domingo, con el mes, el día 1 resaltado, el tiempo de los próximos 16 días, la jornada, las citas y las **semanas de custodia sombreadas**. Los calendarios **de fondo** se ven tenues y no tapan el resto. «+N más» abre el día entero. Tocar una cita permite **marcarla hecha** (tachada; se guarda en el dispositivo). |
 | **Luz** | Periodo **2.0TD** actual (punta/llano/valle; fines de semana y festivos nacionales, todo valle), franjas de hoy y mañana, **mejores horas** para lavadora y lavavajillas. Precios de tu tarifa solo si los metes tú en Ajustes (no se inventan). Gráfico **PVPC de REE marcado como referencia, «NO es tu tarifa»**. |
-| **Niños** | Tareas con estrellas por niño (cada uno toca su nombre; se reinician cada día), recompensas con barra de progreso, canje que **aprueba un adulto con PIN** (bloqueo 5 min tras 5 fallos). |
+| **Niños** | Tareas por **franja** (mañana, después del cole, noche) y por niño. Si se pasa la hora, quedan **fuera de hora**. Una **racha** semanal (L–D). En la semana sin niños (custodia) se **pausan solas**. Estrellas, recompensas y canje que **aprueba un adulto con PIN** (bloqueo 5 min tras 5 fallos). |
 | **Compra** | Lista con «comprado», «Quitar comprados», «Compartir lista» y **habituales** (los que más añades y aún no están en la lista). |
-| **Ajustes** | Calendarios iCal, proxy CORS, modo demo, **familia** (nombres, custodia, jornada por día, ciudad), precios de la tarifa, tareas y recompensas, PIN, reloj nocturno, **importar/exportar ajustes (JSON)** y avanzado. |
+| **Menú** | Plan de la semana **L–D o L–V**: comida y cena. Se elige entre platos habituales (tocar la casilla y el plato, o arrastrar). Hoy lo enseña en Ahora. |
+| **Ajustes** | Calendarios iCal (cada uno puede ser **de fondo**), proxy CORS, modo demo, **familia** (nombres, custodia, jornada por día, ciudad), precios de la tarifa, tareas y recompensas, PIN, reloj nocturno, **importar/exportar ajustes (JSON)** y avanzado. |
 
-Tocar cualquier cita abre su detalle (calendario, título entero, fecha y hora, lugar y descripción).
-Reloj nocturno de 23:00 a 07:00 (o con el botón «Dormir»); vuelve solo a «Hoy» tras 3 min sin tocar;
+Tocar cualquier cita abre su detalle (calendario, título entero, fecha y hora, lugar y descripción) y el botón **Marcar hecha**.
+Reloj nocturno de 23:00 a 07:00 (o con el botón «Dormir»), con **lo primero de mañana**; vuelve solo a «Hoy» tras 3 min sin tocar;
 calendarios cada 15 min, tiempo cada 30 min, PVPC cada hora y recarga completa a las 04:00.
+Si no hay red, un aviso **«Sin conexión · datos de las H:MM»** y la última copia guardada en el dispositivo (service worker para la página; citas, tiempo y luz en localStorage).
 
 Todo se guarda **solo en el dispositivo** (localStorage): no hay servidor ni base de datos.
 
@@ -34,7 +36,7 @@ python3 serve.py              # abre http://127.0.0.1:8080
 python3 serve.py --host 0.0.0.0 --port 8080   # para abrirlo desde la tablet en la misma wifi
 ```
 
-Para simular una fecha: `http://127.0.0.1:8080/?fecha=2026-10-24T10:00`. Para ir directo a una pantalla: `#calendario`, `#luz`, `#ninos`, `#compra`.
+Para simular una fecha: `http://127.0.0.1:8080/?fecha=2026-10-24T10:00`. Para ir directo a una pantalla: `#calendario`, `#luz`, `#ninos`, `#compra`, `#menu`.
 
 Pruebas automáticas (Chromium headless, Playwright):
 
@@ -75,7 +77,7 @@ como ciudad del tiempo). Lo de tu familia se pone en **Ajustes → Familia, cust
   ciclo en días (14) y días contigo (7);
 - jornada por día de la semana (vacío = libre), ciudad y coordenadas para el tiempo, nombre de tu tarifa.
 
-O de golpe: **Ajustes → Importar / exportar** acepta un JSON como este (guárdalo fuera del repositorio):
+O de golpe: **Ajustes → Importar / exportar** acepta un JSON como este (guárdalo fuera del repositorio). Puede llevar además `menu` (el plan semanal) y, en cada calendario, `"background": true`. En cada tarea, `slot` (`manana`, `cole`, `noche`) y `kids` (ids; vacío = todos). Si faltan, se usan los valores de siempre:
 
 ```json
 { "tipo": "marco-familiar-ajustes", "version": 1,
@@ -92,14 +94,15 @@ Exportar no incluye las direcciones de los calendarios salvo que marques la casi
 
 ```
 index.html            esqueleto y navegación
+sw.js                 service worker (copia de la página para abrirla sin red)
 css/app.css           estilo (escala sola: 16 px a 1280×800, 24 px a 1920×1200; móvil con barra inferior)
 js/config.js          valores por defecto genéricos (sin datos personales ni secretos)
 js/util.js            fechas en español, almacenamiento local
 js/custody.js         custodia por semanas alternas
 js/calendar.js        descarga y análisis de iCal + calendario demo
-js/weather.js         Open-Meteo
+js/weather.js         Open-Meteo (día y hora) y consejo según las citas
 js/luz.js             periodos 2.0TD y PVPC de REE
-js/app.js             pantallas, PIN, compra, ajustes, reloj y refrescos
+js/app.js             pantallas, PIN, compra, menú, ajustes, reloj y refrescos
 vendor/ical.min.js    ical.js 2.2.1 (MPL-2.0)
 proxy/cloudflare-worker.js  proxy CORS opcional (no desplegado)
 serve.py              servidor local + proxy opcional

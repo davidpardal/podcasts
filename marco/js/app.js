@@ -26,6 +26,115 @@
   const handoverDay = () => U.DIAS[U.parseLocal(CFG.custody.anchor).getDay()].toLowerCase();
   const prices = () => Object.assign({}, CFG.tariff.prices, settings.prices || {});
 
+  const SLOTS = [
+    { id: 'manana', name: 'Mañana', due: 9 * 60 + 30 },
+    { id: 'cole', name: 'Después del cole', due: 19 * 60 + 30 },
+    { id: 'noche', name: 'Noche', due: 21 * 60 + 30 }
+  ];
+  function slotId(c) {
+    const s = (c && c.slot) || 'cole';
+    return SLOTS.some((x) => x.id === s) ? s : 'cole';
+  }
+  function slotMeta(id) { return SLOTS.find((x) => x.id === id) || SLOTS[1]; }
+  function slotOverdue(c, t) { return (t.getHours() * 60 + t.getMinutes()) > slotMeta(slotId(c)).due; }
+  function choreKids(c) {
+    if (!c.kids || !c.kids.length) return CFG.kids;
+    const ks = CFG.kids.filter((k) => c.kids.indexOf(k.id) !== -1);
+    return ks.length ? ks : CFG.kids;
+  }
+  function kidsHome(t) { return custodyOn() ? Custody.withParent(t) : true; }
+  function kidsHomeOn(day) {
+    if (!custodyOn()) return true;
+    return Custody.withParent(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12, 0));
+  }
+
+  function doneMap() { return store.get('hechas', {}) || {}; }
+  function isDone(e) { return !!(e && doneMap()[e.id]); }
+  function toggleDone(id) {
+    const map = doneMap();
+    if (map[id]) delete map[id]; else map[id] = Date.now();
+    const cutoff = Date.now() - 90 * 86400000;
+    Object.keys(map).forEach((k) => { const ts = +String(k).split('@').pop(); if (ts && ts < cutoff) delete map[k]; });
+    store.set('hechas', map);
+    render();
+    if (!$('#modal').classList.contains('hidden')) showEvent(id);
+  }
+  function seedDemoDone() {
+    if (!demoOn() || store.get('hechasSeed', false)) return;
+    const e = S.events.find((x) => x.title.indexOf('Compra semanal') === 0);
+    if (!e) return;
+    const map = doneMap();
+    map[e.id] = e.start.getTime();
+    store.set('hechas', map);
+    store.set('hechasSeed', true);
+  }
+
+  function defaultMenu() { return JSON.parse(JSON.stringify(window.MARCO_DEFAULTS.menu)); }
+  function menuState() {
+    const s = store.get('menu', null);
+    if (!s || typeof s !== 'object' || !s.plan) return defaultMenu();
+    return { span: s.span === 5 ? 5 : 7, dishes: Array.isArray(s.dishes) ? s.dishes.slice() : defaultMenu().dishes, plan: s.plan };
+  }
+  function updateMenu(fn) {
+    const m = menuState();
+    fn(m);
+    store.set('menu', m);
+    render();
+  }
+  function weekdayIndex(day) { return (day.getDay() + 6) % 7; }
+  function mealsFor(day) {
+    const m = menuState();
+    const idx = weekdayIndex(day);
+    if (m.span === 5 && idx >= 5) return { comida: '', cena: '', off: true };
+    const p = (m.plan && m.plan[String(idx)]) || {};
+    return { comida: p.comida || '', cena: p.cena || '', off: false };
+  }
+  function assignMeal(day, meal, dish) {
+    if (meal !== 'comida' && meal !== 'cena') return;
+    S.menuPick = { day: String(day), meal: meal };
+    updateMenu((m) => {
+      m.plan[day] = Object.assign({ comida: '', cena: '' }, m.plan[day]);
+      m.plan[day][meal] = dish || '';
+    });
+  }
+
+  function markFresh() { store.set('cache.savedAt', Date.now()); }
+  function lastDataAt() {
+    const stamps = [];
+    const s = store.get('cache.savedAt', 0); if (s) stamps.push(s);
+    if (S.weather && S.weather.fetched) stamps.push(S.weather.fetched);
+    if (S.pvpc && S.pvpc.fetched) stamps.push(S.pvpc.fetched);
+    return stamps.length ? Math.max.apply(null, stamps) : 0;
+  }
+  function paintOffline() {
+    const el = $('#offline'); if (!el) return;
+    const off = typeof navigator !== 'undefined' && navigator.onLine === false;
+    document.body.classList.toggle('is-offline', off);
+    if (!off) { el.classList.add('hidden'); el.textContent = ''; return; }
+    const at = lastDataAt();
+    el.textContent = at ? ('Sin conexión · datos de las ' + hm(new Date(at))) : 'Sin conexión · sin datos guardados';
+    el.classList.remove('hidden');
+  }
+
+  function morningLine(t) {
+    const late = t.getHours() >= 12;
+    const day = late ? addDays(sod(t), 1) : sod(t);
+    const label = late ? 'Lo primero de mañana' : 'Lo primero de hoy';
+    const evs = eventsOn(day).filter((e) => !e.background && !e.virtual);
+    const first = evs.filter((e) => !e.allDay).sort((a, b) => a.start - b.start)[0] || evs[0];
+    if (!first) return label + ' · nada apuntado';
+    return label + ' · ' + (first.allDay ? 'todo el día' : hm(first.start)) + ' ' + first.title;
+  }
+  function tomorrowGlance(t) {
+    const d = addDays(sod(t), 1);
+    const evs = eventsOn(d).filter((e) => !e.background && !e.virtual && !isDone(e));
+    const first = evs.filter((e) => !e.allDay).sort((a, b) => a.start - b.start)[0] || evs[0];
+    let s = 'Mañana · ' + (first ? ((first.allDay ? 'todo el día ' : hm(first.start) + ' ') + first.title) : 'sin citas');
+    const meals = mealsFor(d);
+    if (meals && !meals.off && (meals.comida || meals.cena)) s += ' · ' + [meals.comida, meals.cena].filter(Boolean).join(' / ');
+    return s;
+  }
+
   /* ---------------- Estado ---------------- */
   const S = {
     screen: 'hoy',
@@ -60,6 +169,7 @@
     if (demoOn()) {
       Cal.demoCalendars(sod(now())).forEach((c) => out.push.apply(out, Cal.parseICS(c.text, c, rs, re)));
       S.events = out; S.calUpdated = Date.now();
+      seedDemoDone();
       return;
     }
     const status = {};
@@ -79,17 +189,17 @@
     }));
     S.calStatus = status; store.set('cache.calStatus', status);
     S.events = out; S.calUpdated = Date.now();
-    if (anyOk) store.set('cache.events', out.map((e) => Object.assign({}, e, { start: e.start.toISOString(), end: e.end.toISOString() })));
+    if (anyOk) { markFresh(); store.set('cache.events', out.map((e) => Object.assign({}, e, { start: e.start.toISOString(), end: e.end.toISOString() }))); }
     const bad = Object.values(status).filter((s) => !s.ok);
     if (bad.length) toast('⚠️ ' + bad.length + ' calendario(s) sin actualizar: ' + bad[0].error, 6000);
   }
 
   async function loadWeather() {
-    try { S.weather = await Weather.load(CFG.lat, CFG.lon); store.set('cache.weather', S.weather); }
+    try { S.weather = await Weather.load(CFG.lat, CFG.lon); store.set('cache.weather', S.weather); markFresh(); }
     catch (e) { console.warn(e); }
   }
   async function loadPVPC() {
-    try { S.pvpc = await Luz.loadPVPC(sod(now())); store.set('cache.pvpc', S.pvpc); }
+    try { S.pvpc = await Luz.loadPVPC(sod(now())); store.set('cache.pvpc', S.pvpc); markFresh(); }
     catch (e) { console.warn(e); }
   }
   async function refreshAll(manual) {
@@ -124,7 +234,7 @@
   function eventsOn(day, list) {
     const a = sod(day), b = addDays(a, 1);
     return (list || allEvents()).filter((e) => e.start < b && e.end > a)
-      .sort((x, y) => (y.allDay - x.allDay) || (x.start - y.start) || x.title.localeCompare(y.title));
+      .sort((x, y) => (Number(!!x.background) - Number(!!y.background)) || (y.allDay - x.allDay) || (x.start - y.start) || x.title.localeCompare(y.title));
   }
   function shiftOn(day) {
     if (CFG.work.enabled === false || U.esFestivoNacional(day)) return null;
@@ -152,7 +262,13 @@
 
   /* ---------------- Render común ---------------- */
   function evItem(e, day, compact) {
-    return '<button class="ev' + (e.virtual ? ' ev-virtual' : '') + (e.end < now() ? ' ev-past' : '') + (compact ? ' compact' : '') + '" data-ev="' + esc(e.id) + '" style="--c:' + esc(e.color) + '">' +
+    const cls = ['ev'];
+    if (e.virtual) cls.push('ev-virtual');
+    if (e.background) cls.push('ev-bg');
+    if (!e.allDay && e.end < now()) cls.push('ev-past');
+    if (isDone(e)) cls.push('ev-done');
+    if (compact) cls.push('compact');
+    return '<button class="' + cls.join(' ') + '" data-ev="' + esc(e.id) + '" style="--c:' + esc(e.color) + '">' +
       '<span class="ev-t">' + esc(evTime(e, day)) + '</span><span class="ev-n">' + esc(e.title) + '</span></button>';
   }
   function demoPill() { return demoOn() ? '<div class="demo-pill" title="Datos inventados. Configura tus calendarios en Ajustes">MODO DEMO · citas inventadas</div>' : ''; }
@@ -177,32 +293,46 @@
     if (w && w.days) {
       const i0 = Math.max(0, w.days.findIndex((d) => d.date === dayKey(today)));
       const d0 = w.days[i0];
-      const rest = w.days.slice(i0 + 1, i0 + 6);
+      const hourNow = new Date(t.getFullYear(), t.getMonth(), t.getDate(), t.getHours());
+      const hours = (w.hourly || []).filter((h) => { const d = U.parseLocal(h.time); return sameDay(d, t) && d >= hourNow; }).slice(0, 6);
+      const rest = w.days.slice(i0 + 1, i0 + 1 + (hours.length ? 3 : 5));
+      const hoursHtml = hours.length ? '<div class="wx-hours">' + hours.map((h) => {
+        const hd = U.parseLocal(h.time);
+        const rain = h.pop != null && h.pop >= 40;
+        return '<div class="wx-h"><div class="wx-hh">' + hd.getHours() + 'h</div><div>' + Weather.icon(h.code) + '</div><div class="wx-ht">' + Math.round(h.temp) + '°</div><div class="wx-drain' + (rain ? ' hi' : '') + '">' + (h.pop == null ? '' : h.pop + '%') + '</div></div>';
+      }).join('') + '</div>' : '';
       wx = '<div class="wx-now"><div class="wx-ic">' + (w.current.isDay === 0 && w.current.code <= 2 ? '🌙' : Weather.icon(w.current.code)) + '</div><div class="wx-temp">' + Math.round(w.current.temp) + '°</div>' +
         '<div class="wx-mm">' + Math.round(d0.min) + '° / ' + Math.round(d0.max) + '°</div><div class="wx-rain' + (d0.rain >= 40 ? ' hi' : '') + '">💧 ' + (d0.rain ?? '–') + ' %</div></div>' +
+        hoursHtml +
         '<div class="wx-days">' + rest.map((d) => {
           const dd = U.parseLocal(d.date);
           return '<div class="wx-day"><div class="wx-dn">' + U.DIAS_C[dd.getDay()] + '</div><div class="wx-di">' + Weather.icon(d.code) + '</div><div class="wx-dmax">' + Math.round(d.max) + '°</div><div class="wx-dmin">' + Math.round(d.min) + '°</div><div class="wx-drain' + (d.rain >= 40 ? ' hi' : '') + '">💧 ' + (d.rain ?? '–') + ' %</div></div>';
         }).join('') + '</div>';
     }
 
-    // Lo próximo / Ahora
-    const list = allEvents().filter((e) => !e.allDay && e.end > t).sort((a, b) => a.start - b.start);
+    // Ahora: siguiente cita, comida de hoy y mañana de un vistazo. Los calendarios de fondo no entran.
+    const list = allEvents().filter((e) => !e.allDay && !e.background && !isDone(e) && e.end > t).sort((a, b) => a.start - b.start);
     const cur = list.find((e) => e.start <= t);
     const nxt = list.find((e) => e.start > t);
     const main = cur || nxt;
-    let nextHtml = '<div class="next-label">LO PRÓXIMO</div><div class="next-title">Nada a la vista</div><div class="next-sub">Sin citas en el calendario</div>';
+    const meals = mealsFor(today);
+    const mealLine = meals.off
+      ? '<button class="next-meals" data-go="menu"><span>Fin de semana · sin menú</span></button>'
+      : '<button class="next-meals" data-go="menu"><span>Comida <b>' + esc(meals.comida || '—') + '</b></span><span>Cena <b>' + esc(meals.cena || '—') + '</b></span></button>';
+    const tip = (w && Weather.advice) ? Weather.advice(w.hourly, allEvents(), t) : '';
+    let body = '<div class="next-label">AHORA</div><div class="next-title">Sin citas a la vista</div>';
     if (main) {
       const isNow = main === cur;
       const dayTxt = sameDay(main.start, t) ? 'Hoy' : sameDay(main.start, addDays(t, 1)) ? 'Mañana' : U.fechaCorta(main.start);
       const pill = isNow ? 'termina en ' + U.countdown(main.end - t) : 'en ' + U.countdown(main.start - t);
       const after = isNow ? nxt : list.find((e) => e.start > main.start);
-      nextHtml = '<div class="next-head"><div class="next-label">' + (isNow ? 'AHORA' : 'LO PRÓXIMO') + '</div><div class="next-pill" data-countdown>' + esc(pill) + '</div></div>' +
+      body = '<div class="next-head"><div class="next-label">' + (isNow ? 'AHORA' : 'LO PRÓXIMO') + '</div><div class="next-pill" data-countdown>' + esc(pill) + '</div></div>' +
         '<div class="next-title" role="button" data-ev="' + esc(main.id) + '">' + esc(main.title) + '</div>' +
         '<div class="next-sub">' + esc(dayTxt + ' · ' + hm(main.start) + '–' + hm(main.end) + (main.location ? ' · ' + main.location : '')) + '</div>' +
-        (after ? '<button class="next-after" data-ev="' + esc(after.id) + '">Después: ' + esc((sameDay(after.start, t) ? '' : U.DIAS_C[after.start.getDay()] + ' ') + hm(after.start) + ' ' + after.title) + '</button>' : '');
-      nextHtml = '<div class="next-in ' + (isNow ? 'is-now' : '') + '" style="--c:' + esc(main.color) + '">' + nextHtml + '</div>';
-    } else nextHtml = '<div class="next-in">' + nextHtml + '</div>';
+        (after && sameDay(after.start, t) ? '<button class="next-after" data-ev="' + esc(after.id) + '">Después: ' + esc(hm(after.start) + ' ' + after.title) + '</button>' : '');
+    }
+    const nextHtml = '<div class="next-in' + (main && main === cur ? ' is-now' : '') + '"' + (main ? ' style="--c:' + esc(main.color) + '"' : '') + '>' +
+      body + mealLine + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
 
     // Semana
     const evs = allEvents();
@@ -212,11 +342,13 @@
       const st = dayStatus(d);
       const sh = shiftOn(d);
       const items = eventsOn(d, evs);
+      const mainEv = items.filter((e) => !e.background);
+      const bgEv = items.filter((e) => e.background).slice(0, 1);
       const kids = st === 'padre' ? '<div class="kids-chip">🏠 Con ' + esc(kidsNames()) + '</div>' : '';
       week += '<div class="day c-' + st + (i === 0 ? ' is-today' : '') + '">' +
         '<div class="day-h"><span class="day-n">' + (i === 0 ? 'Hoy' : U.DIAS_C[d.getDay()]) + '</span><span class="day-d">' + d.getDate() + '</span></div>' +
         (sh ? '<div class="shift">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '<div class="shift off">Libre</div>') + kids +
-        '<div class="day-evs">' + items.map((e) => evItem(e, d)).join('') + (items.length ? '' : '<div class="no-ev">—</div>') + '</div></div>';
+        '<div class="day-evs">' + mainEv.concat(bgEv).map((e) => evItem(e, d)).join('') + (mainEv.length ? '' : '<div class="no-ev">—</div>') + '</div></div>';
     }
 
     // Resúmenes
@@ -232,7 +364,7 @@
       '<section class="next card">' + nextHtml + '</section>' +
       '<section class="week">' + week + '</section>' +
       '<section class="sums">' +
-        '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + '</div><div class="sum-chips">' + ninos.chips + '</div></button>' +
+        '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + (ninos.overdue ? ' · fuera de hora' : ''))) + '</div><div class="sum-chips">' + ninos.chips + '</div></button>' +
         '<button class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + compra.length + (compra.length === 1 ? ' cosa' : ' cosas') + '</div><div class="sum-sub">' + esc(compra.slice(0, 5).map((x) => x.name).join(' · ') || 'Lista vacía') + '</div></button>' +
         '<button class="card sum" data-go="luz"><div class="sum-h c-amber">⚡ LUZ · 2.0TD</div><div class="sum-big"><span class="per-dot" style="--c:' + Luz.COLOR[p] + '"></span>Ahora ' + Luz.NOMBRE[p].toLowerCase() + '</div><div class="sum-sub">' + (p === 'valle' ? 'Buen momento para lavadora y lavavajillas' : nw ? 'Valle ' + whenTxt(nw.start, t) : '') + '</div></button>' +
       '</section></div>';
@@ -256,6 +388,8 @@
         const d = addDays(ws, i);
         const st = dayStatus(d);
         const items = eventsOn(d, evs);
+        const mainEv = items.filter((e) => !e.background);
+        const bgEv = items.filter((e) => e.background);
         const sh = shiftOn(d);
         const wx = wxBy[dayKey(d)];
         const first = d.getDate() === 1;
@@ -264,8 +398,9 @@
           '<div class="cell-h"><span class="cell-n">' + (sameDay(d, today) ? 'Hoy' : U.DIAS_C[d.getDay()]) + (first ? ' · ' + U.MESES_C[d.getMonth()] : '') + '</span><span class="cell-d">' + d.getDate() + '</span></div>' +
           (wx ? '<div class="cell-wx">' + Weather.icon(wx.code) + ' ' + Math.round(wx.max) + '°/' + Math.round(wx.min) + '° <span class="' + (wx.rain >= 40 ? 'hi' : '') + '">💧' + (wx.rain ?? '–') + '%</span></div>' : '') +
           (sh ? '<div class="shift sm">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '') +
-          '<div class="cell-evs">' + items.slice(0, max).map((e) => evItem(e, d, true)).join('') +
-          (items.length > max ? '<button class="more" data-dayall="' + dayKey(d) + '">+' + (items.length - max) + ' más</button>' : '') + '</div></div>';
+          '<div class="cell-evs">' + mainEv.slice(0, max).map((e) => evItem(e, d, true)).join('') +
+          (mainEv.length > max ? '<button class="more" data-dayall="' + dayKey(d) + '">+' + (mainEv.length - max) + ' más</button>' : '') +
+          bgEv.slice(0, 2).map((e) => evItem(e, d, true)).join('') + '</div></div>';
       }
       html += '</div></div>';
     }
@@ -356,23 +491,72 @@
   const chores = () => CFG.chores;
   const rewards = () => CFG.rewards;
 
+  function dayComplete(k, day) {
+    if (!kidsHomeOn(day)) return false;
+    const done = (k.done || {})[dayKey(day)] || {};
+    const list = chores();
+    if (!list.length) return false;
+    return list.every((c) => choreKids(c).every((kid) => (done[c.id] || []).indexOf(kid.id) !== -1));
+  }
+  function streakCount(k, t) {
+    let n = 0;
+    let d = sod(t);
+    if (!dayComplete(k, d)) d = addDays(d, -1);
+    for (let i = 0; i < 42; i++) {
+      const day = addDays(d, -i);
+      if (!kidsHomeOn(day)) continue;
+      if (dayComplete(k, day)) n++;
+      else break;
+    }
+    return n;
+  }
+  function weekStrip(k, t) {
+    const mon = mondayOf(t);
+    const letters = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    let html = '';
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(mon, i);
+      let cls = 'future';
+      if (sameDay(d, t)) cls = dayComplete(k, d) ? 'ok' : 'today';
+      else if (sod(d) < sod(t)) cls = !kidsHomeOn(d) ? 'paused' : dayComplete(k, d) ? 'ok' : 'miss';
+      html += '<span class="st-day ' + cls + '">' + letters[i] + '</span>';
+    }
+    return html;
+  }
   function choresSummary() {
-    const k = K(); const today = dayKey(now());
+    const k = K(); const t = now(); const today = dayKey(t);
     const done = k.done[today] || {};
-    let pending = 0;
-    chores().forEach((c) => CFG.kids.forEach((kid) => { if (!(done[c.id] || []).includes(kid.id)) pending++; }));
+    const paused = !kidsHome(t);
+    let pending = 0, overdue = 0;
+    if (!paused) {
+      chores().forEach((c) => choreKids(c).forEach((kid) => {
+        if ((done[c.id] || []).indexOf(kid.id) === -1) { pending++; if (slotOverdue(c, t)) overdue++; }
+      }));
+    }
     const chips = CFG.kids.map((kid) => '<span class="kid-chip" style="--c:' + kid.color + '">' + esc(kid.name) + ' ⭐ ' + (k.stars[kid.id] || 0) + '</span>').join('');
-    return { pending, chips };
+    return { pending, overdue, paused, chips, streak: streakCount(k, t) };
   }
 
   function renderNinos() {
     const t = now();
     const k = K(); const today = dayKey(t);
     const done = k.done[today] || {};
+    const paused = !kidsHome(t);
     const w = custodyOn() ? Custody.withParent(t) : null;
     const chips = CFG.kids.map((kid) => '<span class="kid-chip lg" style="--c:' + kid.color + '"><span class="av">' + esc(kid.name[0]) + '</span>' + esc(kid.name) + ' ⭐ ' + (k.stars[kid.id] || 0) + '</span>').join('');
-    const rows = chores().map((c) => '<div class="chore"><div class="ch-ic">' + esc(c.emoji) + '</div><div class="ch-n">' + esc(c.name) + '<div class="ch-s">+' + c.stars + ' ⭐</div></div><div class="ch-kids">' +
-      CFG.kids.map((kid) => { const on = (done[c.id] || []).includes(kid.id); return '<button class="kid-btn' + (on ? ' on' : '') + '" style="--c:' + kid.color + '" data-chore="' + esc(c.id) + '" data-kid="' + esc(kid.id) + '">' + (on ? '✓ ' : '') + esc(kid.name) + '</button>'; }).join('') + '</div></div>').join('');
+    const streak = streakCount(k, t);
+    const strip = '<div class="streak"><span class="streak-n">Racha · ' + streak + (streak === 1 ? ' día' : ' días') + '</span><span class="streak-days">' + weekStrip(k, t) + '</span></div>';
+    const rows = SLOTS.map((slot) => {
+      const list = chores().filter((c) => slotId(c) === slot.id);
+      if (!list.length) return '';
+      const late = !paused && list.some((c) => slotOverdue(c, t) && choreKids(c).some((kid) => (done[c.id] || []).indexOf(kid.id) === -1));
+      return '<div class="slot-h">' + esc(slot.name) + (late ? '<span class="od-tag">fuera de hora</span>' : '') + '</div>' + list.map((c) => {
+        const od = !paused && slotOverdue(c, t) && choreKids(c).some((kid) => (done[c.id] || []).indexOf(kid.id) === -1);
+        return '<div class="chore' + (od ? ' overdue' : '') + (paused ? ' is-paused' : '') + '"><div class="ch-ic">' + esc(c.emoji) + '</div><div class="ch-n">' + esc(c.name) + '<div class="ch-s">+' + c.stars + ' ⭐' + (od ? ' · fuera de hora' : '') + '</div></div><div class="ch-kids">' +
+          choreKids(c).map((kid) => { const on = (done[c.id] || []).includes(kid.id); return '<button class="kid-btn' + (on ? ' on' : '') + '" style="--c:' + kid.color + '" data-chore="' + esc(c.id) + '" data-kid="' + esc(kid.id) + '"' + (paused ? ' disabled' : '') + '>' + (on ? '✓ ' : '') + esc(kid.name) + '</button>'; }).join('') + '</div></div>';
+      }).join('');
+    }).join('');
+    const pause = paused ? '<div class="pause-banner">Tareas en pausa · esta semana están con ' + esc(CFG.otherParent) + '. Se reanudan solas al volver.</div>' : '';
     const rws = rewards().map((r) => '<div class="reward"><div class="rw-h"><span class="rw-ic">' + esc(r.emoji) + '</span><span class="rw-n">' + esc(r.name) + '</span><span class="rw-c">' + r.cost + ' ⭐</span></div><div class="rw-kids">' +
       CFG.kids.map((kid) => {
         const s = k.stars[kid.id] || 0; const pct = Math.min(100, s / r.cost * 100);
@@ -386,24 +570,25 @@
     }).join('');
     const log = (k.log || []).slice(-6).reverse().map((l) => '<div class="log">' + esc(l) + '</div>').join('');
     screenEl.innerHTML = '<div class="ninos">' +
-      '<section class="card"><div class="card-h">⭐ Tareas de hoy <span class="muted sm">' + (w === null ? '' : w ? 'Semana con ' + esc(CFG.parent) : 'Esta semana están con ' + esc(CFG.otherParent)) + '</span></div><div class="kid-chips">' + chips + '</div>' + rows +
-        '<div class="muted sm">Cada uno toca su nombre al terminar. Volver a tocar lo deshace. Las tareas se reinician cada día.</div></section>' +
+      '<section class="card"><div class="card-h">⭐ Tareas de hoy <span class="muted sm">' + (w === null ? '' : w ? 'Semana con ' + esc(CFG.parent) : 'Esta semana están con ' + esc(CFG.otherParent)) + '</span></div><div class="kid-chips">' + chips + '</div>' + strip + pause + rows +
+        '<div class="muted sm">Cada uno toca su nombre al terminar. Volver a tocar lo deshace. Mañana, después del cole y noche. En la semana sin niños se pausan solas.</div></section>' +
       '<section class="col"><div class="card"><div class="card-h">🎁 Recompensas</div>' + rws + '</div>' +
         '<div class="card"><div class="card-h">🔒 Pendiente de aprobar <span class="count">' + k.pending.length + '</span></div>' + (pend || '<div class="muted">Nada pendiente.</div>') +
         (log ? '<div class="card-h sub">Últimos movimientos</div>' + log : '') + '</div></section></div>';
   }
 
   function toggleChore(choreId, kidId) {
+    if (!kidsHome(now())) { toast('Tareas en pausa: esta semana no están en casa'); return; }
     const k = K(); const today = dayKey(now());
-    const c = chores().find((x) => x.id === choreId); const kid = CFG.kids.find((x) => x.id === kidId);
+    const c = chores().find((x) => x.id === choreId); const kid = choreKids(c || {}).find((x) => x.id === kidId);
     if (!c || !kid) return;
     k.done[today] = k.done[today] || {};
     const arr = k.done[today][choreId] = k.done[today][choreId] || [];
     const i = arr.indexOf(kidId);
     if (i >= 0) { arr.splice(i, 1); k.stars[kidId] = Math.max(0, (k.stars[kidId] || 0) - c.stars); k.log.push(hm(now()) + ' · ' + kid.name + ' deshace «' + c.name + '» (−' + c.stars + ' ⭐)'); }
     else { arr.push(kidId); k.stars[kidId] = (k.stars[kidId] || 0) + c.stars; k.log.push(hm(now()) + ' · ' + kid.name + ' hizo «' + c.name + '» (+' + c.stars + ' ⭐)'); }
-    // limpia días antiguos (guarda 14)
-    Object.keys(k.done).sort().slice(0, -14).forEach((d) => delete k.done[d]);
+    // limpia días antiguos (guarda 45, para la racha)
+    Object.keys(k.done).sort().slice(0, -45).forEach((d) => delete k.done[d]);
     k.log = k.log.slice(-50);
     saveK(k); render();
   }
@@ -476,6 +661,46 @@
     f.onsubmit = (ev) => { ev.preventDefault(); const v = $('#addInput').value; addItem(v); setTimeout(() => { const i = $('#addInput'); if (i) i.focus(); }, 0); };
   }
 
+  /* ---------------- MENÚ SEMANAL ---------------- */
+  const DAY_LETTERS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  function renderMenu() {
+    const m = menuState();
+    const t = now();
+    const todayIdx = weekdayIndex(t);
+    const nDays = m.span === 5 ? 5 : 7;
+    const pick = S.menuPick || {};
+    const days = [];
+    for (let i = 0; i < nDays; i++) {
+      const p = (m.plan && m.plan[String(i)]) || {};
+      const slot = (meal, label) => {
+        const on = pick.day === String(i) && pick.meal === meal;
+        const val = p[meal] || '';
+        return '<div class="menu-slot' + (on ? ' on' : '') + '" data-slot data-day="' + i + '" data-meal="' + meal + '">' +
+          '<div class="ms-k">' + label + '</div><div class="ms-v">' + esc(val || '—') + '</div>' +
+          (val ? '<button class="ms-x" data-clear-slot aria-label="Vaciar">×</button>' : '') + '</div>';
+      };
+      days.push('<div class="menu-day' + (i === todayIdx ? ' is-today' : '') + '"><div class="md-n">' + DAY_LETTERS[i] + '</div>' + slot('comida', 'COMIDA') + slot('cena', 'CENA') + '</div>');
+    }
+    const dishes = (m.dishes || []).map((n) => '<span class="dish-wrap"><button class="dish" draggable="true" data-dish="' + esc(n) + '">' + esc(n) + '</button><button class="dish-x" data-del-dish="' + esc(n) + '" aria-label="Quitar ' + esc(n) + '">×</button></span>').join('');
+    screenEl.innerHTML = '<div class="menu">' +
+      '<section class="card"><div class="menu-top"><div class="card-h" style="border:0;margin:0;padding:0">🍲 Menú de la semana</div><div class="span-toggle">' +
+        '<button class="btn sm' + (m.span === 7 ? '' : ' ghost') + '" data-act="menuSpan" data-span="7">L–D</button>' +
+        '<button class="btn sm' + (m.span === 5 ? '' : ' ghost') + '" data-act="menuSpan" data-span="5">L–V</button></div></div>' +
+      '<div class="muted sm">Primero la casilla, luego el plato. También se puede arrastrar. Se guarda solo en este dispositivo.</div>' +
+      days.join('') + '</section>' +
+      '<section class="card"><div class="card-h sub">PLATOS HABITUALES</div><div class="dishes">' + dishes + '</div>' +
+      '<form class="add" id="dishForm" autocomplete="off"><input id="dishInput" placeholder="Añadir plato" maxlength="40" enterkeyhint="done"><button class="btn" type="submit">Añadir</button></form>' +
+      '<div class="row-btns"><button class="btn ghost" data-act="resetMenu">Volver al ejemplo</button></div></section></div>';
+    const form = $('#dishForm');
+    form.onsubmit = (ev) => {
+      ev.preventDefault();
+      const raw = $('#dishInput').value.trim().replace(/\s+/g, ' ');
+      if (!raw) return;
+      const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+      updateMenu((menu) => { if (!menu.dishes.some((d) => d.toLowerCase() === name.toLowerCase())) menu.dishes.push(name); });
+    };
+  }
+
   /* ---------------- Familia e importar/exportar ---------------- */
   const WD = [[1, 'Lunes'], [2, 'Martes'], [3, 'Miércoles'], [4, 'Jueves'], [5, 'Viernes'], [6, 'Sábado'], [0, 'Domingo']];
   function familyCard() {
@@ -530,7 +755,7 @@
   function exportJson() {
     const st = JSON.parse(JSON.stringify(settings));
     if (!$('#expCals').checked) { st.calendars = []; st.proxy = ''; }
-    const data = { tipo: 'marco-familiar-ajustes', version: 1, advanced: store.get('advanced', {}), settings: st };
+    const data = { tipo: 'marco-familiar-ajustes', version: 1, advanced: store.get('advanced', {}), settings: st, menu: menuState() };
     const txt = JSON.stringify(data, null, 2);
     try {
       const a = document.createElement('a');
@@ -552,6 +777,7 @@
       if (!d.settings.proxy) next.proxy = cur.proxy || '';
       store.set('settings', next);
     }
+    if (d.menu && typeof d.menu === 'object') store.set('menu', d.menu);
     store.del('cache.weather');
     toast('Ajustes importados'); setTimeout(() => location.reload(), 400);
     return true;
@@ -569,10 +795,10 @@
       const stTxt = !c.url ? '' : st ? (st.ok ? '✅ ' + st.n + ' citas · ' + hm(new Date(st.at)) : '❌ ' + st.error) : 'Sin probar';
       return '<div class="cal-set" data-i="' + i + '"><input class="cs-name" value="' + esc(c.name) + '" placeholder="Nombre"><input class="cs-color" type="color" value="' + esc(c.color || '#E8604C') + '">' +
         '<input class="cs-url" type="password" value="' + esc(c.url) + '" placeholder="https://calendar.google.com/calendar/ical/…/private-…/basic.ics" autocomplete="off" spellcheck="false">' +
-        '<button class="btn sm ghost" data-act="showUrl" data-i="' + i + '">👁</button><button class="btn sm ghost" data-act="delCal" data-i="' + i + '">Quitar</button><div class="cs-st">' + esc(stTxt) + '</div></div>';
+        '<button class="btn sm ghost" data-act="showUrl" data-i="' + i + '">👁</button><button class="btn sm ghost" data-act="delCal" data-i="' + i + '">Quitar</button><div class="cs-st"><label class="bg-flag"><input type="checkbox" class="cs-bg"' + (c.background ? ' checked' : '') + '> De fondo</label>' + esc(stTxt) + '</div></div>';
     }).join('');
     const pr = prices();
-    const ch = chores().map((c) => [c.emoji, c.name, c.stars].join(' | ')).join('\n');
+    const ch = chores().map((c) => [c.emoji, c.name, c.stars, c.slot || 'cole'].concat(c.kids && c.kids.length ? [c.kids.join(',')] : []).join(' | ')).join('\n');
     const rw = rewards().map((r) => [r.emoji, r.name, r.cost].join(' | ')).join('\n');
     screenEl.innerHTML = '<div class="ajustes">' +
       '<section class="card"><div class="card-h">🗓️ Calendarios (iCal secreto de Google)</div>' +
@@ -580,14 +806,14 @@
         '<div id="calList">' + (calRows || '<div class="muted">No hay calendarios.</div>') + '</div>' +
         '<div class="row-btns"><button class="btn ghost" data-act="addCal">+ Añadir calendario</button></div>' +
         '<label class="lbl">Proxy CORS (opcional, prefijo que termina en <code>?url=</code>)</label><input id="proxy" value="' + esc(settings.proxy) + '" placeholder="https://marco-ics.tu-cuenta.workers.dev/?key=…&url=" spellcheck="false">' +
-        '<div class="muted sm">Google no deja leer el iCal directamente desde el navegador (falta la cabecera CORS). Usa el Worker de <code>proxy/</code> o <code>serve.py</code>.</div>' +
+        '<div class="muted sm">«De fondo» pinta el calendario tenue (turnos, trabajo) y no entra en Ahora. En el modo demo ya hay un turno de ejemplo. Google no deja leer el iCal directamente desde el navegador (falta la cabecera CORS). Usa el Worker de <code>proxy/</code> o <code>serve.py</code>.</div>' +
         '<label class="switch"><input type="checkbox" id="demo" ' + (demoOn() ? 'checked' : '') + '> Modo demostración (citas inventadas)</label>' +
         '<div class="row-btns"><button class="btn" data-act="saveCals">Guardar y probar</button></div></section>' +
       familyCard() +
       '<section class="card"><div class="card-h">⚡ Precios de ' + esc(tariffName()) + '</div><div class="muted sm">Opcional. Cópialos de tu factura o contrato (€/kWh). Si los dejas vacíos no se enseña ningún precio.</div>' +
         '<div class="prices">' + ['punta', 'llano', 'valle'].map((k) => '<label>' + Luz.NOMBRE[k] + '<input id="p_' + k + '" inputmode="decimal" value="' + esc(pr[k] == null ? '' : pr[k]) + '" placeholder="0,000"></label>').join('') + '</div>' +
         '<div class="row-btns"><button class="btn" data-act="savePrices">Guardar precios</button></div></section>' +
-      '<section class="card"><div class="card-h">⭐ Tareas y recompensas</div><div class="muted sm">Una por línea: <code>emoji | nombre | estrellas</code></div>' +
+      '<section class="card"><div class="card-h">⭐ Tareas y recompensas</div><div class="muted sm">Una por línea: <code>emoji | nombre | estrellas | franja | niños</code>. Franja: <code>manana</code>, <code>cole</code> o <code>noche</code>. Niños: ids separados por coma; vacío = todos. En la semana sin niños (custodia) se pausan solas.</div>' +
         '<label class="lbl">Tareas</label><textarea id="choresTxt" rows="5">' + esc(ch) + '</textarea><label class="lbl">Recompensas</label><textarea id="rewardsTxt" rows="4">' + esc(rw) + '</textarea>' +
         '<div class="row-btns"><button class="btn" data-act="saveChores">Guardar</button><button class="btn ghost" data-act="resetStars">Poner estrellas a 0 🔒</button></div></section>' +
       '<section class="card"><div class="card-h">🔒 PIN de padres</div><div class="muted sm">Para aprobar canjes y entrar en Ajustes. Se guarda en este dispositivo; es un candado para niños, no seguridad fuerte.</div>' +
@@ -606,18 +832,30 @@
       c.name = row.querySelector('.cs-name').value.trim() || 'Calendario ' + (i + 1);
       c.color = row.querySelector('.cs-color').value;
       c.url = row.querySelector('.cs-url').value.trim();
+      const bg = row.querySelector('.cs-bg');
+      c.background = bg ? bg.checked : !!c.background;
     });
   }
   function parseLines(txt, numKey) {
     return txt.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p.length >= 3 && p[1])
-      .map((p, i) => ({ id: p[1].toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').slice(0, 24) || 'x' + i, emoji: p[0] || '•', name: p[1], [numKey]: Math.max(1, parseInt(p[2], 10) || 1) }));
+      .map((p, i) => {
+        const o = { id: p[1].toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').slice(0, 24) || 'x' + i, emoji: p[0] || '•', name: p[1], [numKey]: Math.max(1, parseInt(p[2], 10) || 1) };
+        if (numKey === 'stars') {
+          const slot = (p[3] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          if (slot === 'manana' || slot === 'cole' || slot === 'noche') o.slot = slot;
+          if (p[4]) o.kids = p[4].split(',').map((s) => s.trim()).filter(Boolean);
+        }
+        return o;
+      });
   }
   async function settingsAction(act, el) {
     switch (act) {
       case 'saveFamily': saveFamily(); break;
       case 'exportJson': exportJson(); break;
       case 'importJson': importJson($('#impTxt').value); break;
-      case 'addCal': readCalForm(); settings.calendars.push({ id: U.uid(), name: 'Calendario ' + (settings.calendars.length + 1), color: ['#E8604C', '#3BA55C', '#2F80ED', '#8E5BC8', '#F5A623'][settings.calendars.length % 5], url: '' }); saveSettings(); render(); break;
+      case 'addCal': readCalForm(); settings.calendars.push({ id: U.uid(), name: 'Calendario ' + (settings.calendars.length + 1), color: ['#E8604C', '#3BA55C', '#2F80ED', '#8E5BC8', '#F5A623'][settings.calendars.length % 5], url: '', background: false }); saveSettings(); render(); break;
+      case 'menuSpan': updateMenu((m) => { m.span = el.dataset.span === '5' ? 5 : 7; }); break;
+      case 'resetMenu': store.del('menu'); S.menuPick = null; toast('Menú de ejemplo'); render(); break;
       case 'delCal': readCalForm(); settings.calendars.splice(+el.dataset.i, 1); saveSettings(); render(); break;
       case 'showUrl': { const inp = el.parentElement.querySelector('.cs-url'); inp.type = inp.type === 'password' ? 'text' : 'password'; break; }
       case 'saveCals':
@@ -657,7 +895,12 @@
     const m = $('#modal');
     m.innerHTML = '<div class="modal-card">' + html + (noClose ? '' : '<div class="modal-f"><button class="btn close" data-close>Cerrar</button></div>') + '</div>';
     m.classList.remove('hidden');
-    m.onclick = (ev) => { if (ev.target === m || ev.target.closest('[data-close]')) closeModal(); else { const b = ev.target.closest('[data-ev]'); if (b) showEvent(b.dataset.ev); } };
+    m.onclick = (ev) => {
+      const doneBtn = ev.target.closest('[data-done]');
+      if (doneBtn) { toggleDone(doneBtn.dataset.done); return; }
+      if (ev.target === m || ev.target.closest('[data-close]')) closeModal();
+      else { const b = ev.target.closest('[data-ev]'); if (b) showEvent(b.dataset.ev); }
+    };
   }
   function closeModal() { const m = $('#modal'); m.classList.add('hidden'); m.innerHTML = ''; m.onclick = null; }
   function showEvent(id) {
@@ -668,10 +911,13 @@
       const last = addDays(en, -1);
       when = sameDay(s, last) ? U.fechaLarga(s) + ' · todo el día' : 'Del ' + U.fechaLarga(s).toLowerCase() + ' al ' + U.fechaLarga(last).toLowerCase();
     } else when = U.fechaLarga(s) + ' · ' + hm(s) + '–' + (sameDay(s, en) ? '' : U.fechaCorta(en) + ' ') + hm(en);
-    openModal('<div class="modal-cal" style="--c:' + esc(e.color) + '"><span class="dot"></span>' + esc(e.calName.toUpperCase()) + '</div>' +
-      '<div class="modal-t">' + esc(e.title) + '</div><div class="modal-w">' + esc(when) + '</div>' +
+    const done = isDone(e);
+    openModal('<div class="modal-cal" style="--c:' + esc(e.color) + '"><span class="dot"></span>' + esc(e.calName.toUpperCase()) + (e.background ? ' · DE FONDO' : '') + '</div>' +
+      '<div class="modal-t' + (done ? ' done' : '') + '">' + esc(e.title) + '</div><div class="modal-w">' + esc(when) + '</div>' +
       (e.location ? '<div class="modal-l">📍 ' + esc(e.location) + '</div>' : '') +
-      (e.description ? '<div class="modal-d">' + esc(e.description).replace(/\n/g, '<br>') + '</div>' : ''));
+      (e.description ? '<div class="modal-d">' + esc(e.description).replace(/\n/g, '<br>') + '</div>' : '') +
+      (e.background ? '<div class="muted sm">Calendario de fondo: se ve tenue y no entra en Ahora.</div>' : '') +
+      '<div class="row-btns"><button class="btn' + (done ? ' ghost' : '') + '" data-done="' + esc(e.id) + '">' + (done ? 'Deshacer' : 'Marcar hecha') + '</button></div>');
   }
   function showDay(key) {
     const d = U.parseLocal(key);
@@ -679,7 +925,7 @@
   }
 
   /* ---------------- Navegación y eventos ---------------- */
-  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, ajustes: renderAjustes };
+  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, menu: renderMenu, ajustes: renderAjustes };
   function render() {
     document.querySelectorAll('#rail [data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === S.screen));
     document.body.dataset.screen = S.screen;
@@ -729,6 +975,52 @@
     const it = t.closest('[data-item]');
     if (it) { const c = C(); const x = c.items.find((y) => y.id === it.dataset.item); if (x) x.done = !x.done; saveC(c); return render(); }
     const hb = t.closest('[data-hab]'); if (hb) return addItem(hb.dataset.hab);
+    const clearSlot = t.closest('[data-clear-slot]');
+    if (clearSlot) { const slot = clearSlot.closest('[data-slot]'); if (slot) assignMeal(slot.dataset.day, slot.dataset.meal, ''); return; }
+    const slot = t.closest('[data-slot]');
+    if (slot) { S.menuPick = { day: slot.dataset.day, meal: slot.dataset.meal }; return render(); }
+    const delDish = t.closest('[data-del-dish]');
+    if (delDish) {
+      const name = delDish.dataset.delDish;
+      return updateMenu((m) => {
+        m.dishes = m.dishes.filter((d) => d.toLowerCase() !== name.toLowerCase());
+        Object.keys(m.plan || {}).forEach((k) => ['comida', 'cena'].forEach((meal) => {
+          if (m.plan[k] && m.plan[k][meal] && m.plan[k][meal].toLowerCase() === name.toLowerCase()) m.plan[k][meal] = '';
+        }));
+      });
+    }
+    const dish = t.closest('[data-dish]');
+    if (dish) {
+      if (!S.menuPick) { toast('Falta elegir comida o cena'); return; }
+      return assignMeal(S.menuPick.day, S.menuPick.meal, dish.dataset.dish);
+    }
+  });
+  let dragDish = '';
+  document.addEventListener('dragstart', (ev) => {
+    const d = ev.target.closest && ev.target.closest('[data-dish]');
+    if (!d || !ev.dataTransfer) return;
+    dragDish = d.dataset.dish;
+    ev.dataTransfer.setData('text/plain', d.dataset.dish);
+    ev.dataTransfer.effectAllowed = 'copy';
+  });
+  document.addEventListener('dragover', (ev) => {
+    const slot = ev.target.closest && ev.target.closest('[data-slot]');
+    if (!slot) return;
+    ev.preventDefault();
+    document.querySelectorAll('.menu-slot.drag').forEach((el) => el.classList.remove('drag'));
+    slot.classList.add('drag');
+  });
+  document.addEventListener('dragleave', (ev) => {
+    const slot = ev.target.closest && ev.target.closest('[data-slot]');
+    if (slot) slot.classList.remove('drag');
+  });
+  document.addEventListener('drop', (ev) => {
+    const slot = ev.target.closest && ev.target.closest('[data-slot]');
+    if (!slot) return;
+    ev.preventDefault();
+    slot.classList.remove('drag');
+    const dish = (ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || dragDish;
+    if (dish) assignMeal(slot.dataset.day, slot.dataset.meal, dish);
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
@@ -738,6 +1030,8 @@
     document.querySelectorAll('[data-clock="big"],[data-clock="night"]').forEach((el) => { if (el.textContent !== hm(t)) el.textContent = hm(t); });
     const r = $('[data-clock="rail"]'); if (r) r.innerHTML = pad(t.getHours()) + '<br>' + pad(t.getMinutes());
     const nd = $('[data-clock="nightdate"]'); if (nd) nd.textContent = U.fechaLarga(t);
+    const nn = $('[data-clock="nightnext"]');
+    if (nn) { const line = morningLine(t); if (nn.textContent !== line) nn.textContent = line; }
   }
   function inNightWindow(t) {
     if (!settings.nightClock) return false;
@@ -775,7 +1069,10 @@
   setInterval(() => loadCalendars().then(() => { if (!userBusy()) render(); }).catch(() => { }), 15 * 60000);
   setInterval(() => loadWeather().then(() => { if (!userBusy()) render(); }), 30 * 60000);
   setInterval(() => loadPVPC().then(() => { if (!userBusy()) render(); }), 60 * 60000);
-  window.addEventListener('online', () => refreshAll(false));
+  window.addEventListener('online', () => { paintOffline(); refreshAll(false); });
+  window.addEventListener('offline', paintOffline);
+  paintOffline();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
   // Arranque
   const hash = (location.hash || '').replace('#', '');
@@ -784,5 +1081,5 @@
   refreshAll(false);
 
   // Para pruebas automáticas
-  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, loadCalendars, showEvent };
+  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, loadCalendars, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline };
 })();

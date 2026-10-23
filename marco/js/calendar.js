@@ -43,7 +43,8 @@
         start, end, allDay,
         location: item.location || '',
         description: item.description || '',
-        calName: cal.name, color: cal.color || '#C8243B'
+        calName: cal.name, color: cal.color || '#C8243B',
+        background: !!cal.background
       });
     };
 
@@ -120,9 +121,14 @@
       ev('coche', 'Revisión del coche (demo)', ['DTSTART;' + tz(U.addDays(today, 20), 9, 30), 'DTEND;' + tz(U.addDays(today, 20), 10, 30)]),
       ev('medico', 'Médico (demo)', ['DTSTART;' + tz(U.addDays(today, 34), 11, 0), 'DTEND;' + tz(U.addDays(today, 34), 11, 30)])
     );
+    const turno = [].concat(
+      ev('turno', 'Turno de tarde (demo)', ['DTSTART;' + tz(lastMon, 15, 0), 'DTEND;' + tz(lastMon, 22, 0)],
+        ['RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', 'DESCRIPTION:Calendario de fondo de ejemplo. Se ve tenue y no entra en Ahora.'])
+    );
     return [
       { name: 'Familia (demo)', color: '#E8604C', text: wrap('Familia (demo)', familia) },
-      { name: 'Niños (demo)', color: '#3BA55C', text: wrap('Niños (demo)', ninos) }
+      { name: 'Niños (demo)', color: '#3BA55C', text: wrap('Niños (demo)', ninos) },
+      { name: 'Turno (demo)', color: '#8A8178', background: true, text: wrap('Turno (demo)', turno) }
     ];
   }
 

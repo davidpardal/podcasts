@@ -75,15 +75,35 @@ with sync_playwright() as p:
     check("horas correctas tras el cambio de hora (17:30)", all(h == "17:30" for h in rr["afterDST"]), rr["afterDST"])
     t0 = page.inner_text("[data-clock=big]"); page.clock.run_for(60_000); t1 = page.inner_text("[data-clock=big]")
     check("el reloj avanza", t0 == "17:45" and t1 == "17:46", f"{t0} → {t1}")
+    check("sin custodia las tareas no se pausan", "En pausa" not in page.locator(".sum").first.inner_text())
+    check("a media tarde hay tareas de la mañana fuera de hora", "fuera de hora" in page.locator(".sum").first.inner_text())
+    tip = page.evaluate("""() => Weather.advice(
+      [{ time: '2026-10-21T17:00', temp: 14, pop: 80, code: 61, precip: 1.2 }],
+      [{ title: 'Baloncesto (demo)', start: new Date(2026, 9, 21, 17, 30), end: new Date(2026, 9, 21, 19, 0), allDay: false }],
+      new Date(2026, 9, 21, 16, 0))""")
+    check("lluvia a las 17:00 y baloncesto: chubasquero", "chubasquero" in tip and "Baloncesto" in tip and "17:00" in tip, tip)
 
     # ================= 2) Capturas con ajustes genéricos de ejemplo =================
     set_ajustes(page, EJEMPLO); wait_data(page)
     check("ejemplo: custodia activa y semanas sombreadas", page.locator(".custody-badge").count() == 1 and page.locator(".day.c-padre").count() >= 1)
+    check("ahora no lo tapa el turno de fondo", "Turno" not in page.inner_text(".next-title"))
+    check("calendario de fondo visible", page.locator(".ev-bg").count() > 0)
+    check("hoy muestra comida y cena", "Comida" in page.inner_text(".next-meals") and "Arroz" in page.inner_text(".next-meals"))
+    check("mañana de un vistazo", page.inner_text(".next-tom").startswith("Mañana"))
+    check("cita demo tachada", page.locator(".ev-done", has_text="Compra semanal").count() >= 1)
+    if page.locator(".wx-h").count():
+        check("tiempo por horas", page.locator(".wx-h").count() >= 4)
     page.screenshot(path=os.path.join(OUT, "1-hoy.png"))
     page.locator(".week [data-ev]", has_text="Dentista").first.click()
     page.wait_for_selector(".modal-card")
     check("al tocar una cita se abre el detalle", page.inner_text(".modal-t") == "Dentista (demo)")
     page.screenshot(path=os.path.join(OUT, "7-aviso-cita.png"))
+    page.click("[data-close]")
+    page.locator(".week [data-ev]", has_text="Dentista").first.click()
+    page.wait_for_selector("[data-done]")
+    page.click("[data-done]")
+    check("marcar hecha tacha la cita", page.locator(".week .ev-done", has_text="Dentista").count() >= 1)
+    page.click("[data-done]")
     page.click("[data-close]")
     for i, (tab, sel) in enumerate([("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("ajustes", ".ajustes")], start=2):
         page.click(f"#rail [data-go={tab}]"); page.wait_for_selector(sel)
@@ -97,6 +117,10 @@ with sync_playwright() as p:
             check("luz: PVPC marcado como referencia", "NO es tu tarifa" in page.inner_text(".luz-pvpc"))
             check("luz: gráfico PVPC pintado", page.locator(".bar").count() >= 23, page.locator(".bar").count())
         if tab == "ninos":
+            check("tareas por franja", all(s in page.inner_text(".ninos").lower() for s in ("mañana", "después del cole", "noche")))
+            check("una tarea solo de Peque A", page.locator("[data-chore=basura]").count() == 1)
+            check("franja de la mañana fuera de hora", page.locator(".chore.overdue").count() >= 1)
+            check("racha de la semana", page.locator(".streak").count() == 1)
             for c, k in [("cama", "peque-a"), ("deberes", "peque-a"), ("cama", "peque-b"), ("cuarto", "peque-b"), ("mesa", "peque-b")]:
                 page.click(f"[data-chore={c}][data-kid={k}]")
             check("niños: estrellas suman", "Peque A ⭐ 3" in page.inner_text(".kid-chips") and "Peque B ⭐ 4" in page.inner_text(".kid-chips"), page.inner_text(".kid-chips"))
@@ -107,6 +131,7 @@ with sync_playwright() as p:
             check("compra: 4 pendientes", page.inner_text(".compra .count") == "4")
         if tab == "ajustes":
             check("ajustes: formulario de familia e importar/exportar", page.is_visible("#f_kids") and page.is_visible("#impTxt"))
+            check("ajustes: calendarios de fondo", "De fondo" in page.inner_text(".ajustes"))
         page.screenshot(path=os.path.join(OUT, f"{i}-{tab}.png"))
     # PIN y canje
     page.evaluate("""() => { localStorage.setItem('marco.pin', JSON.stringify('2468'));
@@ -133,8 +158,22 @@ with sync_playwright() as p:
     page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#f_kids")
     page.click("[data-act=exportJson]"); page.wait_for_selector(".share-ta")
     exp = json.loads(page.input_value(".share-ta"))
-    check("exportar da JSON importable sin calendarios", exp.get("tipo") == "marco-familiar-ajustes" and exp["settings"]["calendars"] == [] and exp["advanced"]["kids"][2]["name"] == "Peque Z")
+    check("exportar da JSON importable sin calendarios", exp.get("tipo") == "marco-familiar-ajustes" and exp["settings"]["calendars"] == [] and exp["advanced"]["kids"][2]["name"] == "Peque Z" and exp.get("menu", {}).get("plan"))
     page.click("[data-close]")
+    page.click("#rail [data-go=menu]"); page.wait_for_selector(".menu")
+    page.screenshot(path=os.path.join(OUT, "11-menu.png"))
+    check("menú de lunes a domingo", page.locator(".menu-day").count() == 7 and page.locator(".menu-slot").count() == 14)
+    page.click(".menu-slot[data-day='2'][data-meal='comida']")
+    page.click(".dish[data-dish='Pizza']")
+    check("tocar asigna el plato", "Pizza" in page.locator(".menu-slot[data-day='2'][data-meal='comida']").inner_text())
+    page.drag_and_drop(".dish[data-dish='Sopa']", ".menu-slot[data-day='2'][data-meal='cena']")
+    check("arrastrar asigna la cena", "Sopa" in page.locator(".menu-slot[data-day='2'][data-meal='cena']").inner_text())
+    page.click("[data-span='5']")
+    check("el menú puede ser solo L–V", page.locator(".menu-day").count() == 5)
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-meals")
+    check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".next-meals"))
+    page.click("#rail [data-go=menu]"); page.click("[data-act=resetMenu]")
+    check("volver al menú de ejemplo", "Arroz" in page.locator(".menu-slot[data-day='2'][data-meal='comida']").inner_text())
     # CORS
     cors = page.evaluate("""async () => {
       const u = 'https://calendar.google.com/calendar/ical/es.spain%23holiday%40group.v.calendar.google.com/public/basic.ics';
@@ -156,12 +195,28 @@ with sync_playwright() as p:
     page.wait_for_function("() => Marco.S.calStatus.f", timeout=20000)
     st2 = page.evaluate("Marco.S.calStatus.f")
     check("iCal sin proxy: error CORS claro en Ajustes", (not st2["ok"]) and st2.get("cors"), st2.get("error"))
+    sw = page.evaluate("() => navigator.serviceWorker.register('sw.js').then(() => true).catch(e => String(e))")
+    check("service worker de la página", sw is True, sw)
+    page.context.set_offline(True)
+    page.evaluate("() => Marco.paintOffline()")
+    off = page.inner_text("#offline")
+    check("aviso sin conexión con la hora de los datos", off.startswith("Sin conexión · datos de las ") or off.startswith("Sin conexión · sin datos"), off)
+    page.context.set_offline(False)
+    page.evaluate("() => Marco.paintOffline()")
+    check("al volver la red se quita el aviso", page.locator("#offline.hidden").count() == 1)
+    page.clock.set_fixed_time(dt.datetime(2026, 10, 21, 23, 15, tzinfo=TZ))
+    page.clock.run_for(1500)
+    page.wait_for_selector("#night:not(.hidden)")
+    check("reloj nocturno: lo primero de mañana", "Lo primero de mañana" in page.inner_text("[data-clock=nightnext]"))
     ctx.close()
 
     # Sábado 24/10 y otras resoluciones, con ajustes genéricos
     ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 24, 10, 0, tzinfo=TZ))
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
     page.screenshot(path=os.path.join(OUT, "8-hoy-sabado.png"))
+    check("sábado sin niños: tareas en pausa", "En pausa" in page.locator(".sum").first.inner_text())
+    page.click("#rail [data-go=ninos]"); page.wait_for_selector(".pause-banner")
+    check("la pausa se explica en Niños", "pausa" in page.inner_text(".pause-banner").lower())
     page.click("#rail [data-go=luz]"); page.wait_for_selector(".luz")
     check("luz sábado = valle", "Valle" in page.inner_text(".per-big"))
     ctx.close()
