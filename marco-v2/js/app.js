@@ -15,7 +15,7 @@
   }
   const CFG = window.CFG = deepMerge(window.MARCO_DEFAULTS, store.get('advanced', {}));
   { const adv = store.get('advanced', {}); if (adv.work && adv.work.shifts) CFG.work.shifts = adv.work.shifts; }
-  const settings = Object.assign({ calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled }, store.get('settings', {}));
+  const settings = Object.assign({ calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled, eroskiNotifyEmail: '' }, store.get('settings', {}));
   const saveSettings = () => store.set('settings', settings);
   const realCalendars = () => settings.calendars.filter((c) => c.url && c.url.trim());
   const demoOn = () => (settings.demo === null || settings.demo === undefined) ? realCalendars().length === 0 : !!settings.demo;
@@ -645,6 +645,80 @@
     all.forEach((n) => { const l = n.toLowerCase(); if (!onList.has(l) && !seen.has(l)) { seen.add(l); out.push(n); } });
     return out.slice(0, 9);
   }
+  function listaPendienteTexto() {
+    const names = C().items.filter((x) => !x.done).map((x) => x.name);
+    return { names: names, text: 'Lista de la compra:\n' + names.map((n) => '• ' + n).join('\n') };
+  }
+  function mailtoCesta(text) {
+    const to = String(settings.eroskiNotifyEmail || '').trim();
+    const addr = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) ? to : '';
+    return 'mailto:' + addr + '?subject=' + encodeURIComponent('Haz la cesta') + '&body=' + encodeURIComponent(text);
+  }
+  function abrirMailto(href) {
+    // Iframe: abre el correo sin navegar esta página (un <a> la deja en blanco al cancelar).
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.tabIndex = -1;
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;border:0;opacity:0';
+    frame.src = href;
+    document.body.appendChild(frame);
+    setTimeout(() => { if (frame.parentNode) frame.remove(); }, 2000);
+  }
+  async function copiarTexto(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* WebView del marco o sin permiso */ }
+    let ta = null;
+    try {
+      ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try { ta.setSelectionRange(0, text.length); } catch (e2) { /* algunos WebView */ }
+      return !!document.execCommand('copy');
+    } catch (e) { return false; }
+    finally { if (ta && ta.parentNode) ta.remove(); }
+  }
+  async function hazLaCesta() {
+    const lista = listaPendienteTexto();
+    if (!lista.names.length) { toast('No hay nada pendiente en la lista'); return; }
+    const copied = await copiarTexto(lista.text);
+    const href = mailtoCesta(lista.text);
+    const avisar = () => toast('Lista lista para Grok Bot', 12000);
+    let salio = false;
+    const limpiar = () => {
+      window.removeEventListener('blur', alSalir);
+      window.removeEventListener('focus', alVolver);
+      document.removeEventListener('visibilitychange', alVolver);
+      clearTimeout(fin);
+    };
+    const alSalir = () => { salio = true; };
+    const alVolver = () => {
+      if (document.hidden) { salio = true; return; }
+      if (!salio) return;
+      limpiar();
+      avisar();
+    };
+    const fin = setTimeout(limpiar, 120000);
+    window.addEventListener('blur', alSalir);
+    window.addEventListener('focus', alVolver);
+    document.addEventListener('visibilitychange', alVolver);
+    // El aviso va antes que el correo: el diálogo del sistema tapa la página.
+    avisar();
+    if (!copied) {
+      openModal('<div class="modal-t">Lista lista para Grok Bot</div><div class="muted sm">No se pudo copiar sola. Selecciónala aquí. El correo se abre con la misma lista (el destinatario se pone en Ajustes).</div><textarea class="share-ta" rows="8" readonly>' + esc(lista.text) + '</textarea>');
+    }
+    setTimeout(() => abrirMailto(href), 400);
+  }
   function renderCompra() {
     const c = C();
     const items = c.items;
@@ -653,10 +727,10 @@
       '<section class="card"><div class="card-h">🛒 Lista de la compra <span class="count">' + pending.length + '</span></div>' +
         '<form class="add" id="addForm" autocomplete="off"><input id="addInput" placeholder="Añadir… (p. ej. leche)" maxlength="60" enterkeyhint="done"><button class="btn" type="submit">Añadir</button></form>' +
         '<div class="items">' + (items.length ? items.map((x) => '<button class="item' + (x.done ? ' done' : '') + '" data-item="' + esc(x.id) + '"><span class="box">' + (x.done ? '✓' : '') + '</span>' + esc(x.name) + '</button>').join('') : '<div class="muted">La lista está vacía.</div>') + '</div>' +
-        '<div class="row-btns"><button class="btn ghost" data-act="clearDone">Quitar comprados</button><button class="btn ghost" data-act="share">Compartir lista</button></div></section>' +
+        '<div class="row-btns"><button class="btn ghost" data-act="clearDone">Quitar comprados</button><button class="btn ghost" data-act="share">Compartir lista</button><button class="btn" data-act="hazCesta">Haz la cesta</button></div></section>' +
       '<section class="card"><div class="card-h sub">HABITUALES · TOCA PARA AÑADIR</div><div class="habs">' +
         habituales(c).map((n) => '<button class="hab" data-hab="' + esc(n) + '"><b>' + esc(n) + '</b><span>+ Añadir</span></button>').join('') + '</div>' +
-        '<div class="muted sm">La lista se guarda en este dispositivo. Para pasarla al móvil usa «Compartir lista».</div></section></div>';
+        '<div class="muted sm">La lista se guarda en este dispositivo. «Compartir lista» la pasa al móvil. «Haz la cesta» la copia y abre un correo para Grok Bot (el de Ajustes). El marco no entra en la tienda.</div></section></div>';
     const f = $('#addForm');
     f.onsubmit = (ev) => { ev.preventDefault(); const v = $('#addInput').value; addItem(v); setTimeout(() => { const i = $('#addInput'); if (i) i.focus(); }, 0); };
   }
@@ -818,6 +892,9 @@
         '<div class="row-btns"><button class="btn" data-act="saveChores">Guardar</button><button class="btn ghost" data-act="resetStars">Poner estrellas a 0 🔒</button></div></section>' +
       '<section class="card"><div class="card-h">🔒 PIN de padres</div><div class="muted sm">Para aprobar canjes y entrar en Ajustes. Se guarda en este dispositivo; es un candado para niños, no seguridad fuerte.</div>' +
         '<div class="row-btns"><input id="pin1" type="password" inputmode="numeric" maxlength="8" placeholder="Nuevo PIN (4–8 cifras)"><button class="btn" data-act="savePin">' + (store.get('pin', null) ? 'Cambiar PIN' : 'Crear PIN') + '</button></div></section>' +
+      '<section class="card"><div class="card-h">🛒 Aviso de la cesta</div><div class="muted sm">Correo al que «Haz la cesta» abre el mensaje con la lista pendiente, para que Grok Bot la recoja cuando se lo pidas. Vacío hasta que lo pongas. Se guarda solo en este dispositivo. El marco no entra en la tienda.</div>' +
+        '<label class="lbl">Correo<input id="eroskiMail" type="email" inputmode="email" autocomplete="off" spellcheck="false" value="' + esc(settings.eroskiNotifyEmail || '') + '" placeholder="bot@ejemplo.com"></label>' +
+        '<div class="row-btns"><button class="btn" data-act="saveEroski">Guardar correo</button></div></section>' +
       '<section class="card"><div class="card-h">🌙 Pantalla</div><label class="switch"><input type="checkbox" id="night" ' + (settings.nightClock ? 'checked' : '') + '> Reloj nocturno de ' + esc(CFG.nightClock.from) + ' a ' + esc(CFG.nightClock.to) + '</label>' +
         '<div class="row-btns"><button class="btn ghost" data-act="fullscreen">Pantalla completa</button><button class="btn" data-act="saveScreen">Guardar</button></div></section>' +
       '<section class="card"><div class="card-h">🧩 Avanzado (JSON)</div><div class="muted sm">Sobrescribe la configuración a mano (para casos raros). Lo normal es usar «Familia» o «Importar».</div>' +
@@ -879,6 +956,14 @@
         if (!/^\d{4,8}$/.test(v)) { toast('El PIN debe tener de 4 a 8 cifras'); break; }
         if (store.get('pin', null) && !(await pinPad('PIN actual'))) break;
         store.set('pin', v); toast('PIN guardado'); render(); break;
+      }
+      case 'saveEroski': {
+        const v = $('#eroskiMail').value.trim();
+        if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { toast('Pon un correo válido o déjalo vacío'); break; }
+        settings.eroskiNotifyEmail = v;
+        saveSettings();
+        toast(v ? 'Correo guardado' : 'Sin correo: se elige al enviar');
+        break;
       }
       case 'saveScreen': settings.nightClock = $('#night').checked; saveSettings(); toast('Guardado'); break;
       case 'fullscreen': try { await document.documentElement.requestFullscreen(); } catch (e) { toast('Este navegador no deja pantalla completa'); } break;
@@ -949,10 +1034,11 @@
       if (act === 'sleep') return sleep(true);
       if (act === 'clearDone') { const c = C(); c.items = c.items.filter((x) => !x.done); saveC(c); return render(); }
       if (act === 'share') {
-        const txt = 'Lista de la compra:\n' + C().items.filter((x) => !x.done).map((x) => '• ' + x.name).join('\n');
+        const txt = listaPendienteTexto().text;
         if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (e) { /* cancelado */ } }
         return openModal('<div class="modal-t">Lista para copiar</div><textarea class="share-ta" rows="8" readonly>' + esc(txt) + '</textarea>');
       }
+      if (act === 'hazCesta') return hazLaCesta();
       return settingsAction(act, a);
     }
     const e = t.closest('[data-ev]'); if (e) return showEvent(e.dataset.ev);

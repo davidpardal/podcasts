@@ -26,9 +26,9 @@ y 1920×1200, y también en móvil.
 | **Calendario** | 13 semanas de lunes a domingo, con el mes, el día 1 resaltado, el tiempo de los próximos 16 días, la jornada, las citas y las **semanas de custodia sombreadas**. Los calendarios **de fondo** se ven tenues y no tapan el resto. «+N más» abre el día entero. Tocar una cita permite **marcarla hecha** (tachada; se guarda en el dispositivo). |
 | **Luz** | Periodo **2.0TD** actual (punta/llano/valle; fines de semana y festivos nacionales, todo valle), franjas de hoy y mañana, **mejores horas** para lavadora y lavavajillas. Precios de tu tarifa solo si los metes tú en Ajustes (no se inventan). Gráfico **PVPC de REE marcado como referencia, «NO es tu tarifa»**. |
 | **Niños** | Tareas por **franja** (mañana, después del cole, noche) y por niño. Si se pasa la hora, quedan **fuera de hora**. Una **racha** semanal (L–D). En la semana sin niños (custodia) se **pausan solas**. Estrellas, recompensas y canje que **aprueba un adulto con PIN** (bloqueo 5 min tras 5 fallos). |
-| **Compra** | Lista con «comprado», «Quitar comprados», «Compartir lista» y **habituales** (los que más añades y aún no están en la lista). |
+| **Compra** | Lista con «comprado», «Quitar comprados», «Compartir lista», **«Haz la cesta»** (copia la lista pendiente y abre un correo para Grok Bot) y **habituales** (los que más añades y aún no están en la lista). |
 | **Menú** | Plan de la semana **L–D o L–V**: comida y cena. Se elige entre platos habituales (tocar la casilla y el plato, o arrastrar). Hoy lo enseña en Ahora. |
-| **Ajustes** | Calendarios iCal (cada uno puede ser **de fondo**), proxy CORS, modo demo, **familia** (nombres, custodia, jornada por día, ciudad), precios de la tarifa, tareas y recompensas, PIN, reloj nocturno, **importar/exportar ajustes (JSON)** y avanzado. |
+| **Ajustes** | Calendarios iCal (cada uno puede ser **de fondo**), proxy CORS, modo demo, **familia** (nombres, custodia, jornada por día, ciudad), precios de la tarifa, tareas y recompensas, PIN, **correo de «Haz la cesta»** (vacío hasta que lo pongas), reloj nocturno, **importar/exportar ajustes (JSON)** y avanzado. |
 
 Tocar cualquier cita abre su detalle (calendario, título entero, fecha y hora, lugar y descripción) y el botón **Marcar hecha**.
 Reloj nocturno de 23:00 a 07:00 (o con el botón «Dormir»), con **lo primero de mañana**; vuelve solo a «Hoy» tras 3 min sin tocar;
@@ -128,7 +128,7 @@ capturas/             capturas a 1280×800 (y 1920×1200 y móvil), con datos de
 - **Alojamiento:** esta versión se publica en GitHub Pages bajo `/podcasts/marco-v2/` (rutas relativas y service worker con alcance solo de esa carpeta). El marco en uso sigue en `/podcasts/marco/`.
   Es **público**: por eso el código no lleva datos personales; tus ajustes viven solo en el dispositivo. Alternativas privadas:
   `serve.py` en un PC o Raspberry Pi de casa, o Cloudflare Pages con Access.
-- La lista de la compra y las estrellas son **por dispositivo** (sin sincronización). Para compartir de verdad haría falta un pequeño
+- La lista de la compra y las estrellas son **por dispositivo** (sin sincronización). «Haz la cesta» copia los pendientes y abre un `mailto:` al correo de Ajustes (`eroskiNotifyEmail`, vacío por defecto) con asunto «Haz la cesta». El marco no entra en la tienda: Grok Bot rellena la cesta fuera de esta página. Para compartir de verdad haría falta un pequeño
   backend (p. ej. un Worker con KV) o Bring!/Google Tasks.
 - Los precios de tu tarifa no vienen: cópialos de tu factura en Ajustes si quieres verlos. El PVPC es solo referencia, sin IVA ni impuesto eléctrico
   (el «con impuestos» es una estimación).

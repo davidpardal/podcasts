@@ -10,6 +10,7 @@ Opcional:
 Las capturas de capturas/ se hacen SIEMPRE con ajustes genéricos de ejemplo.
 """
 import datetime as dt, glob, json, os, sys
+from urllib.parse import unquote
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -174,6 +175,71 @@ with sync_playwright() as p:
     check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".next-meals"))
     page.click("#rail [data-go=menu]"); page.click("[data-act=resetMenu]")
     check("volver al menú de ejemplo", "Arroz" in page.locator(".menu-slot[data-day='2'][data-meal='comida']").inner_text())
+    # Haz la cesta: copia, mailto y aviso. Sin webhook en el repo; el correo sale de Ajustes.
+    page.evaluate("""() => {
+      window.__cesta = { copied: null, href: null, exec: false };
+      const clip = navigator.clipboard || (navigator.clipboard = {});
+      clip.writeText = (t) => { window.__cesta.copied = t; return Promise.resolve(); };
+      new MutationObserver((recs) => {
+        recs.forEach((r) => Array.from(r.addedNodes).forEach((n) => {
+          if (!n || n.tagName !== 'IFRAME') return;
+          const s = n.getAttribute('src') || '';
+          if (s.indexOf('mailto:') === 0) window.__cesta.href = n.src || s;
+        }));
+      }).observe(document.body, { childList: true });
+    }""")
+    page.click("#rail [data-go=compra]"); page.wait_for_selector("[data-act=hazCesta]")
+    check("compra: botón Haz la cesta junto a compartir", page.inner_text("[data-act=hazCesta]") == "Haz la cesta" and page.is_visible("[data-act=share]"))
+    page.click("[data-act=hazCesta]")
+    page.clock.run_for(500)
+    page.wait_for_function("() => window.__cesta && window.__cesta.href")
+    mail = page.evaluate("""() => {
+      const h = window.__cesta.href || '';
+      const q = h.split('?')[1] || '';
+      const p = new URLSearchParams(q);
+      return { to: h.split('?')[0], subject: p.get('subject'), body: p.get('body'), copied: window.__cesta.copied, toast: document.querySelector('#toast').textContent };
+    }""")
+    pendiente = "Lista de la compra:\n• Leche\n• Pan de molde\n• Plátanos\n• Tomates"
+    check("haz la cesta copia solo pendientes", mail["copied"] == pendiente and mail["body"] == pendiente and "Café" not in (mail["body"] or ""), mail)
+    check("mailto sin destinatario y asunto Haz la cesta", mail["to"] == "mailto:" and mail["subject"] == "Haz la cesta", mail)
+    check("toast lista lista para Grok Bot", mail["toast"] == "Lista lista para Grok Bot", mail["toast"])
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#eroskiMail")
+    check("ajustes: correo de la cesta vacío", page.input_value("#eroskiMail") == "")
+    page.fill("#eroskiMail", "no-es-correo"); page.click("[data-act=saveEroski]")
+    page.wait_for_function("() => document.querySelector('#toast').textContent.includes('válido')")
+    guardado = page.evaluate("() => (JSON.parse(localStorage.getItem('marco-v2.settings') || '{}').eroskiNotifyEmail || '')")
+    check("correo inválido no se guarda", guardado == "", guardado)
+    page.fill("#eroskiMail", "bot@ejemplo.com"); page.click("[data-act=saveEroski]")
+    page.wait_for_function("() => document.querySelector('#toast').textContent === 'Correo guardado'")
+    check("correo de aviso guardado en marco-v2.settings", page.evaluate("() => JSON.parse(localStorage.getItem('marco-v2.settings')).eroskiNotifyEmail") == "bot@ejemplo.com")
+    page.evaluate("() => { window.__cesta.copied = null; window.__cesta.href = null; }")
+    page.click("#rail [data-go=compra]"); page.click("[data-act=hazCesta]")
+    page.clock.run_for(500)
+    page.wait_for_function("() => window.__cesta.href")
+    mail2 = page.evaluate("""() => {
+      const h = window.__cesta.href || '';
+      const p = new URLSearchParams(h.split('?')[1] || '');
+      return { to: decodeURIComponent(h.split('?')[0]), subject: p.get('subject'), body: p.get('body') };
+    }""")
+    check("mailto usa el correo de ajustes", mail2["to"] == "mailto:bot@ejemplo.com" and mail2["subject"] == "Haz la cesta" and mail2["body"].startswith("Lista de la compra:\n• Leche"), mail2)
+    page.evaluate("""() => {
+      window.__cesta = { copied: null, href: null, exec: false };
+      navigator.clipboard.writeText = () => Promise.reject(new Error('denegado'));
+      document.execCommand = (cmd) => { if (cmd === 'copy') { window.__cesta.exec = true; return false; } return false; };
+    }""")
+    page.click("[data-act=hazCesta]")
+    page.clock.run_for(500)
+    page.wait_for_selector(".share-ta")
+    fallback = page.evaluate("""() => ({
+      href: window.__cesta.href, exec: window.__cesta.exec, modal: document.querySelector('.share-ta').value,
+      toast: document.querySelector('#toast').textContent
+    })""")
+    check("si no hay portapapeles, se ve la lista y sigue el mailto", fallback["exec"] and fallback["modal"] == pendiente and unquote(fallback["href"] or "").startswith("mailto:bot@ejemplo.com?") and fallback["toast"] == "Lista lista para Grok Bot", fallback)
+    page.click("[data-close]")
+    page.evaluate("""() => { const c = JSON.parse(localStorage.getItem('marco-v2.compra')); c.items.forEach(x => { x.done = true; }); localStorage.setItem('marco-v2.compra', JSON.stringify(c)); window.__cesta.href = null; }""")
+    page.click("[data-act=hazCesta]")
+    page.wait_for_function("() => document.querySelector('#toast').textContent.includes('pendiente')")
+    check("lista vacía no abre correo", page.evaluate("window.__cesta.href") is None and "No hay nada pendiente" in page.inner_text("#toast"))
     # CORS
     cors = page.evaluate("""async () => {
       const u = 'https://calendar.google.com/calendar/ical/es.spain%23holiday%40group.v.calendar.google.com/public/basic.ics';
