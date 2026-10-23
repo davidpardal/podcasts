@@ -1,7 +1,7 @@
 /* Caché simple para GitHub Pages: la app se abre sin red y los datos vivos siguen en localStorage.
  * No guarda calendarios, el proxy ni las APIs (Open-Meteo, REE). */
 (function () {
-  var CACHE = 'marco-shell-v1';
+  var CACHE = 'marco-v2-shell-v1';
   var ASSETS = [
     './',
     './index.html',
@@ -34,6 +34,9 @@
     var url;
     try { url = new URL(req.url); } catch (e) { return; }
     if (url.origin !== self.location.origin) return;
+    // Solo esta carpeta (p. ej. /podcasts/marco-v2/), nunca el marco de /marco/.
+    var scopePath = new URL('./', self.location.href).pathname;
+    if (url.pathname.indexOf(scopePath) !== 0) return;
     if (url.pathname.indexOf('/proxy') !== -1) return;
     event.respondWith(fetch(req).then(function (res) {
       if (res && res.ok && res.type === 'basic') {
