@@ -9,7 +9,7 @@ Opcional:
   MARCO_SUBPATH_URL=http://127.0.0.1:8766/marco-v2/  comprueba que funciona bajo una subruta (GitHub Pages: /podcasts/marco-v2/)
 Las capturas de capturas/ se hacen SIEMPRE con ajustes genéricos de ejemplo.
 """
-import datetime as dt, glob, json, os, sys
+import datetime as dt, glob, json, os, subprocess, sys
 from urllib.parse import unquote
 from playwright.sync_api import sync_playwright
 
@@ -299,6 +299,192 @@ with sync_playwright() as p:
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
     page.screenshot(path=os.path.join(OUT, "10-movil.png"))
     check("móvil sin scroll horizontal", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+    ctx.close()
+
+    # ================= 2b) Sincronización (endpoint simulado, datos de ejemplo) =================
+    SYNC_JS = os.path.join(HERE, "..", "js", "sync.js")
+    GS = os.path.join(HERE, "..", "apps-script", "Code.gs")
+    MANIFEST = os.path.join(HERE, "..", "apps-script", "appsscript.json")
+    gs = open(GS, encoding="utf-8").read()
+    manifest = json.load(open(MANIFEST, encoding="utf-8"))
+    check("script lee CalendarApp y exige la clave", "CalendarApp.getAllCalendars" in gs and "MARCO_KEY" in gs and "Clave incorrecta" in gs)
+    check("script sin datos personales", "davidpardal" not in gs.lower() and "calendar.google.com/calendar/ical" not in gs)
+    check("manifiesto: ejecutar como yo y acceso anónimo", manifest.get("webapp", {}).get("executeAs") == "USER_DEPLOYING" and manifest.get("webapp", {}).get("access") == "ANYONE_ANONYMOUS")
+
+    def js_merge(stored, incoming):
+        proc = subprocess.run(
+            ["node", "-e", r'''
+const fs = require("fs");
+const vm = require("vm");
+const code = fs.readFileSync(process.argv[1], "utf8");
+const sandbox = { window: {}, console: console };
+vm.createContext(sandbox);
+vm.runInContext(code, sandbox);
+let raw = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", function (c) { raw += c; });
+process.stdin.on("end", function () {
+  const input = JSON.parse(raw || "{}");
+  process.stdout.write(JSON.stringify(sandbox.window.Sync.mergeState(input.a, input.b)));
+});
+''', SYNC_JS],
+            input=json.dumps({"a": stored, "b": incoming}),
+            capture_output=True, text=True, timeout=20)
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr or proc.stdout)
+        return json.loads(proc.stdout)
+
+    reunion_ms = int(dt.datetime(2026, 10, 21, 18, 0, tzinfo=TZ).timestamp() * 1000)
+    turno_ms = int(dt.datetime(2026, 10, 21, 15, 0, tzinfo=TZ).timestamp() * 1000)
+    CALENDARS = {"ok": True, "calendars": [
+        {"id": "cal-familia", "name": "Familia ejemplo", "color": "#E8604C", "background": False},
+        {"id": "cal-turno", "name": "Turno ejemplo", "color": "#8A8178", "background": True}],
+        "events": [
+            {"id": "reunion@" + str(reunion_ms), "title": "Reunión de ejemplo", "startLocal": "2026-10-21T18:00", "endLocal": "2026-10-21T19:00",
+             "allDay": False, "location": "Sitio de ejemplo", "description": "Dato inventado.", "calId": "cal-familia", "calName": "Familia ejemplo", "color": "#E8604C", "background": False},
+            {"id": "turno@" + str(turno_ms), "title": "Turno ejemplo", "startLocal": "2026-10-21T15:00", "endLocal": "2026-10-21T22:00",
+             "allDay": False, "location": "", "description": "", "calId": "cal-turno", "calName": "Turno ejemplo", "color": "#8A8178", "background": True}]}
+    box = {"state": {
+        "compra": {"items": [{"id": "pan-remoto", "name": "Pan del otro móvil", "done": False, "deleted": False, "at": 1, "rev": 5}], "counts": {"Pan del otro móvil": 1}},
+        "ninos": {"stars": {"peque-b": 2}, "starLog": [{"id": "op-remoto", "kid": "peque-b", "delta": 2, "at": 50, "kind": "delta"}], "done": {}, "doneMeta": {}, "pending": [], "log": []},
+        "hechas": {}
+    }, "fail": False, "posts": 0, "key_in_url": False}
+
+    def handle_sync(route):
+        req = route.request
+        if "key=" in (req.url or ""):
+            box["key_in_url"] = True
+        try:
+            body = json.loads(req.post_data or "{}")
+        except Exception:
+            body = {}
+        if body.get("key") != "clave-de-ejemplo":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Clave incorrecta"}))
+        if box["fail"]:
+            return route.abort()
+        if body.get("action") == "calendars":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(CALENDARS))
+        if body.get("action") == "sync":
+            merged = js_merge(box["state"], body.get("state") or {})
+            box["state"] = merged
+            box["posts"] += 1
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": merged}))
+        return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Acción desconocida"}))
+
+    ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 21, 17, 45, tzinfo=TZ))
+    page.route("**/__marco_sync", handle_sync)
+    page.goto(BASE); page.wait_for_selector(".hoy"); page.clock.run_for(500)
+    mix = page.evaluate("""() => {
+      const ts = Date.now();
+      const id = 'cita@' + ts;
+      const R = ts * 1000;
+      const m = Sync.mergeState({
+        compra: { items: [
+          { id: 'a', name: 'Leche', rev: R + 10, deleted: true, done: true },
+          { id: 'c', name: 'Huevos', rev: R + 4, deleted: false, done: false }
+        ], counts: { Leche: 1 } },
+        menu: { span: 7, spanRev: 3, dishes: ['Pizza'], dishMeta: { pizza: { rev: 8, deleted: false } },
+          plan: { '0': { comida: 'Pizza', comidaRev: 9, cena: 'Sopa', cenaRev: 2 } } },
+        ninos: { starLog: [
+          { id: 'a1', kid: 'peque-a', delta: 1, at: 10, kind: 'delta' },
+          { id: 'rst', kind: 'reset', at: 20 },
+          { id: 'a2', kid: 'peque-a', delta: 2, at: 30, kind: 'delta' }
+        ] },
+        hechas: { [id]: { on: true, rev: 3 } }
+      }, {
+        compra: { items: [
+          { id: 'a', name: 'Leche', rev: R + 4, deleted: false, done: false },
+          { id: 'b', name: 'Pan', rev: R + 6, deleted: false, done: false }
+        ], counts: { Leche: 3, Pan: 1 } },
+        menu: { span: 5, spanRev: 1, dishes: ['Pizza', 'Sopa'], dishMeta: { pizza: { rev: 2, deleted: false }, sopa: { rev: 4, deleted: false } },
+          plan: { '0': { comida: 'Sopa', comidaRev: 4, cena: 'Tortilla', cenaRev: 7 } } },
+        ninos: { starLog: [{ id: 'b1', kid: 'peque-b', delta: 4, at: 40, kind: 'delta' }] },
+        hechas: { [id]: { on: false, rev: 8 } }
+      });
+      const names = {};
+      (m.compra.items || []).forEach(it => { names[it.id] = it; });
+      return {
+        lecheBorrada: !!(names.a && names.a.deleted),
+        huevos: !!(names.c && !names.c.deleted),
+        pan: !!(names.b && !names.b.deleted),
+        counts: m.compra.counts,
+        span: m.menu.span,
+        dishes: m.menu.dishes.slice().sort(),
+        lunes: m.menu.plan['0'],
+        stars: m.ninos.stars,
+        hecha: m.hechas[id]
+      };
+    }""")
+    check("mezcla: no pierde ítems y respeta la lápida", mix["lecheBorrada"] and mix["huevos"] and mix["pan"], mix)
+    check("mezcla: el contador se queda con el máximo", mix["counts"].get("Leche") == 3 and mix["counts"].get("Pan") == 1, mix["counts"])
+    check("mezcla: menú por casilla y platos de los dos", mix["span"] == 7 and mix["dishes"] == ["Pizza", "Sopa"] and mix["lunes"]["comida"] == "Pizza" and mix["lunes"]["cena"] == "Tortilla", mix)
+    check("mezcla: estrellas suman y el reinicio no se come lo de después", mix["stars"].get("peque-a") == 2 and mix["stars"].get("peque-b") == 4, mix["stars"])
+    check("mezcla: desmarcar una cita gana si es más nuevo", mix["hecha"]["on"] is False and mix["hecha"]["rev"] == 8, mix["hecha"])
+
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncUrl")
+    check("ajustes: tarjeta de sincronización", "Sincronización con Google" in page.inner_text("#syncCard"))
+    page.fill("#syncUrl", BASE.rstrip("/") + "/__marco_sync")
+    page.fill("#syncKey", "clave-de-ejemplo")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.className.indexOf('ok') !== -1; }", timeout=20000)
+    page.click("[data-act=showSyncKey]")
+    page.locator("#syncCard").screenshot(path=os.path.join(OUT, "12-sincronizacion.png"))
+    check("la clave no viaja en la URL", not box["key_in_url"])
+    check("demo apagado al conectar", page.evaluate("() => !Marco.demoOn()"))
+    check("cita de ejemplo y turno de fondo", "Reunión de ejemplo" in page.inner_text("body") and page.locator(".sync-cal", has_text="Turno ejemplo").locator("input").is_checked())
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-title")
+    check("ahora enseña la cita y no el turno de fondo", "Reunión" in page.inner_text(".next-title") and "Turno" not in page.inner_text(".next-title"))
+    check("el turno se pinta de fondo", page.locator(".ev-bg", has_text="Turno ejemplo").count() >= 1)
+    page.click("#rail [data-go=compra]"); page.wait_for_selector(".compra")
+    check("llega la compra del otro dispositivo", "Pan del otro móvil" in page.inner_text(".items"))
+    antes = page.evaluate("() => Marco.S.syncCount || 0")
+    page.fill("#addInput", "leche"); page.press("#addInput", "Enter")
+    page.clock.run_for(2500)
+    page.wait_for_function("(n) => (Marco.S.syncCount || 0) > n", arg=antes, timeout=15000)
+    names = sorted(x["name"] for x in box["state"]["compra"]["items"] if not x.get("deleted"))
+    check("los dos aparatos conservan sus productos", names == ["Leche", "Pan del otro móvil"] and "Leche" in page.inner_text(".items") and "Pan del otro móvil" in page.inner_text(".items"), names)
+    page.click("#rail [data-go=ninos]"); page.wait_for_selector(".kid-chips")
+    check("llegan las estrellas del otro dispositivo", "Peque B ⭐ 2" in page.inner_text(".kid-chips"), page.inner_text(".kid-chips"))
+    page.click("[data-chore=cama][data-kid=peque-a]")
+    page.evaluate("() => Sync.syncNow()")
+    page.wait_for_function("() => { const k = JSON.parse(localStorage.getItem('marco-v2.ninos')||'{}'); return (k.stars||{})['peque-a'] >= 1 && (k.stars||{})['peque-b'] >= 2; }")
+    check("una estrella local no borra la del otro", "Peque A ⭐ 1" in page.inner_text(".kid-chips") and "Peque B ⭐ 2" in page.inner_text(".kid-chips"))
+    page.click("#rail [data-go=hoy]")
+    antes_hecha = page.evaluate("() => Marco.S.syncCount || 0")
+    page.locator(".week [data-ev]", has_text="Reunión de ejemplo").first.click()
+    page.click("[data-done]")
+    page.evaluate("() => Sync.syncNow()")
+    page.wait_for_function("(n) => (Marco.S.syncCount || 0) > n", arg=antes_hecha, timeout=15000)
+    check("marcar hecha se guarda para sincronizar", any(v.get("on") for v in box["state"].get("hechas", {}).values()))
+    page.click("[data-close]")
+    page.click("#rail [data-go=compra]"); page.wait_for_selector("[data-act=hazCesta]")
+    check("botón Haz la cesta presente", page.inner_text("[data-act=hazCesta]") == "Haz la cesta")
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncKey")
+    page.click("[data-act=exportJson]"); page.wait_for_selector(".share-ta")
+    exported = json.loads(page.input_value(".share-ta"))
+    check("exportar no incluye URL ni clave", "syncUrl" not in exported.get("settings", {}) and "syncKey" not in exported.get("settings", {}) and "clave-de-ejemplo" not in page.input_value(".share-ta"))
+    page.click("[data-close]")
+    page.fill("#syncKey", "clave-mala-123")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.textContent.toLowerCase().includes('clave'); }", timeout=20000)
+    check("clave incorrecta no borra la lista local", "Pan del otro móvil" in page.evaluate("() => JSON.parse(localStorage.getItem('marco-v2.compra')).items.map(x => x.name).join(',')"))
+    page.fill("#syncKey", "clave-de-ejemplo")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.className.indexOf('ok') !== -1; }", timeout=20000)
+    box["fail"] = True
+    page.evaluate("""() => Sync.syncNow()""")
+    page.wait_for_function("() => document.querySelector('#offline') && !document.querySelector('#offline').classList.contains('hidden')")
+    offsync = page.inner_text("#offline")
+    check("si el script falla sigue el aviso y los datos locales", offsync.startswith("Sin sincronizar") and "Leche" in page.evaluate("() => JSON.parse(localStorage.getItem('marco-v2.compra')).items.map(x => x.name).join(',')"), offsync)
+    box["fail"] = False
+    page.evaluate("""() => { const s = JSON.parse(localStorage.getItem('marco-v2.settings'));
+      s.calendars = [{ id: 'f', name: 'Festivos', color: '#8E5BC8', url: 'https://calendar.google.com/calendar/ical/es.spain%23holiday%40group.v.calendar.google.com/public/basic.ics', background: false }];
+      s.proxy = '/proxy?url='; localStorage.setItem('marco-v2.settings', JSON.stringify(s)); }""")
+    box["fail"] = True
+    page.reload(); page.wait_for_selector(".hoy")
+    page.wait_for_function("() => Marco.S.calStatus && Marco.S.calStatus.f", timeout=20000)
+    fb = page.evaluate("() => ({ demo: Marco.demoOn(), ok: Marco.S.calStatus.f && Marco.S.calStatus.f.ok, n: Marco.S.events.length, off: document.querySelector('#offline').classList.contains('hidden') })")
+    check("si el script falla, el iCal de respaldo sigue cargando", (not fb["demo"]) and fb["ok"] and fb["n"] > 3 and not fb["off"], fb)
     ctx.close()
 
     # ================= 3) Ajustes privados importados (NO se hacen capturas) =================

@@ -15,10 +15,12 @@
   }
   const CFG = window.CFG = deepMerge(window.MARCO_DEFAULTS, store.get('advanced', {}));
   { const adv = store.get('advanced', {}); if (adv.work && adv.work.shifts) CFG.work.shifts = adv.work.shifts; }
-  const settings = Object.assign({ calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled, eroskiNotifyEmail: '' }, store.get('settings', {}));
+  const settings = Object.assign({ calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled, eroskiNotifyEmail: '', syncUrl: '', syncKey: '', syncBg: {} }, store.get('settings', {}));
+  if (!settings.syncBg || typeof settings.syncBg !== 'object') settings.syncBg = {};
   const saveSettings = () => store.set('settings', settings);
   const realCalendars = () => settings.calendars.filter((c) => c.url && c.url.trim());
-  const demoOn = () => (settings.demo === null || settings.demo === undefined) ? realCalendars().length === 0 : !!settings.demo;
+  const syncReady = () => !!(String(settings.syncUrl || '').trim() && String(settings.syncKey || '').trim());
+  const demoOn = () => (settings.demo === null || settings.demo === undefined) ? (realCalendars().length === 0 && !syncReady()) : !!settings.demo;
   const kidsNames = () => CFG.kids.map((k) => k.name).join(' y ');
   const custodyOn = () => !!(CFG.custody && CFG.custody.enabled !== false && CFG.custody.anchor);
   const dayStatus = (d) => custodyOn() ? Custody.dayStatus(d) : 'none';
@@ -49,13 +51,21 @@
   }
 
   function doneMap() { return store.get('hechas', {}) || {}; }
-  function isDone(e) { return !!(e && doneMap()[e.id]); }
+  function isDone(e) {
+    const v = e && doneMap()[e.id];
+    if (!v) return false;
+    if (typeof v === 'object') return !!v.on;
+    return true;
+  }
   function toggleDone(id) {
     const map = doneMap();
-    if (map[id]) delete map[id]; else map[id] = Date.now();
+    const cur = map[id];
+    const on = cur && (typeof cur === 'object' ? !!cur.on : true);
+    map[id] = { on: !on, rev: Sync.nextRev() };
     const cutoff = Date.now() - 90 * 86400000;
     Object.keys(map).forEach((k) => { const ts = +String(k).split('@').pop(); if (ts && ts < cutoff) delete map[k]; });
     store.set('hechas', map);
+    Sync.touch();
     render();
     if (!$('#modal').classList.contains('hidden')) showEvent(id);
   }
@@ -73,12 +83,21 @@
   function menuState() {
     const s = store.get('menu', null);
     if (!s || typeof s !== 'object' || !s.plan) return defaultMenu();
-    return { span: s.span === 5 ? 5 : 7, dishes: Array.isArray(s.dishes) ? s.dishes.slice() : defaultMenu().dishes, plan: s.plan };
+    return {
+      span: s.span === 5 ? 5 : 7,
+      spanRev: s.spanRev || 0,
+      dishes: Array.isArray(s.dishes) ? s.dishes.slice() : defaultMenu().dishes,
+      dishMeta: Object.assign({}, s.dishMeta || {}),
+      plan: JSON.parse(JSON.stringify(s.plan))
+    };
   }
   function updateMenu(fn) {
+    const prev = menuState();
     const m = menuState();
     fn(m);
+    Sync.stampMenu(m, prev);
     store.set('menu', m);
+    Sync.touch();
     render();
   }
   function weekdayIndex(day) { return (day.getDay() + 6) % 7; }
@@ -109,10 +128,13 @@
   function paintOffline() {
     const el = $('#offline'); if (!el) return;
     const off = typeof navigator !== 'undefined' && navigator.onLine === false;
-    document.body.classList.toggle('is-offline', off);
-    if (!off) { el.classList.add('hidden'); el.textContent = ''; return; }
+    const down = !!(S && S.syncDown) && !off;
+    document.body.classList.toggle('is-offline', off || down);
+    if (!off && !down) { el.classList.add('hidden'); el.textContent = ''; return; }
     const at = lastDataAt();
-    el.textContent = at ? ('Sin conexión · datos de las ' + hm(new Date(at))) : 'Sin conexión · sin datos guardados';
+    const prefix = off ? 'Sin conexión · ' : 'Sin sincronizar · ';
+    const empty = off ? 'Sin conexión · sin datos guardados' : 'Sin sincronizar · sin datos guardados';
+    el.textContent = at ? (prefix + 'datos de las ' + hm(new Date(at))) : empty;
     el.classList.remove('hidden');
   }
 
@@ -144,7 +166,13 @@
     weather: store.get('cache.weather', null),
     pvpc: store.get('cache.pvpc', null),
     sleeping: false,
-    wakeUntil: 0
+    wakeUntil: 0,
+    dataDown: false,
+    calDown: false,
+    syncDown: false,
+    syncCount: 0,
+    syncDataStatus: store.get('cache.syncData', null),
+    syncCalStatus: store.get('cache.syncCal', null)
   };
   // Citas en caché (por si arranca sin red)
   (store.get('cache.events', []) || []).forEach((e) => S.events.push(Object.assign({}, e, { start: new Date(e.start), end: new Date(e.end) })));
@@ -163,14 +191,51 @@
     return [addDays(m, -7), addDays(m, 7 * 14)];
   }
 
-  async function loadCalendars() {
+  function rememberSyncCal(st) {
+    S.syncCalStatus = st;
+    store.set('cache.syncCal', st);
+    S.calDown = !!(st && st.offline);
+    S.syncDown = !!(S.dataDown || S.calDown);
+    paintOffline();
+  }
+  function cacheEvents(list) {
+    store.set('cache.events', list.map((e) => Object.assign({}, e, { start: e.start.toISOString(), end: e.end.toISOString() })));
+  }
+  async function loadCalendars(opts) {
+    const quiet = opts && opts.quiet;
     const [rs, re] = range();
     const out = [];
     if (demoOn()) {
       Cal.demoCalendars(sod(now())).forEach((c) => out.push.apply(out, Cal.parseICS(c.text, c, rs, re)));
       S.events = out; S.calUpdated = Date.now();
       seedDemoDone();
+      S.calDown = false;
+      S.syncDown = !!S.dataDown;
+      paintOffline();
       return;
+    }
+    if (syncReady()) {
+      try {
+        const data = await Sync.fetchCalendars(rs, re);
+        const events = Sync.toEvents(data, settings.syncBg || {});
+        S.events = events;
+        S.calUpdated = Date.now();
+        store.set('cache.syncCals', data.calendars || []);
+        markFresh();
+        cacheEvents(events);
+        const status = { google: { ok: true, n: events.length, at: Date.now() } };
+        S.calStatus = status;
+        store.set('cache.calStatus', status);
+        rememberSyncCal({ ok: true, at: Date.now(), n: events.length, error: '', offline: false });
+        return;
+      } catch (e) {
+        const msg = String(e.message || e);
+        rememberSyncCal({ ok: false, at: Date.now(), error: msg, offline: !!(e && e.offline && !e.auth) });
+        S.calStatus = Object.assign({}, S.calStatus, { google: { ok: false, error: msg, at: Date.now() } });
+        store.set('cache.calStatus', S.calStatus);
+        if (!quiet && e && e.auth && !S.syncAuthToasted) { toast('⚠️ ' + msg, 6000); S.syncAuthToasted = true; }
+        if (!realCalendars().length) return;
+      }
     }
     const status = {};
     let anyOk = false;
@@ -187,11 +252,12 @@
         S.events.filter((x) => x.calName === c.name).forEach((x) => out.push(x));
       }
     }));
+    if (!anyOk && !out.length && S.events.length) S.events.forEach((x) => out.push(x));
     S.calStatus = status; store.set('cache.calStatus', status);
     S.events = out; S.calUpdated = Date.now();
-    if (anyOk) { markFresh(); store.set('cache.events', out.map((e) => Object.assign({}, e, { start: e.start.toISOString(), end: e.end.toISOString() }))); }
+    if (anyOk) { markFresh(); cacheEvents(out); }
     const bad = Object.values(status).filter((s) => !s.ok);
-    if (bad.length) toast('⚠️ ' + bad.length + ' calendario(s) sin actualizar: ' + bad[0].error, 6000);
+    if (bad.length && !quiet) toast('⚠️ ' + bad.length + ' calendario(s) sin actualizar: ' + bad[0].error, 6000);
   }
 
   async function loadWeather() {
@@ -204,7 +270,7 @@
   }
   async function refreshAll(manual) {
     if (manual) toast('Actualizando…', 1500);
-    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC()]);
+    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC(), Sync.syncNow().catch((e) => console.warn(e))]);
     render();
     if (manual) toast('Actualizado a las ' + hm(now()));
   }
@@ -353,7 +419,7 @@
 
     // Resúmenes
     const ninos = choresSummary();
-    const compra = store.get('compra', { items: [] }).items.filter((x) => !x.done);
+    const compra = (store.get('compra', { items: [] }).items || []).filter((x) => !x.done && !x.deleted);
     const p = Luz.period(t);
     const nw = Luz.nextWindow(t, 'valle');
 
@@ -487,7 +553,7 @@
 
   /* ---------------- NIÑOS ---------------- */
   const K = () => Object.assign({ stars: {}, done: {}, pending: [], log: [] }, store.get('ninos', {}));
-  const saveK = (k) => store.set('ninos', k);
+  const saveK = (k) => { store.set('ninos', k); Sync.touch(); };
   const chores = () => CFG.chores;
   const rewards = () => CFG.rewards;
 
@@ -560,20 +626,21 @@
     const rws = rewards().map((r) => '<div class="reward"><div class="rw-h"><span class="rw-ic">' + esc(r.emoji) + '</span><span class="rw-n">' + esc(r.name) + '</span><span class="rw-c">' + r.cost + ' ⭐</span></div><div class="rw-kids">' +
       CFG.kids.map((kid) => {
         const s = k.stars[kid.id] || 0; const pct = Math.min(100, s / r.cost * 100);
-        const asked = k.pending.some((p) => p.kid === kid.id && p.reward === r.id);
+        const asked = (k.pending || []).some((p) => !p.deleted && p.kid === kid.id && p.reward === r.id);
         return '<div class="rw-kid" style="--c:' + kid.color + '"><span class="av sm">' + esc(kid.name[0]) + '</span><div class="prog"><div style="width:' + pct + '%"></div></div>' +
           (asked ? '<span class="rw-st">Pedido</span>' : s >= r.cost ? '<button class="btn sm" data-ask="' + esc(r.id) + '" data-kid="' + esc(kid.id) + '">Canjear</button>' : '<span class="rw-st">faltan ' + (r.cost - s) + '</span>') + '</div>';
       }).join('') + '</div></div>').join('');
-    const pend = k.pending.map((p) => {
+    const livePending = (k.pending || []).filter((p) => !p.deleted);
+    const pend = livePending.map((p) => {
       const kid = CFG.kids.find((x) => x.id === p.kid) || { name: p.kid }; const r = rewards().find((x) => x.id === p.reward) || { name: p.reward, cost: 0, emoji: '🎁' };
       return '<div class="pend"><span>' + esc(r.emoji + ' ' + kid.name + ': ' + r.name) + ' (' + r.cost + ' ⭐)</span><span><button class="btn sm ok" data-approve="' + esc(p.id) + '">Aprobar 🔒</button> <button class="btn sm ghost" data-reject="' + esc(p.id) + '">No</button></span></div>';
     }).join('');
-    const log = (k.log || []).slice(-6).reverse().map((l) => '<div class="log">' + esc(l) + '</div>').join('');
+    const log = (k.log || []).slice(-6).reverse().map((l) => '<div class="log">' + esc(typeof l === 'string' ? l : (l.text || '')) + '</div>').join('');
     screenEl.innerHTML = '<div class="ninos">' +
       '<section class="card"><div class="card-h">⭐ Tareas de hoy <span class="muted sm">' + (w === null ? '' : w ? 'Semana con ' + esc(CFG.parent) : 'Esta semana están con ' + esc(CFG.otherParent)) + '</span></div><div class="kid-chips">' + chips + '</div>' + strip + pause + rows +
         '<div class="muted sm">Cada uno toca su nombre al terminar. Volver a tocar lo deshace. Mañana, después del cole y noche. En la semana sin niños se pausan solas.</div></section>' +
       '<section class="col"><div class="card"><div class="card-h">🎁 Recompensas</div>' + rws + '</div>' +
-        '<div class="card"><div class="card-h">🔒 Pendiente de aprobar <span class="count">' + k.pending.length + '</span></div>' + (pend || '<div class="muted">Nada pendiente.</div>') +
+        '<div class="card"><div class="card-h">🔒 Pendiente de aprobar <span class="count">' + livePending.length + '</span></div>' + (pend || '<div class="muted">Nada pendiente.</div>') +
         (log ? '<div class="card-h sub">Últimos movimientos</div>' + log : '') + '</div></section></div>';
   }
 
@@ -585,11 +652,12 @@
     k.done[today] = k.done[today] || {};
     const arr = k.done[today][choreId] = k.done[today][choreId] || [];
     const i = arr.indexOf(kidId);
-    if (i >= 0) { arr.splice(i, 1); k.stars[kidId] = Math.max(0, (k.stars[kidId] || 0) - c.stars); k.log.push(hm(now()) + ' · ' + kid.name + ' deshace «' + c.name + '» (−' + c.stars + ' ⭐)'); }
-    else { arr.push(kidId); k.stars[kidId] = (k.stars[kidId] || 0) + c.stars; k.log.push(hm(now()) + ' · ' + kid.name + ' hizo «' + c.name + '» (+' + c.stars + ' ⭐)'); }
-    // limpia días antiguos (guarda 45, para la racha)
+    const off = i >= 0;
+    if (off) arr.splice(i, 1); else arr.push(kidId);
+    Sync.noteDone(k, today, choreId, kidId, !off);
+    Sync.noteStar(k, kidId, off ? -c.stars : c.stars);
+    Sync.noteLog(k, hm(now()) + ' · ' + kid.name + (off ? ' deshace «' : ' hizo «') + c.name + '» (' + (off ? '−' : '+') + c.stars + ' ⭐)');
     Object.keys(k.done).sort().slice(0, -45).forEach((d) => delete k.done[d]);
-    k.log = k.log.slice(-50);
     saveK(k); render();
   }
 
@@ -626,19 +694,24 @@
 
   /* ---------------- COMPRA ---------------- */
   const C = () => Object.assign({ items: [], counts: {} }, store.get('compra', {}));
-  const saveC = (c) => store.set('compra', c);
+  const saveC = (c) => { store.set('compra', c); Sync.touch(); };
+  const compraViva = (c) => (c.items || []).filter((x) => !x.deleted);
   function addItem(name) {
     name = (name || '').trim().replace(/\s+/g, ' ');
     if (!name) return;
     name = name[0].toUpperCase() + name.slice(1);
     const c = C();
-    const ex = c.items.find((x) => x.name.toLowerCase() === name.toLowerCase());
-    if (ex) ex.done = false; else c.items.push({ id: U.uid(), name, done: false, at: Date.now() });
+    const rev = Sync.nextRev();
+    const ex = (c.items || []).find((x) => !x.deleted && x.name.toLowerCase() === name.toLowerCase());
+    const tomb = (c.items || []).find((x) => x.deleted && x.name.toLowerCase() === name.toLowerCase());
+    if (ex) { ex.done = false; ex.rev = rev; }
+    else if (tomb) { tomb.deleted = false; tomb.done = false; tomb.rev = rev; tomb.at = Date.now(); }
+    else c.items.push({ id: U.uid(), name, done: false, deleted: false, at: Date.now(), rev: rev });
     c.counts[name] = (c.counts[name] || 0) + 1;
     saveC(c); render();
   }
   function habituales(c) {
-    const onList = new Set(c.items.filter((x) => !x.done).map((x) => x.name.toLowerCase()));
+    const onList = new Set(compraViva(c).filter((x) => !x.done).map((x) => x.name.toLowerCase()));
     const fromCounts = Object.entries(c.counts).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     const all = fromCounts.concat(CFG.habitualesBase);
     const seen = new Set(); const out = [];
@@ -646,7 +719,7 @@
     return out.slice(0, 9);
   }
   function listaPendienteTexto() {
-    const names = C().items.filter((x) => !x.done).map((x) => x.name);
+    const names = compraViva(C()).filter((x) => !x.done).map((x) => x.name);
     return { names: names, text: 'Lista de la compra:\n' + names.map((n) => '• ' + n).join('\n') };
   }
   function mailtoCesta(text) {
@@ -721,7 +794,7 @@
   }
   function renderCompra() {
     const c = C();
-    const items = c.items;
+    const items = compraViva(c);
     const pending = items.filter((x) => !x.done);
     screenEl.innerHTML = '<div class="compra">' +
       '<section class="card"><div class="card-h">🛒 Lista de la compra <span class="count">' + pending.length + '</span></div>' +
@@ -730,7 +803,7 @@
         '<div class="row-btns"><button class="btn ghost" data-act="clearDone">Quitar comprados</button><button class="btn ghost" data-act="share">Compartir lista</button><button class="btn" data-act="hazCesta">Haz la cesta</button></div></section>' +
       '<section class="card"><div class="card-h sub">HABITUALES · TOCA PARA AÑADIR</div><div class="habs">' +
         habituales(c).map((n) => '<button class="hab" data-hab="' + esc(n) + '"><b>' + esc(n) + '</b><span>+ Añadir</span></button>').join('') + '</div>' +
-        '<div class="muted sm">La lista se guarda en este dispositivo. «Compartir lista» la pasa al móvil. «Haz la cesta» la copia y abre un correo para Grok Bot (el de Ajustes). El marco no entra en la tienda.</div></section></div>';
+        '<div class="muted sm">La lista se guarda en este dispositivo y, si activas la sincronización, también en los demás. «Compartir lista» la pasa al móvil. «Haz la cesta» la copia y abre un correo para Grok Bot (el de Ajustes). El marco no entra en la tienda.</div></section></div>';
     const f = $('#addForm');
     f.onsubmit = (ev) => { ev.preventDefault(); const v = $('#addInput').value; addItem(v); setTimeout(() => { const i = $('#addInput'); if (i) i.focus(); }, 0); };
   }
@@ -760,7 +833,7 @@
       '<section class="card"><div class="menu-top"><div class="card-h" style="border:0;margin:0;padding:0">🍲 Menú de la semana</div><div class="span-toggle">' +
         '<button class="btn sm' + (m.span === 7 ? '' : ' ghost') + '" data-act="menuSpan" data-span="7">L–D</button>' +
         '<button class="btn sm' + (m.span === 5 ? '' : ' ghost') + '" data-act="menuSpan" data-span="5">L–V</button></div></div>' +
-      '<div class="muted sm">Primero la casilla, luego el plato. También se puede arrastrar. Se guarda solo en este dispositivo.</div>' +
+      '<div class="muted sm">Primero la casilla, luego el plato. También se puede arrastrar. Se guarda en este dispositivo y, si activas la sincronización, también en los demás.</div>' +
       days.join('') + '</section>' +
       '<section class="card"><div class="card-h sub">PLATOS HABITUALES</div><div class="dishes">' + dishes + '</div>' +
       '<form class="add" id="dishForm" autocomplete="off"><input id="dishInput" placeholder="Añadir plato" maxlength="40" enterkeyhint="done"><button class="btn" type="submit">Añadir</button></form>' +
@@ -828,7 +901,9 @@
   }
   function exportJson() {
     const st = JSON.parse(JSON.stringify(settings));
-    if (!$('#expCals').checked) { st.calendars = []; st.proxy = ''; }
+    if (!$('#expCals').checked) { st.calendars = []; st.proxy = ''; delete st.syncBg; }
+    delete st.syncUrl;
+    delete st.syncKey;
     const data = { tipo: 'marco-familiar-ajustes', version: 1, advanced: store.get('advanced', {}), settings: st, menu: menuState() };
     const txt = JSON.stringify(data, null, 2);
     try {
@@ -849,6 +924,9 @@
       const next = Object.assign({}, cur, d.settings);
       if (!d.settings.calendars || !d.settings.calendars.length) next.calendars = cur.calendars || [];
       if (!d.settings.proxy) next.proxy = cur.proxy || '';
+      if (!d.settings.syncUrl) next.syncUrl = cur.syncUrl || '';
+      if (!d.settings.syncKey) next.syncKey = cur.syncKey || '';
+      if (!d.settings.syncBg) next.syncBg = cur.syncBg || {};
       store.set('settings', next);
     }
     if (d.menu && typeof d.menu === 'object') store.set('menu', d.menu);
@@ -863,6 +941,35 @@
   });
 
   /* ---------------- AJUSTES ---------------- */
+  function syncStatusLine() {
+    if (!syncReady()) return '<div class="sync-status" id="syncStatus">Sin configurar. Todo sigue en este dispositivo y el modo demo se comporta como siempre.</div>';
+    const d = S.syncDataStatus;
+    const c = S.syncCalStatus;
+    const parts = [];
+    if (d && d.ok) parts.push('Datos compartidos a las ' + hm(new Date(d.at)));
+    else if (d && d.error) parts.push('Datos: ' + d.error);
+    if (c && c.ok) parts.push((c.n || 0) + ' citas a las ' + hm(new Date(c.at)));
+    else if (c && c.error) parts.push('Calendarios: ' + c.error);
+    if (!parts.length) return '<div class="sync-status" id="syncStatus">Guardado en este dispositivo. Pulsa «Guardar y probar».</div>';
+    const bad = (d && !d.ok) || (c && !c.ok);
+    return '<div class="sync-status ' + (bad ? 'bad' : 'ok') + '" id="syncStatus">' + esc(parts.join(' · ')) + '</div>';
+  }
+  function syncCard() {
+    const cals = store.get('cache.syncCals', []) || [];
+    const bg = settings.syncBg || {};
+    const rows = cals.map((cal) => {
+      const on = Object.prototype.hasOwnProperty.call(bg, cal.id) ? !!bg[cal.id] : !!cal.background;
+      return '<label class="sync-cal"><span class="sync-dot" style="--c:' + esc(cal.color || '#C8243B') + '"></span><span class="sync-name">' + esc(cal.name || 'Calendario') + '</span><span class="bg-flag"><input type="checkbox" data-sync-bg="' + esc(cal.id) + '"' + (on ? ' checked' : '') + '> De fondo</span></label>';
+    }).join('');
+    return '<section class="card wide" id="syncCard"><div class="card-h">🔄 Sincronización con Google</div>' +
+      '<div class="muted sm">Opcional. Si lo configuras, las citas salen de tus calendarios de Google (sin dirección iCal ni proxy) y la compra, el menú, las estrellas y las citas hechas se comparten entre el marco y el móvil. La URL y la clave se guardan solo en este dispositivo.</div>' +
+      '<label class="lbl">URL de la aplicación web</label><input id="syncUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" value="' + esc(settings.syncUrl || '') + '" placeholder="https://script.google.com/macros/s/…/exec">' +
+      '<label class="lbl">Clave compartida</label><div class="sync-key"><input id="syncKey" type="password" autocomplete="off" spellcheck="false" value="' + esc(settings.syncKey || '') + '" placeholder="una clave larga, solo tuya"><button class="btn sm ghost" data-act="showSyncKey" type="button">👁</button></div>' +
+      syncStatusLine() +
+      (rows ? '<div class="card-h sub">CALENDARIOS DE GOOGLE · DE FONDO NO ENTRA EN AHORA</div><div class="sync-cals">' + rows + '</div>' : '') +
+      '<div class="row-btns"><button class="btn" data-act="saveSync">Guardar y probar</button></div>' +
+      '<div class="muted sm">Vacío = como hasta ahora (modo demo si no hay iCal). El iCal de abajo queda de respaldo si esta conexión falla. «Haz la cesta» no cambia: copia la lista y abre el correo. Los nombres de la familia, el PIN y las direcciones no se sincronizan.</div></section>';
+  }
   function renderAjustes() {
     const calRows = (settings.calendars.length ? settings.calendars : []).map((c, i) => {
       const st = S.calStatus[c.id || String(i)];
@@ -875,8 +982,9 @@
     const ch = chores().map((c) => [c.emoji, c.name, c.stars, c.slot || 'cole'].concat(c.kids && c.kids.length ? [c.kids.join(',')] : []).join(' | ')).join('\n');
     const rw = rewards().map((r) => [r.emoji, r.name, r.cost].join(' | ')).join('\n');
     screenEl.innerHTML = '<div class="ajustes">' +
-      '<section class="card"><div class="card-h">🗓️ Calendarios (iCal secreto de Google)</div>' +
-        '<div class="muted sm">En Google Calendar (web): Configuración → tu calendario → «Dirección secreta en formato iCal». Se guarda SOLO en este dispositivo (localStorage), nunca en el código.</div>' +
+      syncCard() +
+      '<section class="card wide"><div class="card-h">🗓️ Calendarios (iCal secreto de Google)</div>' +
+        '<div class="muted sm">Respaldo si no usas la sincronización de arriba, o si esa conexión falla. En Google Calendar (web): Configuración → tu calendario → «Dirección secreta en formato iCal». Se guarda SOLO en este dispositivo (localStorage), nunca en el código.</div>' +
         '<div id="calList">' + (calRows || '<div class="muted">No hay calendarios.</div>') + '</div>' +
         '<div class="row-btns"><button class="btn ghost" data-act="addCal">+ Añadir calendario</button></div>' +
         '<label class="lbl">Proxy CORS (opcional, prefijo que termina en <code>?url=</code>)</label><input id="proxy" value="' + esc(settings.proxy) + '" placeholder="https://marco-ics.tu-cuenta.workers.dev/?key=…&url=" spellcheck="false">' +
@@ -900,8 +1008,13 @@
       '<section class="card"><div class="card-h">🧩 Avanzado (JSON)</div><div class="muted sm">Sobrescribe la configuración a mano (para casos raros). Lo normal es usar «Familia» o «Importar».</div>' +
         '<textarea id="adv" rows="5" spellcheck="false">' + esc(JSON.stringify(store.get('advanced', {}), null, 2)) + '</textarea>' +
         '<div class="row-btns"><button class="btn" data-act="saveAdv">Guardar y recargar</button><button class="btn danger" data-act="wipe">Borrar todos los datos de este dispositivo</button></div>' +
-        '<div class="muted sm">Marco familiar · todo funciona en el navegador; no hay servidor propio.</div></section>' +
+        '<div class="muted sm">Marco familiar · sin sincronización todo se queda en el navegador. Con la tarjeta de arriba, un Apps Script tuyo reparte calendarios y listas. La clave no sale de este dispositivo.</div></section>' +
       '</div>';
+  }
+  function readSyncBg() {
+    const bg = Object.assign({}, settings.syncBg || {});
+    document.querySelectorAll('[data-sync-bg]').forEach((el) => { bg[el.getAttribute('data-sync-bg')] = el.checked; });
+    settings.syncBg = bg;
   }
   function readCalForm() {
     document.querySelectorAll('.cal-set').forEach((row) => {
@@ -932,14 +1045,14 @@
       case 'importJson': importJson($('#impTxt').value); break;
       case 'addCal': readCalForm(); settings.calendars.push({ id: U.uid(), name: 'Calendario ' + (settings.calendars.length + 1), color: ['#E8604C', '#3BA55C', '#2F80ED', '#8E5BC8', '#F5A623'][settings.calendars.length % 5], url: '', background: false }); saveSettings(); render(); break;
       case 'menuSpan': updateMenu((m) => { m.span = el.dataset.span === '5' ? 5 : 7; }); break;
-      case 'resetMenu': store.del('menu'); S.menuPick = null; toast('Menú de ejemplo'); render(); break;
+      case 'resetMenu': S.menuPick = null; updateMenu((m) => { const d = defaultMenu(); m.span = d.span; m.dishes = d.dishes.slice(); m.plan = JSON.parse(JSON.stringify(d.plan)); m._forceRev = true; }); toast('Menú de ejemplo'); break;
       case 'delCal': readCalForm(); settings.calendars.splice(+el.dataset.i, 1); saveSettings(); render(); break;
       case 'showUrl': { const inp = el.parentElement.querySelector('.cs-url'); inp.type = inp.type === 'password' ? 'text' : 'password'; break; }
       case 'saveCals':
         readCalForm();
         settings.calendars.forEach((c) => { if (!c.id) c.id = U.uid(); if (c.url && !/^https:\/\//i.test(c.url)) c.url = c.url.replace(/^webcal:\/\//i, 'https://'); });
         settings.proxy = $('#proxy').value.trim();
-        { const want = $('#demo').checked; const def = realCalendars().length === 0; settings.demo = want === def ? null : want; }
+        { const want = $('#demo').checked; const def = realCalendars().length === 0 && !syncReady(); settings.demo = want === def ? null : want; }
         saveSettings(); toast('Guardado. Probando calendarios…'); await loadCalendars(); render(); toast(demoOn() ? 'Modo demo activo' : 'Calendarios actualizados'); break;
       case 'savePrices':
         settings.prices = {};
@@ -950,7 +1063,33 @@
         const adv = store.get('advanced', {}); if (ch.length) adv.chores = ch; if (rw.length) adv.rewards = rw;
         store.set('advanced', adv); CFG.chores = adv.chores || CFG.chores; CFG.rewards = adv.rewards || CFG.rewards; toast('Tareas y recompensas guardadas'); render(); break;
       }
-      case 'resetStars': if (await requirePin('PIN para poner las estrellas a 0')) { const k = K(); k.stars = {}; k.pending = []; k.log.push(hm(now()) + ' · Estrellas a 0'); saveK(k); toast('Estrellas a 0'); } break;
+      case 'resetStars': if (await requirePin('PIN para poner las estrellas a 0')) { const k = K(); Sync.resetStars(k); Sync.noteLog(k, hm(now()) + ' · Estrellas a 0'); saveK(k); toast('Estrellas a 0'); } break;
+      case 'showSyncKey': { const inp = $('#syncKey'); if (inp) inp.type = inp.type === 'password' ? 'text' : 'password'; break; }
+      case 'saveSync': {
+        const rawUrl = $('#syncUrl').value;
+        const url = Sync.normalizeUrl(rawUrl);
+        if (rawUrl.trim() && !url) { toast('La URL tiene que ser https (en casa vale http://127.0.0.1 o localhost)'); break; }
+        const key = $('#syncKey').value.trim();
+        if (url && key.length < 8) { toast('La clave tiene que tener al menos 8 caracteres'); break; }
+        if (url && !key) { toast('Falta la clave'); break; }
+        readSyncBg();
+        settings.syncUrl = url || '';
+        settings.syncKey = key;
+        if (!url || !key) { settings.syncUrl = ''; settings.syncKey = ''; }
+        saveSettings();
+        S.syncAuthToasted = false;
+        S.dataDown = false;
+        S.calDown = false;
+        S.syncDown = false;
+        if (!syncReady()) { paintOffline(); toast('Sincronización apagada'); render(); break; }
+        toast('Probando…', 1500);
+        await Sync.syncNow();
+        await loadCalendars({ quiet: true });
+        render();
+        const bad = (S.syncDataStatus && !S.syncDataStatus.ok) || (S.syncCalStatus && !S.syncCalStatus.ok);
+        toast(bad ? 'Guardado en este dispositivo. No he podido conectar.' : 'Sincronización lista');
+        break;
+      }
       case 'savePin': {
         const v = $('#pin1').value.trim();
         if (!/^\d{4,8}$/.test(v)) { toast('El PIN debe tener de 4 a 8 cifras'); break; }
@@ -1032,7 +1171,13 @@
       const act = a.dataset.act;
       if (act === 'refresh') return refreshAll(true);
       if (act === 'sleep') return sleep(true);
-      if (act === 'clearDone') { const c = C(); c.items = c.items.filter((x) => !x.done); saveC(c); return render(); }
+      if (act === 'clearDone') {
+        const c = C();
+        const rev = Sync.nextRev();
+        (c.items || []).forEach((x) => { if (x.done && !x.deleted) { x.deleted = true; x.rev = rev; } });
+        saveC(c);
+        return render();
+      }
       if (act === 'share') {
         const txt = listaPendienteTexto().text;
         if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (e) { /* cancelado */ } }
@@ -1045,21 +1190,23 @@
     const da = t.closest('[data-dayall]'); if (da) return showDay(da.dataset.dayall);
     const ch = t.closest('[data-chore]'); if (ch) return toggleChore(ch.dataset.chore, ch.dataset.kid);
     const ask = t.closest('[data-ask]');
-    if (ask) { const k = K(); k.pending.push({ id: U.uid(), kid: ask.dataset.kid, reward: ask.dataset.ask, at: Date.now() }); saveK(k); toast('Pedido. Falta que lo apruebe un adulto.'); return render(); }
+    if (ask) { const k = K(); k.pending.push({ id: U.uid(), kid: ask.dataset.kid, reward: ask.dataset.ask, at: Date.now(), rev: Sync.nextRev(), deleted: false }); saveK(k); toast('Pedido. Falta que lo apruebe un adulto.'); return render(); }
     const ap = t.closest('[data-approve]');
     if (ap) {
       if (!(await requirePin('PIN para aprobar el canje'))) return;
       const k = K(); const p = k.pending.find((x) => x.id === ap.dataset.approve); if (!p) return;
       const r = rewards().find((x) => x.id === p.reward); const kid = CFG.kids.find((x) => x.id === p.kid);
       if (r && (k.stars[p.kid] || 0) >= r.cost) {
-        k.stars[p.kid] -= r.cost; k.log.push(hm(now()) + ' · ✅ ' + (kid ? kid.name : '') + ' canjea «' + r.name + '» (−' + r.cost + ' ⭐)'); toast('¡Canje aprobado! 🎉');
+        Sync.noteStar(k, p.kid, -r.cost);
+        Sync.noteLog(k, hm(now()) + ' · ✅ ' + (kid ? kid.name : '') + ' canjea «' + r.name + '» (−' + r.cost + ' ⭐)');
+        toast('¡Canje aprobado! 🎉');
       } else toast('No le llegan las estrellas');
-      k.pending = k.pending.filter((x) => x.id !== p.id); saveK(k); return render();
+      Sync.dropPending(k, p.id); saveK(k); return render();
     }
     const rj = t.closest('[data-reject]');
-    if (rj) { const k = K(); k.pending = k.pending.filter((x) => x.id !== rj.dataset.reject); saveK(k); return render(); }
+    if (rj) { const k = K(); Sync.dropPending(k, rj.dataset.reject); saveK(k); return render(); }
     const it = t.closest('[data-item]');
-    if (it) { const c = C(); const x = c.items.find((y) => y.id === it.dataset.item); if (x) x.done = !x.done; saveC(c); return render(); }
+    if (it) { const c = C(); const x = (c.items || []).find((y) => y.id === it.dataset.item); if (x) { x.done = !x.done; x.rev = Sync.nextRev(); } saveC(c); return render(); }
     const hb = t.closest('[data-hab]'); if (hb) return addItem(hb.dataset.hab);
     const clearSlot = t.closest('[data-clear-slot]');
     if (clearSlot) { const slot = clearSlot.closest('[data-slot]'); if (slot) assignMeal(slot.dataset.day, slot.dataset.meal, ''); return; }
@@ -1152,7 +1299,9 @@
       if (t.getHours() === 4 && t.getMinutes() === 0 && !U.simulated) location.reload();
     }
   }, 1000);
-  setInterval(() => loadCalendars().then(() => { if (!userBusy()) render(); }).catch(() => { }), 15 * 60000);
+  setInterval(() => {
+    Promise.all([loadCalendars().catch(() => {}), Sync.syncNow().catch(() => {})]).then(() => { if (!userBusy()) render(); });
+  }, 15 * 60000);
   setInterval(() => loadWeather().then(() => { if (!userBusy()) render(); }), 30 * 60000);
   setInterval(() => loadPVPC().then(() => { if (!userBusy()) render(); }), 60 * 60000);
   window.addEventListener('online', () => { paintOffline(); refreshAll(false); });
@@ -1164,6 +1313,33 @@
     navigator.serviceWorker.register(new URL('sw.js', base), { scope: base.href }).catch(() => {});
   }
 
+  Sync.attach({
+    settings: function () { return settings; },
+    onApplied: function () {
+      if (S.screen === 'ajustes' || !$('#modal').classList.contains('hidden')) return;
+      const a = document.activeElement;
+      const sel = a && a.id ? a.id : '';
+      const val = a && 'value' in a ? a.value : '';
+      const start = a && a.selectionStart;
+      render();
+      if (!sel) return;
+      const n = document.getElementById(sel);
+      if (n && 'value' in n) {
+        n.value = val;
+        try { n.focus(); if (start != null) n.setSelectionRange(start, start); } catch (e) { /* el campo ya no está */ }
+      }
+    },
+    onDataStatus: function (st) {
+      S.syncDataStatus = st;
+      store.set('cache.syncData', st);
+      S.dataDown = !!(st && st.offline);
+      S.syncDown = !!(S.dataDown || S.calDown);
+      if (st && st.ok) S.syncCount = (S.syncCount || 0) + 1;
+      paintOffline();
+    },
+    toast: toast
+  });
+
   // Arranque
   const hash = (location.hash || '').replace('#', '');
   if (SCREENS[hash] && hash !== 'ajustes') S.screen = hash;
@@ -1171,5 +1347,5 @@
   refreshAll(false);
 
   // Para pruebas automáticas
-  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, loadCalendars, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline };
+  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline };
 })();
