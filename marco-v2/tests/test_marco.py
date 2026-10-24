@@ -431,7 +431,10 @@ process.stdin.on("end", function () {
     page.locator("#syncCard").screenshot(path=os.path.join(OUT, "12-sincronizacion.png"))
     check("la clave no viaja en la URL", not box["key_in_url"])
     check("demo apagado al conectar", page.evaluate("() => !Marco.demoOn()"))
-    check("cita de ejemplo y turno de fondo", "Reunión de ejemplo" in page.inner_text("body") and page.locator(".sync-cal", has_text="Turno ejemplo").locator("input").is_checked())
+    # La cita no se pinta en Ajustes: está en los eventos y el turno sale marcado de fondo.
+    ev_txt = page.evaluate("() => Marco.S.events.map(e => e.title + (e.background ? '·fondo' : '')).join('|')")
+    turno_on = page.locator(".sync-cal", has_text="Turno ejemplo").locator("input").is_checked()
+    check("cita de ejemplo y turno de fondo", "Familia ejemplo" in page.inner_text("#syncCard") and turno_on and "Reunión de ejemplo" in ev_txt and "Turno ejemplo·fondo" in ev_txt, ev_txt)
     page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-title")
     check("ahora enseña la cita y no el turno de fondo", "Reunión" in page.inner_text(".next-title") and "Turno" not in page.inner_text(".next-title"))
     check("el turno se pinta de fondo", page.locator(".ev-bg", has_text="Turno ejemplo").count() >= 1)
