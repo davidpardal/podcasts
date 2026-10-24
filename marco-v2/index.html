@@ -10,22 +10,37 @@
 <title>Marco familiar · v2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/app.css">
+<script>
+/* Evita el salto del menú: en pantallas estrechas arranca contraído, antes de pintar. */
+(function () {
+  try {
+    var w = window.innerWidth || 1200;
+    var raw = localStorage.getItem('marco-v2.railCollapsed');
+    var pref = raw == null ? null : JSON.parse(raw);
+    var collapsed = w < 720 ? true : (pref === null ? w < 960 : !!pref);
+    if (collapsed) document.documentElement.classList.add('rail-collapsed');
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
+<button type="button" class="rail-backdrop" data-act="railClose" aria-label="Cerrar menú"></button>
 <div id="app">
-  <main id="screen" aria-live="polite"></main>
   <nav id="rail" aria-label="Pantallas">
-    <button data-go="hoy" class="nav"><span class="ic">📅</span><span>Hoy</span></button>
-    <button data-go="calendario" class="nav"><span class="ic">🗓️</span><span>Calendario</span></button>
-    <button data-go="luz" class="nav"><span class="ic">⚡</span><span>Luz</span></button>
-    <button data-go="ninos" class="nav"><span class="ic">⭐</span><span>Niños</span></button>
-    <button data-go="compra" class="nav"><span class="ic">🛒</span><span>Compra</span></button>
-    <button data-go="menu" class="nav"><span class="ic">🍲</span><span>Menú</span></button>
-    <button data-act="refresh" class="nav sec nav-break"><span class="ic">🔄</span><span>Actualizar</span></button>
-    <button data-go="ajustes" class="nav sec"><span class="ic">⚙️</span><span>Ajustes</span></button>
-    <button data-act="sleep" class="nav sec"><span class="ic">🌙</span><span>Dormir</span></button>
-    <div class="rail-clock" data-clock="rail"></div>
+    <button type="button" class="nav rail-toggle" data-act="railToggle" aria-controls="rail" aria-expanded="true"><span class="ic" aria-hidden="true">☰</span><span class="nav-label">Menú</span></button>
+    <button type="button" data-go="hoy" class="nav"><span class="ic" aria-hidden="true">📅</span><span class="nav-label">Hoy</span></button>
+    <button type="button" data-go="calendario" class="nav"><span class="ic" aria-hidden="true">🗓️</span><span class="nav-label">Calendario</span></button>
+    <button type="button" data-go="luz" class="nav"><span class="ic" aria-hidden="true">⚡</span><span class="nav-label">Luz</span></button>
+    <button type="button" data-go="ninos" class="nav"><span class="ic" aria-hidden="true">⭐</span><span class="nav-label">Niños</span></button>
+    <button type="button" data-go="compra" class="nav"><span class="ic" aria-hidden="true">🛒</span><span class="nav-label">Compra</span></button>
+    <button type="button" data-go="menu" class="nav"><span class="ic" aria-hidden="true">🍲</span><span class="nav-label">Menú</span></button>
+    <button type="button" data-go="salud" class="nav"><span class="ic" aria-hidden="true">💓</span><span class="nav-label">Salud</span></button>
+    <button type="button" data-act="refresh" class="nav sec nav-break"><span class="ic" aria-hidden="true">🔄</span><span class="nav-label">Actualizar</span></button>
+    <button type="button" data-go="ajustes" class="nav sec"><span class="ic" aria-hidden="true">⚙️</span><span class="nav-label">Ajustes</span></button>
+    <button type="button" data-act="sleep" class="nav sec"><span class="ic" aria-hidden="true">🌙</span><span class="nav-label">Dormir</span></button>
+    <div class="rail-clock" data-clock="rail" aria-hidden="true"></div>
   </nav>
+  <main id="screen" aria-live="polite"></main>
 </div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
 <div id="night" class="night hidden"><div class="night-time" data-clock="night"></div><div class="night-date" data-clock="nightdate"></div><div class="night-next" data-clock="nightnext"></div><div class="night-hint">Toca para despertar</div></div>
@@ -39,6 +54,7 @@
 <script src="js/weather.js"></script>
 <script src="js/luz.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/salud.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

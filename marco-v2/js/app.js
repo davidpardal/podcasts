@@ -172,7 +172,9 @@
     syncDown: false,
     syncCount: 0,
     syncDataStatus: store.get('cache.syncData', null),
-    syncCalStatus: store.get('cache.syncCal', null)
+    syncCalStatus: store.get('cache.syncCal', null),
+    salud: null,
+    saludLoads: 0
   };
   // Citas en caché (por si arranca sin red)
   (store.get('cache.events', []) || []).forEach((e) => S.events.push(Object.assign({}, e, { start: new Date(e.start), end: new Date(e.end) })));
@@ -268,9 +270,36 @@
     try { S.pvpc = await Luz.loadPVPC(sod(now())); store.set('cache.pvpc', S.pvpc); markFresh(); }
     catch (e) { console.warn(e); }
   }
+  function primeSalud() {
+    if (!syncReady()) { S.salud = Salud.demo(now()); return; }
+    const cached = store.get('cache.salud', null);
+    S.salud = (cached && cached.ok && !cached.demo) ? cached : { ok: false, empty: true };
+  }
+  async function loadSalud() {
+    S.saludLoads = (S.saludLoads || 0) + 1;
+    if (!syncReady()) { S.salud = Salud.demo(now()); return S.salud; }
+    const cached = store.get('cache.salud', null);
+    if (cached && cached.ok && !cached.demo) S.salud = cached;
+    try {
+      const data = await Sync.fetchSalud();
+      if (!data || data.ok === false) throw new Error('Sin datos de Garmin');
+      data.demo = false;
+      S.salud = data;
+      store.set('cache.salud', data);
+      return data;
+    } catch (e) {
+      if (S.salud && S.salud.ok && !S.salud.demo) {
+        S.salud = Object.assign({}, S.salud, { stale: true });
+        store.set('cache.salud', S.salud);
+        return S.salud;
+      }
+      S.salud = { ok: false, empty: true };
+      return S.salud;
+    }
+  }
   async function refreshAll(manual) {
     if (manual) toast('Actualizando…', 1500);
-    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC(), Sync.syncNow().catch((e) => console.warn(e))]);
+    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC(), Sync.syncNow().catch((e) => console.warn(e)), loadSalud().catch((e) => console.warn(e))]);
     render();
     if (manual) toast('Actualizado a las ' + hm(now()));
   }
@@ -381,10 +410,6 @@
     const cur = list.find((e) => e.start <= t);
     const nxt = list.find((e) => e.start > t);
     const main = cur || nxt;
-    const meals = mealsFor(today);
-    const mealLine = meals.off
-      ? '<button class="next-meals" data-go="menu"><span>Fin de semana · sin menú</span></button>'
-      : '<button class="next-meals" data-go="menu"><span>Comida <b>' + esc(meals.comida || '—') + '</b></span><span>Cena <b>' + esc(meals.cena || '—') + '</b></span></button>';
     const tip = (w && Weather.advice) ? Weather.advice(w.hourly, allEvents(), t) : '';
     let body = '<div class="next-label">AHORA</div><div class="next-title">Sin citas a la vista</div>';
     if (main) {
@@ -398,7 +423,7 @@
         (after && sameDay(after.start, t) ? '<button class="next-after" data-ev="' + esc(after.id) + '">Después: ' + esc(hm(after.start) + ' ' + after.title) + '</button>' : '');
     }
     const nextHtml = '<div class="next-in' + (main && main === cur ? ' is-now' : '') + '"' + (main ? ' style="--c:' + esc(main.color) + '"' : '') + '>' +
-      body + mealLine + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
+      body + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
 
     // Semana
     const evs = allEvents();
@@ -427,13 +452,54 @@
       '<section class="sky ' + sky.cls + (sky.dark ? ' dark' : '') + '">' +
         '<div class="sky-left"><div class="big-clock" data-clock="big">' + hm(t) + '</div><div class="sky-date"><b>' + U.DIAS[t.getDay()] + '</b> ' + t.getDate() + ' de ' + U.MESES[t.getMonth()] + '</div>' + custodyBadge(t) + '</div>' +
         '<div class="sky-wx">' + wx + '</div></section>' +
+      renderHoyMenu(t) +
       '<section class="next card">' + nextHtml + '</section>' +
       '<section class="week">' + week + '</section>' +
       '<section class="sums">' +
         '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + (ninos.overdue ? ' · fuera de hora' : ''))) + '</div><div class="sum-chips">' + ninos.chips + '</div></button>' +
         '<button class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + compra.length + (compra.length === 1 ? ' cosa' : ' cosas') + '</div><div class="sum-sub">' + esc(compra.slice(0, 5).map((x) => x.name).join(' · ') || 'Lista vacía') + '</div></button>' +
         '<button class="card sum" data-go="luz"><div class="sum-h c-amber">⚡ LUZ · 2.0TD</div><div class="sum-big"><span class="per-dot" style="--c:' + Luz.COLOR[p] + '"></span>Ahora ' + Luz.NOMBRE[p].toLowerCase() + '</div><div class="sum-sub">' + (p === 'valle' ? 'Buen momento para lavadora y lavavajillas' : nw ? 'Valle ' + whenTxt(nw.start, t) : '') + '</div></button>' +
+        saludMini() +
       '</section></div>';
+  }
+
+  function renderHoyMenu(t) {
+    const m = menuState();
+    const letters = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const nDays = m.span === 5 ? 5 : 7;
+    const todayIdx = weekdayIndex(t);
+    let rows = '';
+    for (let i = 0; i < nDays; i++) {
+      const p = (m.plan && m.plan[String(i)]) || {};
+      rows += '<button type="button" class="hoy-md' + (i === todayIdx ? ' is-today' : '') + '" data-go="menu">' +
+        '<span class="hoy-md-n">' + letters[i] + '</span>' +
+        '<span class="hoy-md-meal"><span class="k">Comida</span> <b>' + esc(p.comida || '—') + '</b></span>' +
+        '<span class="hoy-md-meal"><span class="k">Cena</span> <b>' + esc(p.cena || '—') + '</b></span></button>';
+    }
+    return '<section class="hoy-menu card" aria-label="Menú semanal"><div class="card-h">🍲 Menú semanal</div><div class="hoy-mds">' + rows + '</div></section>';
+  }
+
+  function saludNow() {
+    const d = S.salud;
+    if (!d || (d.demo && syncReady())) return { ok: false, empty: true };
+    return d;
+  }
+  function saludMini() {
+    const d = saludNow();
+    if (!d || d.empty || d.ok === false) {
+      return '<button type="button" class="card sum salud-mini" data-go="salud"><div class="sum-h c-salud">💓 SALUD</div><div class="sum-big">Sin datos de Garmin</div><div class="sum-sub">Aparece al responder el script</div></button>';
+    }
+    const sleep = Salud.lastSleep(d);
+    const day = Salud.today(d, now());
+    const hrv = Salud.lastHrv(d);
+    const steps = day ? Salud.num(day.steps) : null;
+    const tag = d.demo ? '<span class="tag ej">EJEMPLO</span>' : (d.stale ? '<span class="tag">ANTIGUO</span>' : '');
+    const sleepTxt = sleep ? (Salud.hours(sleep.sleepSeconds) + (sleep.sleepScore != null ? ' · ' + sleep.sleepScore : '')) : 'Sin sueño';
+    const bits = [];
+    if (steps != null) bits.push(Salud.fmtInt(steps) + ' / ' + Salud.fmtInt(Salud.goal(d)) + ' pasos');
+    if (hrv && Salud.num(hrv.hrv) != null) bits.push('VFC ' + Salud.fmtInt(hrv.hrv));
+    if (day && Salud.num(day.bodyBatteryMin) != null) bits.push('batería ' + day.bodyBatteryMin + '–' + (day.bodyBatteryMax != null ? day.bodyBatteryMax : '–'));
+    return '<button type="button" class="card sum salud-mini" data-go="salud"><div class="sum-h c-salud">💓 SALUD ' + tag + '</div><div class="sum-big">' + esc(sleepTxt) + '</div><div class="sum-sub">' + esc(bits.join(' · ') || 'Salud') + '</div></button>';
   }
 
   /* ---------------- CALENDARIO ---------------- */
@@ -962,7 +1028,7 @@
       return '<label class="sync-cal"><span class="sync-dot" style="--c:' + esc(cal.color || '#C8243B') + '"></span><span class="sync-name">' + esc(cal.name || 'Calendario') + '</span><span class="bg-flag"><input type="checkbox" data-sync-bg="' + esc(cal.id) + '"' + (on ? ' checked' : '') + '> De fondo</span></label>';
     }).join('');
     return '<section class="card wide" id="syncCard"><div class="card-h">🔄 Sincronización con Google</div>' +
-      '<div class="muted sm">Opcional. Si lo configuras, las citas salen de tus calendarios de Google (sin dirección iCal ni proxy) y la compra, el menú, las estrellas y las citas hechas se comparten entre el marco y el móvil. La URL y la clave se guardan solo en este dispositivo.</div>' +
+      '<div class="muted sm">Opcional. Si lo configuras, las citas salen de tus calendarios de Google (sin dirección iCal ni proxy) y la compra, el menú, las estrellas y las citas hechas se comparten entre el marco y el móvil. Salud usa la misma clave para pedirle al script el resumen de Garmin: la clave de Garmin se queda en el script, no en el marco. La URL y la clave compartida se guardan solo en este dispositivo.</div>' +
       '<label class="lbl">URL de la aplicación web</label><input id="syncUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" value="' + esc(settings.syncUrl || '') + '" placeholder="https://script.google.com/macros/s/…/exec">' +
       '<label class="lbl">Clave compartida</label><div class="sync-key"><input id="syncKey" type="password" autocomplete="off" spellcheck="false" value="' + esc(settings.syncKey || '') + '" placeholder="una clave larga, solo tuya"><button class="btn sm ghost" data-act="showSyncKey" type="button">👁</button></div>' +
       syncStatusLine() +
@@ -1085,6 +1151,7 @@
         toast('Probando…', 1500);
         await Sync.syncNow();
         await loadCalendars({ quiet: true });
+        await loadSalud().catch(() => {});
         render();
         const bad = (S.syncDataStatus && !S.syncDataStatus.ok) || (S.syncCalStatus && !S.syncCalStatus.ok);
         toast(bad ? 'Guardado en este dispositivo. No he podido conectar.' : 'Sincronización lista');
@@ -1148,15 +1215,140 @@
     openModal('<div class="modal-t">' + esc(U.fechaLarga(d)) + '</div><div class="day-evs modal-list">' + eventsOn(d).map((e) => evItem(e, d)).join('') + '</div>');
   }
 
+  /* ---------------- SALUD ---------------- */
+  function renderSalud() {
+    const d = saludNow();
+    if (!d || d.empty || d.ok === false) {
+      screenEl.innerHTML = '<div class="salud"><section class="card salud-empty"><div class="card-h">💓 Salud</div><div class="sum-big">Sin datos de Garmin</div><div class="muted sm">Con la sincronización activa, el marco pide el resumen al script. Si Garmin no responde y no hay una copia en este dispositivo, no se inventan cifras.</div></section></div>';
+      return;
+    }
+    const t = now();
+    const sleep = Salud.lastSleep(d);
+    const day = Salud.today(d, t);
+    const hrv = Salud.lastHrv(d);
+    const goalN = Salud.goal(d);
+    const steps = day ? Salud.num(day.steps) : null;
+    const pct = steps == null || !goalN ? 0 : Math.max(0, Math.min(100, Math.round(steps / goalN * 100)));
+    const note = d.demo
+      ? '<div class="salud-note ej" role="status">Datos de ejemplo · no son de tu Garmin</div>'
+      : (d.stale ? '<div class="salud-note stale" role="status">Datos de Garmin sin actualizar · última copia de este dispositivo</div>' : '');
+    const parts = [['deep', 'Profundo', sleep && sleep.deepSeconds], ['rem', 'REM', sleep && sleep.remSeconds], ['light', 'Ligero', sleep && sleep.lightSeconds], ['awake', 'Despierto', sleep && sleep.awakeSeconds]];
+    const stages = sleep
+      ? '<div class="st-bar" role="img" aria-label="' + esc(parts.map((p) => p[1] + ' ' + Salud.hours(p[2])).join(', ')) + '">' +
+          parts.map((p) => '<span class="st-' + p[0] + '" style="flex:' + Math.max(0, Salud.num(p[2]) || 0) + '"></span>').join('') + '</div>' +
+        '<div class="st-legend">' + parts.map((p) => '<span><i class="st-' + p[0] + '"></i>' + p[1] + ' ' + esc(Salud.hours(p[2])) + '</span>').join('') + '</div>'
+      : '<div class="muted">Sin sueño registrado.</div>';
+    const days = Salud.daysOf(d);
+    const maxSleep = Math.max.apply(null, days.map((x) => Salud.num(x.sleepSeconds) || 0).concat([1]));
+    const maxSteps = Math.max.apply(null, days.map((x) => Salud.num(x.steps) || 0).concat([1]));
+    function bars(key, max, kind) {
+      return days.map((x) => {
+        const v = Salud.num(x[key]);
+        const h = v == null || v <= 0 ? 0 : Math.max(8, Math.round(v / max * 100));
+        const parsed = U.parseLocal(x.date);
+        const name = U.DIAS_C[parsed.getDay()];
+        const txt = name + ' ' + (v == null ? 'sin dato' : (kind === 'sleep' ? Salud.hours(v) : Salud.fmtInt(v) + ' pasos'));
+        return '<div class="tr-col" role="img" aria-label="' + esc(txt) + '"><div class="tr-bar" style="height:' + h + '%"></div><span>' + esc(name.slice(0, 1)) + '</span></div>';
+      }).join('');
+    }
+    const list = Salud.workouts(d);
+    const wos = list.map((w) => {
+      const when = w.date ? U.fechaCorta(U.parseLocal(w.date)) : '';
+      const bits = [when, Salud.hours(w.duration), Salud.fmtDist(w.distance), w.avgHr != null ? Salud.fmtInt(w.avgHr) + ' lpm' : '', w.calories != null ? Salud.fmtInt(w.calories) + ' kcal' : ''].filter(Boolean);
+      return '<article class="wo"><div class="wo-h"><b>' + esc(w.name || Salud.tipo(w.type)) + '</b><span class="wo-k">' + esc(Salud.tipo(w.type)) + '</span></div><div class="wo-m">' + esc(bits.join(' · ')) + '</div></article>';
+    }).join('');
+    const bb = day && Salud.num(day.bodyBatteryMin) != null ? (day.bodyBatteryMin + ' – ' + (day.bodyBatteryMax != null ? day.bodyBatteryMax : '–')) : '–';
+    const rhr = day && Salud.num(day.restingHr) != null ? Salud.fmtInt(day.restingHr) + ' lpm' : '–';
+    const hrvTxt = hrv && Salud.num(hrv.hrv) != null ? Salud.fmtInt(hrv.hrv) : '–';
+    const hrvSub = hrv ? ('Semana ' + (Salud.num(hrv.hrvWeekly) != null ? Salud.fmtInt(hrv.hrvWeekly) : '–') + ' · ' + Salud.hrvLabel(hrv.hrvStatus)) : 'Sin VFC';
+    const goalNote = d.stepsGoal ? '' : ' · objetivo de referencia';
+    screenEl.innerHTML = '<div class="salud">' + note +
+      '<div class="salud-grid">' +
+        '<section class="card salud-sleep"><div class="card-h">🌙 Sueño de anoche</div>' +
+          '<div class="sleep-big">' + esc(sleep ? Salud.hours(sleep.sleepSeconds) : '–') + '</div>' +
+          '<div class="sleep-score">Puntuación ' + esc(sleep && sleep.sleepScore != null ? String(sleep.sleepScore) : '–') + '</div>' +
+          stages +
+          (sleep && sleep.date ? '<div class="muted sm">' + esc(U.fechaCorta(U.parseLocal(sleep.date))) + '</div>' : '') +
+        '</section>' +
+        '<section class="card"><div class="card-h">🔋 Batería corporal</div><div class="metric-n">' + esc(bb) + '</div><div class="muted sm">Mínimo y máximo de hoy</div></section>' +
+        '<section class="card"><div class="card-h">💓 VFC de anoche</div><div class="metric-n">' + esc(hrvTxt) + '</div><div class="muted sm">' + esc(hrvSub) + '</div></section>' +
+        '<section class="card"><div class="card-h">👟 Pasos de hoy</div><div class="metric-n">' + esc(steps == null ? '–' : Salud.fmtInt(steps)) + '</div><div class="muted sm">de ' + esc(Salud.fmtInt(goalN)) + esc(goalNote) + '</div><div class="goal-track" role="img" aria-label="' + esc((steps == null ? 'sin pasos' : Salud.fmtInt(steps)) + ' de ' + Salud.fmtInt(goalN)) + '"><div style="width:' + pct + '%"></div></div></section>' +
+        '<section class="card"><div class="card-h">❤️ FC en reposo</div><div class="metric-n">' + esc(rhr) + '</div><div class="muted sm">Hoy</div></section>' +
+      '</div>' +
+      '<section class="card"><div class="card-h">Tendencia de 7 días</div><div class="trend-box">' +
+        '<div class="tr-sleep"><div class="wo-k">SUEÑO</div><div class="tr-bars">' + bars('sleepSeconds', maxSleep, 'sleep') + '</div></div>' +
+        '<div><div class="wo-k">PASOS</div><div class="tr-bars">' + bars('steps', maxSteps, 'steps') + '</div></div>' +
+      '</div></section>' +
+      '<section class="card"><div class="card-h">Entrenos <span class="count">' + list.length + '</span></div>' +
+        (wos || '<div class="muted">Sin entrenos en estos días.</div>') +
+      '</section></div>';
+  }
+
   /* ---------------- Navegación y eventos ---------------- */
-  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, menu: renderMenu, ajustes: renderAjustes };
+  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, menu: renderMenu, salud: renderSalud, ajustes: renderAjustes };
   function render() {
-    document.querySelectorAll('#rail [data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === S.screen));
+    document.querySelectorAll('#rail [data-go]').forEach((b) => {
+      const on = b.dataset.go === S.screen;
+      b.classList.toggle('on', on);
+      if (on) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    });
     document.body.dataset.screen = S.screen;
     try { (SCREENS[S.screen] || renderHoy)(); } catch (e) { console.error(e); screenEl.innerHTML = '<div class="card">Error al pintar: ' + esc(e.message) + '</div>'; }
     tickClocks();
   }
+  function closeDrawer() {
+    if (!document.documentElement.classList.contains('rail-drawer')) return;
+    document.documentElement.classList.remove('rail-drawer');
+    document.body.classList.remove('rail-drawer');
+    syncRailButton();
+  }
+  function railWantsCollapsed() {
+    const w = window.innerWidth || 1200;
+    if (w < 720) return true;
+    const pref = store.get('railCollapsed', null);
+    return pref === null ? w < 960 : !!pref;
+  }
+  function syncRailButton() {
+    const btn = document.querySelector('[data-act=railToggle]');
+    if (!btn) return;
+    const phone = (window.innerWidth || 1200) < 720;
+    const drawer = document.documentElement.classList.contains('rail-drawer');
+    const collapsed = document.documentElement.classList.contains('rail-collapsed');
+    const expanded = drawer || !collapsed;
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    btn.setAttribute('aria-label', expanded ? 'Contraer el menú' : 'Ampliar el menú');
+    const label = btn.querySelector('.nav-label');
+    if (label) label.textContent = phone ? (drawer ? 'Cerrar' : 'Menú') : (collapsed ? 'Ampliar' : 'Contraer');
+  }
+  function applyRail(opts) {
+    const phone = (window.innerWidth || 1200) < 720;
+    if (opts && opts.toggle) {
+      if (phone) {
+        const open = !document.documentElement.classList.contains('rail-drawer');
+        document.documentElement.classList.toggle('rail-drawer', open);
+        document.body.classList.toggle('rail-drawer', open);
+      } else {
+        const next = !document.documentElement.classList.contains('rail-collapsed');
+        store.set('railCollapsed', next);
+        document.documentElement.classList.toggle('rail-collapsed', next);
+        document.body.classList.toggle('rail-collapsed', next);
+        document.documentElement.classList.remove('rail-drawer');
+        document.body.classList.remove('rail-drawer');
+      }
+    } else {
+      const collapsed = railWantsCollapsed();
+      document.documentElement.classList.toggle('rail-collapsed', collapsed);
+      document.body.classList.toggle('rail-collapsed', collapsed);
+      if (!phone) {
+        document.documentElement.classList.remove('rail-drawer');
+        document.body.classList.remove('rail-drawer');
+      }
+    }
+    syncRailButton();
+  }
   async function go(name) {
+    closeDrawer();
     if (name === 'ajustes' && store.get('pin', null) && S.screen !== 'ajustes') { if (!(await pinPad('PIN de padres para Ajustes'))) return; }
     S.screen = name; S.lastTouch = Date.now(); render();
     screenEl.scrollTop = 0;
@@ -1171,6 +1363,8 @@
       const act = a.dataset.act;
       if (act === 'refresh') return refreshAll(true);
       if (act === 'sleep') return sleep(true);
+      if (act === 'railToggle') return applyRail({ toggle: true });
+      if (act === 'railClose') return closeDrawer();
       if (act === 'clearDone') {
         const c = C();
         const rev = Sync.nextRev();
@@ -1255,7 +1449,22 @@
     const dish = (ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || dragDish;
     if (dish) assignMeal(slot.dataset.day, slot.dataset.meal, dish);
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeModal(); closeDrawer(); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const rail = document.getElementById('rail');
+    if (!rail || !rail.contains(document.activeElement)) return;
+    const items = Array.prototype.slice.call(rail.querySelectorAll('button.nav'));
+    const i = items.indexOf(document.activeElement);
+    if (i < 0 || !items.length) return;
+    e.preventDefault();
+    let n = i;
+    if (e.key === 'ArrowDown') n = (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') n = (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') n = 0;
+    else n = items.length - 1;
+    items[n].focus();
+  });
 
   /* ---------------- Reloj, noche y refresco ---------------- */
   function tickClocks() {
@@ -1303,6 +1512,8 @@
     Promise.all([loadCalendars().catch(() => {}), Sync.syncNow().catch(() => {})]).then(() => { if (!userBusy()) render(); });
   }, 15 * 60000);
   setInterval(() => loadWeather().then(() => { if (!userBusy()) render(); }), 30 * 60000);
+  setInterval(() => { if (!syncReady()) return; loadSalud().then(() => { if (!userBusy()) render(); }).catch(() => {}); }, Salud.EVERY);
+  window.addEventListener('resize', () => applyRail());
   setInterval(() => loadPVPC().then(() => { if (!userBusy()) render(); }), 60 * 60000);
   window.addEventListener('online', () => { paintOffline(); refreshAll(false); });
   window.addEventListener('offline', paintOffline);
@@ -1341,11 +1552,13 @@
   });
 
   // Arranque
+  applyRail();
+  primeSalud();
   const hash = (location.hash || '').replace('#', '');
   if (SCREENS[hash] && hash !== 'ajustes') S.screen = hash;
   render();
   refreshAll(false);
 
   // Para pruebas automáticas
-  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline };
+  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, loadSalud, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline, SALUD_EVERY: Salud.EVERY };
 })();

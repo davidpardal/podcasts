@@ -89,7 +89,43 @@ with sync_playwright() as p:
     check("ejemplo: custodia activa y semanas sombreadas", page.locator(".custody-badge").count() == 1 and page.locator(".day.c-padre").count() >= 1)
     check("ahora no lo tapa el turno de fondo", "Turno" not in page.inner_text(".next-title"))
     check("calendario de fondo visible", page.locator(".ev-bg").count() > 0)
-    check("hoy muestra comida y cena", "Comida" in page.inner_text(".next-meals") and "Arroz" in page.inner_text(".next-meals"))
+    lay = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      const menu = document.querySelector('.hoy-menu').getBoundingClientRect();
+      const next = document.querySelector('.next').getBoundingClientRect();
+      const label = getComputedStyle(document.querySelector('#rail [data-go=hoy] .nav-label'));
+      return {
+        railBeforeScreen: rail.right <= screen.left + 1,
+        vertical: rail.height > rail.width * 1.5,
+        labelShown: label.position !== 'absolute' && parseFloat(label.width) > 8,
+        menuLeftOfNext: menu.right <= next.left + 2
+      };
+    }""")
+    check("menú de pantallas a la izquierda, en vertical", lay["railBeforeScreen"] and lay["vertical"], lay)
+    check("barra con iconos y etiquetas", lay["labelShown"] and "Salud" in page.inner_text("#rail") and "Hoy" in page.inner_text("#rail"))
+    check("menú semanal en la columna izquierda", lay["menuLeftOfNext"] and "Menú semanal" in page.inner_text(".hoy-menu"))
+    check("hoy muestra comida y cena", "Comida" in page.inner_text(".hoy-menu") and "Arroz" in page.inner_text(".hoy-menu"))
+    page.focus("#rail [data-go=hoy]")
+    page.keyboard.press("ArrowDown")
+    check("flechas mueven el foco por el menú", page.evaluate("document.activeElement && document.activeElement.dataset.go") == "calendario")
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".cal")
+    check("enter abre la sección enfocada", page.evaluate("document.body.dataset.screen") == "calendario")
+    w0 = page.evaluate("() => document.querySelector('#rail').getBoundingClientRect().width")
+    page.click("[data-act=railToggle]")
+    page.wait_for_timeout(100)
+    collapsed = page.evaluate("""(w0) => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const s = getComputedStyle(document.querySelector('#rail [data-go=hoy] .nav-label'));
+      const hidden = s.position === 'absolute' || parseFloat(s.width) < 2;
+      return { hidden, narrower: rail.width < w0 - 20, name: document.querySelector('[data-act=railToggle]').getAttribute('aria-label') };
+    }""", w0)
+    check("la barra se contrae a iconos y sigue teniendo nombre", collapsed["hidden"] and collapsed["narrower"] and "Ampliar" in (collapsed["name"] or ""), collapsed)
+    page.click("[data-act=railToggle]")
+    page.evaluate("localStorage.setItem('marco-v2.railCollapsed', 'false')")
+    page.click("#rail [data-go=hoy]")
+    page.wait_for_selector(".hoy-menu")
     check("mañana de un vistazo", page.inner_text(".next-tom").startswith("Mañana"))
     check("cita demo tachada", page.locator(".ev-done", has_text="Compra semanal").count() >= 1)
     if page.locator(".wx-h").count():
@@ -171,8 +207,8 @@ with sync_playwright() as p:
     check("arrastrar asigna la cena", "Sopa" in page.locator(".menu-slot[data-day='2'][data-meal='cena']").inner_text())
     page.click("[data-span='5']")
     check("el menú puede ser solo L–V", page.locator(".menu-day").count() == 5)
-    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-meals")
-    check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".next-meals"))
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".hoy-menu")
+    check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".hoy-menu"))
     page.click("#rail [data-go=menu]"); page.click("[data-act=resetMenu]")
     check("volver al menú de ejemplo", "Arroz" in page.locator(".menu-slot[data-day='2'][data-meal='comida']").inner_text())
     # Haz la cesta: copia, mailto y aviso. Sin webhook en el repo; el correo sale de Ajustes.
@@ -297,6 +333,30 @@ with sync_playwright() as p:
     ctx.close()
     ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
+    mob = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      const label = getComputedStyle(document.querySelector('#rail [data-go=salud] .nav-label'));
+      const menu = document.querySelector('.hoy-menu');
+      return {
+        left: rail.right <= screen.left + 1,
+        vertical: rail.height > rail.width,
+        compact: label.position === 'absolute' || parseFloat(label.width) < 2,
+        notBottom: rail.top < 40,
+        menu: !!(menu && menu.getBoundingClientRect().width > 40)
+      };
+    }""")
+    check("móvil: carril izquierdo y compacto", mob["left"] and mob["vertical"] and mob["compact"] and mob["notBottom"] and mob["menu"], mob)
+    page.click("[data-act=railToggle]")
+    page.wait_for_selector("html.rail-drawer")
+    check("móvil: el cajón muestra las etiquetas", "Salud" in page.inner_text("#rail") and page.evaluate("document.documentElement.classList.contains('rail-drawer')"))
+    page.keyboard.press("Escape")
+    check("móvil: escape cierra el cajón", not page.evaluate("document.documentElement.classList.contains('rail-drawer')"))
+    page.click("[data-act=sleep]")
+    page.wait_for_selector("#night:not(.hidden)")
+    check("móvil: reloj nocturno", page.is_visible(".night-time") and page.is_visible(".night-hint"))
+    page.click("#night")
+    page.wait_for_function("() => document.querySelector('#night').classList.contains('hidden')")
     page.screenshot(path=os.path.join(OUT, "10-movil.png"))
     check("móvil sin scroll horizontal", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
     ctx.close()
@@ -310,6 +370,21 @@ with sync_playwright() as p:
     check("script lee CalendarApp y exige la clave", "CalendarApp.getAllCalendars" in gs and "MARCO_KEY" in gs and "Clave incorrecta" in gs)
     check("script sin datos personales", "davidpardal" not in gs.lower() and "calendar.google.com/calendar/ical" not in gs)
     check("manifiesto: ejecutar como yo y acceso anónimo", manifest.get("webapp", {}).get("executeAs") == "USER_DEPLOYING" and manifest.get("webapp", {}).get("access") == "ANYONE_ANONYMOUS")
+    check("script: acción salud y API personal de Garmin",
+          "action === 'salud'" in gs and "GARMIN_PERSONAL_API_KEY" in gs
+          and "personalapitoken-service/personal-api/personal-api-key/token" in gs
+          and "Authorization: 'ApiKey '" in gs.replace(' + key', '')
+          and "/activitylist-service/activities/search/activities" in gs
+          and "/usersummary-service/v2/dailysummaries" in gs
+          and "/sleep-service/sleep/dailySleepSummariesByDate" in gs
+          and "/hrv-service/hrv/daily/" in gs
+          and "Bearer " in gs)
+    check("script no escribe la clave ni el token en el registro", "Logger.log(key" not in gs and "Logger.log(token" not in gs and "Logger.log(clave" not in gs)
+    check("manifiesto puede llamar a Garmin", "https://www.googleapis.com/auth/script.external_request" in (manifest.get("oauthScopes") or []))
+    readme_gs = open(os.path.join(HERE, "..", "apps-script", "README.md"), encoding="utf-8").read()
+    check("readme de apps-script explica GARMIN_PERSONAL_API_KEY",
+          "GARMIN_PERSONAL_API_KEY" in readme_gs and "Propiedades del script" in readme_gs and "no imprime" in readme_gs)
+    check("script guarda el token hasta 5 min antes de exp y la salud 30 min", "exp - now - 300" in gs and "1800" in gs and "old.stale = true" in gs)
 
     def js_merge(stored, incoming):
         proc = subprocess.run(
@@ -364,6 +439,15 @@ process.stdin.on("end", function () {
             return route.abort()
         if body.get("action") == "calendars":
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(CALENDARS))
+        if body.get("action") == "salud":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({
+                "ok": True, "stale": False, "stepsGoal": 8000,
+                "days": [{"date": "2026-10-21", "steps": 4321, "restingHr": 55, "bodyBatteryMin": 20, "bodyBatteryMax": 90,
+                          "sleepSeconds": 27000, "sleepScore": 77, "deepSeconds": 5000, "lightSeconds": 14000,
+                          "remSeconds": 6000, "awakeSeconds": 1200, "hrv": 47, "hrvWeekly": 45, "hrvStatus": "BALANCED"}],
+                "workouts": [{"date": "2026-10-20", "start": "2026-10-20T18:00:00", "type": "walking", "name": "Paseo de ejemplo",
+                              "duration": 1200, "distance": 1500, "avgHr": 100, "calories": 90}]
+            }))
         if body.get("action") == "sync":
             merged = js_merge(box["state"], body.get("state") or {})
             box["state"] = merged
@@ -490,6 +574,119 @@ process.stdin.on("end", function () {
     check("si el script falla, el iCal de respaldo sigue cargando", (not fb["demo"]) and fb["ok"] and fb["n"] > 3 and not fb["off"], fb)
     ctx.close()
 
+    # ================= 2c) Salud con respuestas simuladas (sin Garmin real) =================
+    def salud_payload(stale=False):
+        days = []
+        start = dt.date(2026, 10, 15)
+        for i in range(7):
+            d = start + dt.timedelta(days=i)
+            last = i == 6
+            days.append({
+                "date": d.isoformat(),
+                "steps": 12345 if last else 1000 * (i + 1),
+                "restingHr": 48,
+                "bodyBatteryMin": 22,
+                "bodyBatteryMax": 95,
+                "sleepSeconds": 28800 if last else 25200,
+                "sleepScore": 91 if last else 70,
+                "deepSeconds": 5400, "lightSeconds": 14400, "remSeconds": 7200, "awakeSeconds": 1800,
+                "hrv": 62 if last else 40 + i, "hrvWeekly": 55, "hrvStatus": "BALANCED"
+            })
+        return {
+            "ok": True, "stale": stale, "demo": False,
+            "fetchedAt": "2026-10-21T16:00:00.000Z", "from": "2026-10-15", "to": "2026-10-21",
+            "stepsGoal": 9000, "days": days,
+            "workouts": [
+                {"date": "2026-10-20", "start": "2026-10-20T18:30:00", "type": "rowing", "name": "Remo de ejemplo", "duration": 1500, "distance": 4000, "avgHr": 136, "calories": 320},
+                {"date": "2026-10-18", "start": "2026-10-18T09:00:00", "type": "running", "name": "Carrera de prueba", "duration": 2400, "distance": 7000, "avgHr": 150, "calories": 500},
+                {"date": "2026-10-16", "start": "2026-10-16T12:00:00", "type": "yoga", "name": "Yoga de ejemplo", "duration": 1800, "distance": 0, "avgHr": 90, "calories": 120}
+            ]
+        }
+
+    ctx, page = new_page(b, 1024, 768, dt.datetime(2026, 10, 21, 17, 45, tzinfo=TZ))
+    salud_box = {"mode": "ok", "n": 0, "key_in_url": False}
+
+    def handle_salud(route):
+        req = route.request
+        if "key=" in (req.url or ""):
+            salud_box["key_in_url"] = True
+        try:
+            body = json.loads(req.post_data or "{}")
+        except Exception:
+            body = {}
+        if body.get("key") != "clave-de-ejemplo":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Clave incorrecta"}))
+        action = body.get("action")
+        if action == "salud":
+            salud_box["n"] += 1
+            if salud_box["mode"] == "down":
+                return route.abort()
+            if salud_box["mode"] == "error":
+                return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Sin datos de Garmin"}))
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(salud_payload(salud_box["mode"] == "stale")))
+        if action == "calendars":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "calendars": [], "events": []}))
+        if action == "sync":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": body.get("state") or {}}))
+        return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True}))
+
+    page.route("**/__marco_salud", handle_salud)
+    page.goto(BASE); page.wait_for_selector(".hoy"); page.clock.run_for(400)
+    check("salud de ejemplo en Ahora", "EJEMPLO" in page.inner_text(".salud-mini") and "Sin datos de Garmin" not in page.inner_text(".salud-mini"))
+    tab = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      const menu = document.querySelector('.hoy-menu').getBoundingClientRect();
+      const next = document.querySelector('.next').getBoundingClientRect();
+      return { left: rail.right <= screen.left + 1, vertical: rail.height > rail.width, menu: menu.right <= next.left + 2 };
+    }""")
+    check("tablet apaisada: menú a la izquierda y semanal en la columna izquierda", tab["left"] and tab["vertical"] and tab["menu"], tab)
+    page.screenshot(path=os.path.join(OUT, "13-tablet-hoy.png"))
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud")
+    demo_txt = page.inner_text(".salud")
+    check("salud de ejemplo, con sueño, pasos y entrenos", "Datos de ejemplo" in demo_txt and "Sueño de anoche" in demo_txt and "Pasos de hoy" in demo_txt and "Carrera de ejemplo" in demo_txt and "Remo de ejemplo" not in demo_txt and page.locator(".tr-col").count() >= 14 and page.locator(".wo").count() >= 3)
+    page.screenshot(path=os.path.join(OUT, "14-salud-ejemplo.png"))
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncUrl")
+    page.fill("#syncUrl", BASE.rstrip("/") + "/__marco_salud")
+    page.fill("#syncKey", "clave-de-ejemplo")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.className.indexOf('ok') !== -1; }", timeout=20000)
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud")
+    page.wait_for_function("() => document.body.innerText.includes('91')")
+    real = page.inner_text(".salud")
+    check("salud usa la respuesta simulada y no el ejemplo", "91" in real and "12.345" in real and "Remo de ejemplo" in real and "Equilibrada" in real and "Datos de ejemplo" not in real and "22" in real and "95" in real, real[:240])
+    check("la clave no va en la URL de salud", not salud_box["key_in_url"] and salud_box["n"] >= 1)
+    stored = page.evaluate("() => localStorage.getItem('marco-v2.cache.salud') || ''")
+    check("la copia local no guarda la clave", stored.startswith("{") and "clave-de-ejemplo" not in stored and "GARMIN" not in stored and "Bearer" not in stored)
+    check("salud se pide al cargar y el intervalo es 30 min", page.evaluate("() => Marco.SALUD_EVERY === 30 * 60000 && Marco.S.saludLoads >= 1"))
+    salud_box["mode"] = "stale"
+    page.evaluate("() => Marco.loadSalud().then(() => Marco.render())")
+    page.wait_for_function("() => document.body.innerText.includes('sin actualizar')")
+    check("si Garmin marca la copia como antigua, se avisa", "sin actualizar" in page.inner_text(".salud-note"))
+    salud_box["mode"] = "down"
+    page.evaluate("() => Marco.loadSalud().then(() => Marco.render())")
+    kept = page.inner_text(".salud")
+    check("si Garmin no responde se queda la última copia", "12.345" in kept and "Remo de ejemplo" in kept and "Sin datos de Garmin" not in kept)
+    page.evaluate("() => { localStorage.removeItem('marco-v2.cache.salud'); Marco.S.salud = null; }")
+    salud_box["mode"] = "error"
+    page.evaluate("() => Marco.loadSalud().then(() => Marco.render())")
+    page.wait_for_selector(".salud-empty")
+    check("sin copia y sin Garmin: Sin datos de Garmin", page.inner_text(".salud-empty").startswith("💓 Salud") or "Sin datos de Garmin" in page.inner_text(".salud-empty"))
+    ctx.close()
+
+    ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
+    page.goto(BASE); page.wait_for_selector(".salud-mini"); page.clock.run_for(300)
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud-note")
+    check("móvil: salud de ejemplo visible", "Datos de ejemplo" in page.inner_text(".salud") and "Sueño de anoche" in page.inner_text(".salud"))
+    phone_rail = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      return rail.right <= screen.left + 1 && rail.height > rail.width && rail.top < 30;
+    }""")
+    check("móvil en Salud: el menú sigue a la izquierda", phone_rail)
+    page.screenshot(path=os.path.join(OUT, "15-salud-movil.png"))
+    ctx.close()
+
     # ================= 3) Ajustes privados importados (NO se hacen capturas) =================
     if PRIV and os.path.exists(PRIV):
         priv = json.load(open(PRIV, encoding="utf-8"))
@@ -533,7 +730,7 @@ process.stdin.on("end", function () {
         page.on("response", lambda r: bad.append(f"{r.status} {r.url}") if r.status >= 400 and r.url.startswith(SUB.split('/marco')[0]) else None)
         page.goto(SUB); page.wait_for_selector(".hoy"); page.clock.run_for(1000); wait_data(page)
         ok = True
-        for tab, sel in [("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("menu", ".menu"), ("ajustes", ".ajustes"), ("hoy", ".hoy")]:
+        for tab, sel in [("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("menu", ".menu"), ("salud", ".salud"), ("ajustes", ".ajustes"), ("hoy", ".hoy")]:
             page.click(f"#rail [data-go={tab}]"); page.wait_for_selector(sel)
         check("subruta: todas las pestañas y sin 404", not bad and page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(247, 238, 226)", bad)
         ctx.close()

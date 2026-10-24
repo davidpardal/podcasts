@@ -45,7 +45,7 @@ python3 serve.py              # abre http://127.0.0.1:8080
 python3 serve.py --host 0.0.0.0 --port 8080   # para abrirlo desde la tablet en la misma wifi
 ```
 
-Para simular una fecha: `http://127.0.0.1:8080/?fecha=2026-10-24T10:00`. Para ir directo a una pantalla: `#calendario`, `#luz`, `#ninos`, `#compra`, `#menu`.
+Para simular una fecha: `http://127.0.0.1:8080/?fecha=2026-10-24T10:00`. Para ir directo a una pantalla: `#calendario`, `#luz`, `#ninos`, `#compra`, `#menu`, `#salud`.
 
 Pruebas automáticas (Chromium headless, Playwright):
 
@@ -65,6 +65,8 @@ Sirve para dos cosas, sin montar un servidor:
 
 No se sincronizan los nombres de la familia, el PIN, los precios ni las direcciones. Las tareas (el catálogo) se definen en cada dispositivo, o las copias con Importar/Exportar; lo que viaja es quién las ha hecho y las estrellas. **«Haz la cesta» sigue igual:** copia los pendientes y abre el correo de Ajustes. El marco no entra en la tienda.
 
+**Salud** (sueño, batería corporal, VFC, pasos, pulso en reposo y los últimos entrenos) sale de la API personal de Garmin, leída por el mismo script. El marco la pide al arrancar y cada 30 minutos, y guarda la última copia en el dispositivo para abrirla sin red. Si no configuras la sincronización, la pantalla enseña datos de ejemplo bien marcados. La clave de Garmin no baja al marco: va en `GARMIN_PERSONAL_API_KEY`, como explica `apps-script/README.md`.
+
 Los calendarios **de fondo** se pueden fijar de dos maneras (vale cualquiera):
 
 - en el script, con el nombre tal como sale en Google Calendar, en la lista `BACKGROUND_CALENDARS` de `Code.gs` (afecta a todos los dispositivos);
@@ -77,7 +79,7 @@ En Google Calendar, un calendario desmarcado (no visible en tu lista) no se env�
 1. Entra en [script.google.com](https://script.google.com) con la cuenta de Google cuyos calendarios quieres leer. **Nuevo proyecto**.
 2. Borra el `Código.gs` de ejemplo y pega el contenido de `marco-v2/apps-script/Code.gs`. En el engranaje → **Editor de manifiesto** (`appsscript.json`), pega `marco-v2/apps-script/appsscript.json` (o deja el que cree el editor y no te preocupes: lo importante es la zona `Europe/Madrid`).
 3. Si quieres turnos o trabajo siempre de fondo, escribe sus nombres en `BACKGROUND_CALENDARS`.
-4. Engranaje → **Propiedades del script** → añade `MARCO_KEY` con una clave larga (16 caracteres o más; letras y números). No la pegues dentro de `Code.gs` ni en el repositorio.
+4. Engranaje → **Propiedades del script** → añade `MARCO_KEY` con una clave larga (16 caracteres o más; letras y números). No la pegues dentro de `Code.gs` ni en el repositorio. Para la sección **Salud**, en la misma pantalla añade `GARMIN_PERSONAL_API_KEY` (la clave de la API personal de Garmin, tampoco en el código). Sin esa propiedad el resto del marco sigue igual y Salud dice «Sin datos de Garmin». El detalle está en `apps-script/README.md`.
 5. En el editor, elige la función `probar` y pulsa ▶. La primera vez Google pide permiso para ver tus calendarios. Acéptalo. En el registro debe salir «Clave configurada» y la lista de calendarios. El script solo lee citas; CalendarApp no ofrece un permiso más estrecho, por eso la pantalla de Google habla del calendario en general.
 6. **Implementar → Nueva implementación → Tipo: Aplicación web.**
    - **Ejecutar como:** Yo (`USER_DEPLOYING`). Así lee tus calendarios, no los de quien abre la página.
@@ -146,16 +148,17 @@ Exportar no incluye las direcciones de los calendarios salvo que marques la casi
 ```
 index.html            esqueleto y navegación
 sw.js                 service worker (copia de la página para abrirla sin red)
-css/app.css           estilo (escala sola: 16 px a 1280×800, 24 px a 1920×1200; móvil con barra inferior)
+css/app.css           estilo (escala sola: 16 px a 1280×800, 24 px a 1920×1200; menú a la izquierda)
 js/config.js          valores por defecto genéricos (sin datos personales ni secretos)
 js/util.js            fechas en español, almacenamiento local
 js/custody.js         custodia por semanas alternas
 js/calendar.js        descarga y análisis de iCal + calendario demo
 js/sync.js            mezcla y envío al Apps Script (no hace nada si Ajustes está vacío)
+js/salud.js           datos de ejemplo y formato de la sección Salud
 js/weather.js         Open-Meteo (día y hora) y consejo según las citas
 js/luz.js             periodos 2.0TD y PVPC de REE
-js/app.js             pantallas, PIN, compra, menú, ajustes, reloj y refrescos
-apps-script/          Code.gs y appsscript.json para pegar en script.google.com (no está desplegado)
+js/app.js             pantallas, PIN, compra, menú, salud, ajustes, reloj y refrescos
+apps-script/          Code.gs, appsscript.json y README para pegar en script.google.com (no está desplegado)
 vendor/ical.min.js    ical.js 2.2.1 (MPL-2.0)
 proxy/cloudflare-worker.js  proxy CORS opcional (no desplegado)
 serve.py              servidor local + proxy opcional
