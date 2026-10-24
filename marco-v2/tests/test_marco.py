@@ -9,7 +9,7 @@ Opcional:
   MARCO_SUBPATH_URL=http://127.0.0.1:8766/marco-v2/  comprueba que funciona bajo una subruta (GitHub Pages: /podcasts/marco-v2/)
 Las capturas de capturas/ se hacen SIEMPRE con ajustes genéricos de ejemplo.
 """
-import datetime as dt, glob, json, os, sys
+import datetime as dt, glob, json, os, subprocess, sys
 from urllib.parse import unquote
 from playwright.sync_api import sync_playwright
 
@@ -89,7 +89,43 @@ with sync_playwright() as p:
     check("ejemplo: custodia activa y semanas sombreadas", page.locator(".custody-badge").count() == 1 and page.locator(".day.c-padre").count() >= 1)
     check("ahora no lo tapa el turno de fondo", "Turno" not in page.inner_text(".next-title"))
     check("calendario de fondo visible", page.locator(".ev-bg").count() > 0)
-    check("hoy muestra comida y cena", "Comida" in page.inner_text(".next-meals") and "Arroz" in page.inner_text(".next-meals"))
+    lay = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      const menu = document.querySelector('.hoy-menu').getBoundingClientRect();
+      const next = document.querySelector('.next').getBoundingClientRect();
+      const label = getComputedStyle(document.querySelector('#rail [data-go=hoy] .nav-label'));
+      return {
+        railBeforeScreen: rail.right <= screen.left + 1,
+        vertical: rail.height > rail.width * 1.5,
+        labelShown: label.position !== 'absolute' && parseFloat(label.width) > 8,
+        menuLeftOfNext: menu.right <= next.left + 2
+      };
+    }""")
+    check("menú de pantallas a la izquierda, en vertical", lay["railBeforeScreen"] and lay["vertical"], lay)
+    check("barra con iconos y etiquetas", lay["labelShown"] and "Salud" in page.inner_text("#rail") and "Hoy" in page.inner_text("#rail"))
+    check("menú semanal en la columna izquierda", lay["menuLeftOfNext"] and "Menú semanal" in page.inner_text(".hoy-menu"))
+    check("hoy muestra comida y cena", "Comida" in page.inner_text(".hoy-menu") and "Arroz" in page.inner_text(".hoy-menu"))
+    page.focus("#rail [data-go=hoy]")
+    page.keyboard.press("ArrowDown")
+    check("flechas mueven el foco por el menú", page.evaluate("document.activeElement && document.activeElement.dataset.go") == "calendario")
+    page.keyboard.press("Enter")
+    page.wait_for_selector(".cal")
+    check("enter abre la sección enfocada", page.evaluate("document.body.dataset.screen") == "calendario")
+    w0 = page.evaluate("() => document.querySelector('#rail').getBoundingClientRect().width")
+    page.click("[data-act=railToggle]")
+    page.wait_for_timeout(100)
+    collapsed = page.evaluate("""(w0) => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const s = getComputedStyle(document.querySelector('#rail [data-go=hoy] .nav-label'));
+      const hidden = s.position === 'absolute' || parseFloat(s.width) < 2;
+      return { hidden, narrower: rail.width < w0 - 20, name: document.querySelector('[data-act=railToggle]').getAttribute('aria-label') };
+    }""", w0)
+    check("la barra se contrae a iconos y sigue teniendo nombre", collapsed["hidden"] and collapsed["narrower"] and "Ampliar" in (collapsed["name"] or ""), collapsed)
+    page.click("[data-act=railToggle]")
+    page.evaluate("localStorage.setItem('marco-v2.railCollapsed', 'false')")
+    page.click("#rail [data-go=hoy]")
+    page.wait_for_selector(".hoy-menu")
     check("mañana de un vistazo", page.inner_text(".next-tom").startswith("Mañana"))
     check("cita demo tachada", page.locator(".ev-done", has_text="Compra semanal").count() >= 1)
     if page.locator(".wx-h").count():
@@ -171,8 +207,8 @@ with sync_playwright() as p:
     check("arrastrar asigna la cena", "Sopa" in page.locator(".menu-slot[data-day='2'][data-meal='cena']").inner_text())
     page.click("[data-span='5']")
     check("el menú puede ser solo L–V", page.locator(".menu-day").count() == 5)
-    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-meals")
-    check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".next-meals"))
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".hoy-menu")
+    check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".hoy-menu"))
     page.click("#rail [data-go=menu]"); page.click("[data-act=resetMenu]")
     check("volver al menú de ejemplo", "Arroz" in page.locator(".menu-slot[data-day='2'][data-meal='comida']").inner_text())
     # Haz la cesta: copia, mailto y aviso. Sin webhook en el repo; el correo sale de Ajustes.
@@ -297,8 +333,358 @@ with sync_playwright() as p:
     ctx.close()
     ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
+    mob = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      const label = getComputedStyle(document.querySelector('#rail [data-go=salud] .nav-label'));
+      const menu = document.querySelector('.hoy-menu');
+      return {
+        left: rail.right <= screen.left + 1,
+        vertical: rail.height > rail.width,
+        compact: label.position === 'absolute' || parseFloat(label.width) < 2,
+        notBottom: rail.top < 40,
+        menu: !!(menu && menu.getBoundingClientRect().width > 40)
+      };
+    }""")
+    check("móvil: carril izquierdo y compacto", mob["left"] and mob["vertical"] and mob["compact"] and mob["notBottom"] and mob["menu"], mob)
+    page.click("[data-act=railToggle]")
+    page.wait_for_selector("html.rail-drawer")
+    check("móvil: el cajón muestra las etiquetas", "Salud" in page.inner_text("#rail") and page.evaluate("document.documentElement.classList.contains('rail-drawer')"))
+    page.keyboard.press("Escape")
+    check("móvil: escape cierra el cajón", not page.evaluate("document.documentElement.classList.contains('rail-drawer')"))
+    page.click("[data-act=sleep]")
+    page.wait_for_selector("#night:not(.hidden)")
+    check("móvil: reloj nocturno", page.is_visible(".night-time") and page.is_visible(".night-hint"))
+    page.click("#night")
+    page.wait_for_function("() => document.querySelector('#night').classList.contains('hidden')")
     page.screenshot(path=os.path.join(OUT, "10-movil.png"))
     check("móvil sin scroll horizontal", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+    ctx.close()
+
+    # ================= 2b) Sincronización (endpoint simulado, datos de ejemplo) =================
+    SYNC_JS = os.path.join(HERE, "..", "js", "sync.js")
+    GS = os.path.join(HERE, "..", "apps-script", "Code.gs")
+    MANIFEST = os.path.join(HERE, "..", "apps-script", "appsscript.json")
+    gs = open(GS, encoding="utf-8").read()
+    manifest = json.load(open(MANIFEST, encoding="utf-8"))
+    check("script lee CalendarApp y exige la clave", "CalendarApp.getAllCalendars" in gs and "MARCO_KEY" in gs and "Clave incorrecta" in gs)
+    check("script sin datos personales", "davidpardal" not in gs.lower() and "calendar.google.com/calendar/ical" not in gs)
+    check("manifiesto: ejecutar como yo y acceso anónimo", manifest.get("webapp", {}).get("executeAs") == "USER_DEPLOYING" and manifest.get("webapp", {}).get("access") == "ANYONE_ANONYMOUS")
+    check("script: acción salud y API personal de Garmin",
+          "action === 'salud'" in gs and "GARMIN_PERSONAL_API_KEY" in gs
+          and "personalapitoken-service/personal-api/personal-api-key/token" in gs
+          and "Authorization: 'ApiKey '" in gs.replace(' + key', '')
+          and "/activitylist-service/activities/search/activities" in gs
+          and "/usersummary-service/v2/dailysummaries" in gs
+          and "/sleep-service/sleep/dailySleepSummariesByDate" in gs
+          and "/hrv-service/hrv/daily/" in gs
+          and "Bearer " in gs)
+    check("script no escribe la clave ni el token en el registro", "Logger.log(key" not in gs and "Logger.log(token" not in gs and "Logger.log(clave" not in gs)
+    check("manifiesto puede llamar a Garmin", "https://www.googleapis.com/auth/script.external_request" in (manifest.get("oauthScopes") or []))
+    readme_gs = open(os.path.join(HERE, "..", "apps-script", "README.md"), encoding="utf-8").read()
+    check("readme de apps-script explica GARMIN_PERSONAL_API_KEY",
+          "GARMIN_PERSONAL_API_KEY" in readme_gs and "Propiedades del script" in readme_gs and "no imprime" in readme_gs)
+    check("script guarda el token hasta 5 min antes de exp y la salud 30 min", "exp - now - 300" in gs and "1800" in gs and "old.stale = true" in gs)
+
+    def js_merge(stored, incoming):
+        proc = subprocess.run(
+            ["node", "-e", r'''
+const fs = require("fs");
+const vm = require("vm");
+const code = fs.readFileSync(process.argv[1], "utf8");
+const sandbox = { window: {}, console: console };
+vm.createContext(sandbox);
+vm.runInContext(code, sandbox);
+let raw = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", function (c) { raw += c; });
+process.stdin.on("end", function () {
+  const input = JSON.parse(raw || "{}");
+  process.stdout.write(JSON.stringify(sandbox.window.Sync.mergeState(input.a, input.b)));
+});
+''', SYNC_JS],
+            input=json.dumps({"a": stored, "b": incoming}),
+            capture_output=True, text=True, timeout=20)
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr or proc.stdout)
+        return json.loads(proc.stdout)
+
+    reunion_ms = int(dt.datetime(2026, 10, 21, 18, 0, tzinfo=TZ).timestamp() * 1000)
+    turno_ms = int(dt.datetime(2026, 10, 21, 15, 0, tzinfo=TZ).timestamp() * 1000)
+    CALENDARS = {"ok": True, "calendars": [
+        {"id": "cal-familia", "name": "Familia ejemplo", "color": "#E8604C", "background": False},
+        {"id": "cal-turno", "name": "Turno ejemplo", "color": "#8A8178", "background": True}],
+        "events": [
+            {"id": "reunion@" + str(reunion_ms), "title": "Reunión de ejemplo", "startLocal": "2026-10-21T18:00", "endLocal": "2026-10-21T19:00",
+             "allDay": False, "location": "Sitio de ejemplo", "description": "Dato inventado.", "calId": "cal-familia", "calName": "Familia ejemplo", "color": "#E8604C", "background": False},
+            {"id": "turno@" + str(turno_ms), "title": "Turno ejemplo", "startLocal": "2026-10-21T15:00", "endLocal": "2026-10-21T22:00",
+             "allDay": False, "location": "", "description": "", "calId": "cal-turno", "calName": "Turno ejemplo", "color": "#8A8178", "background": True}]}
+    box = {"state": {
+        "compra": {"items": [{"id": "pan-remoto", "name": "Pan del otro móvil", "done": False, "deleted": False, "at": 1, "rev": 5}], "counts": {"Pan del otro móvil": 1}},
+        "ninos": {"stars": {"peque-b": 2}, "starLog": [{"id": "op-remoto", "kid": "peque-b", "delta": 2, "at": 50, "kind": "delta"}], "done": {}, "doneMeta": {}, "pending": [], "log": []},
+        "hechas": {}
+    }, "fail": False, "posts": 0, "key_in_url": False}
+
+    def handle_sync(route):
+        req = route.request
+        if "key=" in (req.url or ""):
+            box["key_in_url"] = True
+        try:
+            body = json.loads(req.post_data or "{}")
+        except Exception:
+            body = {}
+        if body.get("key") != "clave-de-ejemplo":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Clave incorrecta"}))
+        if box["fail"]:
+            return route.abort()
+        if body.get("action") == "calendars":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(CALENDARS))
+        if body.get("action") == "salud":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({
+                "ok": True, "stale": False, "stepsGoal": 8000,
+                "days": [{"date": "2026-10-21", "steps": 4321, "restingHr": 55, "bodyBatteryMin": 20, "bodyBatteryMax": 90,
+                          "sleepSeconds": 27000, "sleepScore": 77, "deepSeconds": 5000, "lightSeconds": 14000,
+                          "remSeconds": 6000, "awakeSeconds": 1200, "hrv": 47, "hrvWeekly": 45, "hrvStatus": "BALANCED"}],
+                "workouts": [{"date": "2026-10-20", "start": "2026-10-20T18:00:00", "type": "walking", "name": "Paseo de ejemplo",
+                              "duration": 1200, "distance": 1500, "avgHr": 100, "calories": 90}]
+            }))
+        if body.get("action") == "sync":
+            merged = js_merge(box["state"], body.get("state") or {})
+            box["state"] = merged
+            box["posts"] += 1
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": merged}))
+        return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Acción desconocida"}))
+
+    ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 21, 17, 45, tzinfo=TZ))
+    page.route("**/__marco_sync", handle_sync)
+    page.goto(BASE); page.wait_for_selector(".hoy"); page.clock.run_for(500)
+    mix = page.evaluate("""() => {
+      const ts = Date.now();
+      const id = 'cita@' + ts;
+      const R = ts * 1000;
+      const m = Sync.mergeState({
+        compra: { items: [
+          { id: 'a', name: 'Leche', rev: R + 10, deleted: true, done: true },
+          { id: 'c', name: 'Huevos', rev: R + 4, deleted: false, done: false }
+        ], counts: { Leche: 1 } },
+        menu: { span: 7, spanRev: 3, dishes: ['Pizza'], dishMeta: { pizza: { rev: 8, deleted: false } },
+          plan: { '0': { comida: 'Pizza', comidaRev: 9, cena: 'Sopa', cenaRev: 2 } } },
+        ninos: { starLog: [
+          { id: 'a1', kid: 'peque-a', delta: 1, at: 10, kind: 'delta' },
+          { id: 'rst', kind: 'reset', at: 20 },
+          { id: 'a2', kid: 'peque-a', delta: 2, at: 30, kind: 'delta' }
+        ] },
+        hechas: { [id]: { on: true, rev: 3 } }
+      }, {
+        compra: { items: [
+          { id: 'a', name: 'Leche', rev: R + 4, deleted: false, done: false },
+          { id: 'b', name: 'Pan', rev: R + 6, deleted: false, done: false }
+        ], counts: { Leche: 3, Pan: 1 } },
+        menu: { span: 5, spanRev: 1, dishes: ['Pizza', 'Sopa'], dishMeta: { pizza: { rev: 2, deleted: false }, sopa: { rev: 4, deleted: false } },
+          plan: { '0': { comida: 'Sopa', comidaRev: 4, cena: 'Tortilla', cenaRev: 7 } } },
+        ninos: { starLog: [{ id: 'b1', kid: 'peque-b', delta: 4, at: 40, kind: 'delta' }] },
+        hechas: { [id]: { on: false, rev: 8 } }
+      });
+      const names = {};
+      (m.compra.items || []).forEach(it => { names[it.id] = it; });
+      return {
+        lecheBorrada: !!(names.a && names.a.deleted),
+        huevos: !!(names.c && !names.c.deleted),
+        pan: !!(names.b && !names.b.deleted),
+        counts: m.compra.counts,
+        span: m.menu.span,
+        dishes: m.menu.dishes.slice().sort(),
+        lunes: m.menu.plan['0'],
+        stars: m.ninos.stars,
+        hecha: m.hechas[id]
+      };
+    }""")
+    check("mezcla: no pierde ítems y respeta la lápida", mix["lecheBorrada"] and mix["huevos"] and mix["pan"], mix)
+    check("mezcla: el contador se queda con el máximo", mix["counts"].get("Leche") == 3 and mix["counts"].get("Pan") == 1, mix["counts"])
+    check("mezcla: menú por casilla y platos de los dos", mix["span"] == 7 and mix["dishes"] == ["Pizza", "Sopa"] and mix["lunes"]["comida"] == "Pizza" and mix["lunes"]["cena"] == "Tortilla", mix)
+    check("mezcla: estrellas suman y el reinicio no se come lo de después", mix["stars"].get("peque-a") == 2 and mix["stars"].get("peque-b") == 4, mix["stars"])
+    check("mezcla: desmarcar una cita gana si es más nuevo", mix["hecha"]["on"] is False and mix["hecha"]["rev"] == 8, mix["hecha"])
+
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncUrl")
+    check("ajustes: tarjeta de sincronización", "Sincronización con Google" in page.inner_text("#syncCard"))
+    page.fill("#syncUrl", BASE.rstrip("/") + "/__marco_sync")
+    page.fill("#syncKey", "clave-de-ejemplo")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.className.indexOf('ok') !== -1; }", timeout=20000)
+    page.click("[data-act=showSyncKey]")
+    page.locator("#syncCard").screenshot(path=os.path.join(OUT, "12-sincronizacion.png"))
+    check("la clave no viaja en la URL", not box["key_in_url"])
+    check("demo apagado al conectar", page.evaluate("() => !Marco.demoOn()"))
+    # La cita no se pinta en Ajustes: está en los eventos y el turno sale marcado de fondo.
+    ev_txt = page.evaluate("() => Marco.S.events.map(e => e.title + (e.background ? '·fondo' : '')).join('|')")
+    turno_on = page.locator(".sync-cal", has_text="Turno ejemplo").locator("input").is_checked()
+    check("cita de ejemplo y turno de fondo", "Familia ejemplo" in page.inner_text("#syncCard") and turno_on and "Reunión de ejemplo" in ev_txt and "Turno ejemplo·fondo" in ev_txt, ev_txt)
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-title")
+    check("ahora enseña la cita y no el turno de fondo", "Reunión" in page.inner_text(".next-title") and "Turno" not in page.inner_text(".next-title"))
+    check("el turno se pinta de fondo", page.locator(".ev-bg", has_text="Turno ejemplo").count() >= 1)
+    page.click("#rail [data-go=compra]"); page.wait_for_selector(".compra")
+    check("llega la compra del otro dispositivo", "Pan del otro móvil" in page.inner_text(".items"))
+    antes = page.evaluate("() => Marco.S.syncCount || 0")
+    page.fill("#addInput", "leche"); page.press("#addInput", "Enter")
+    page.clock.run_for(2500)
+    page.wait_for_function("(n) => (Marco.S.syncCount || 0) > n", arg=antes, timeout=15000)
+    names = sorted(x["name"] for x in box["state"]["compra"]["items"] if not x.get("deleted"))
+    check("los dos aparatos conservan sus productos", names == ["Leche", "Pan del otro móvil"] and "Leche" in page.inner_text(".items") and "Pan del otro móvil" in page.inner_text(".items"), names)
+    page.click("#rail [data-go=ninos]"); page.wait_for_selector(".kid-chips")
+    check("llegan las estrellas del otro dispositivo", "Peque B ⭐ 2" in page.inner_text(".kid-chips"), page.inner_text(".kid-chips"))
+    page.click("[data-chore=cama][data-kid=peque-a]")
+    page.evaluate("() => Sync.syncNow()")
+    page.wait_for_function("() => { const k = JSON.parse(localStorage.getItem('marco-v2.ninos')||'{}'); return (k.stars||{})['peque-a'] >= 1 && (k.stars||{})['peque-b'] >= 2; }")
+    check("una estrella local no borra la del otro", "Peque A ⭐ 1" in page.inner_text(".kid-chips") and "Peque B ⭐ 2" in page.inner_text(".kid-chips"))
+    page.click("#rail [data-go=hoy]")
+    antes_hecha = page.evaluate("() => Marco.S.syncCount || 0")
+    page.locator(".week [data-ev]", has_text="Reunión de ejemplo").first.click()
+    page.click("[data-done]")
+    page.evaluate("() => Sync.syncNow()")
+    page.wait_for_function("(n) => (Marco.S.syncCount || 0) > n", arg=antes_hecha, timeout=15000)
+    check("marcar hecha se guarda para sincronizar", any(v.get("on") for v in box["state"].get("hechas", {}).values()))
+    page.click("[data-close]")
+    page.click("#rail [data-go=compra]"); page.wait_for_selector("[data-act=hazCesta]")
+    check("botón Haz la cesta presente", page.inner_text("[data-act=hazCesta]") == "Haz la cesta")
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncKey")
+    page.click("[data-act=exportJson]"); page.wait_for_selector(".share-ta")
+    exported = json.loads(page.input_value(".share-ta"))
+    check("exportar no incluye URL ni clave", "syncUrl" not in exported.get("settings", {}) and "syncKey" not in exported.get("settings", {}) and "clave-de-ejemplo" not in page.input_value(".share-ta"))
+    page.click("[data-close]")
+    page.fill("#syncKey", "clave-mala-123")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.textContent.toLowerCase().includes('clave'); }", timeout=20000)
+    check("clave incorrecta no borra la lista local", "Pan del otro móvil" in page.evaluate("() => JSON.parse(localStorage.getItem('marco-v2.compra')).items.map(x => x.name).join(',')"))
+    page.fill("#syncKey", "clave-de-ejemplo")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.className.indexOf('ok') !== -1; }", timeout=20000)
+    box["fail"] = True
+    page.evaluate("""() => Sync.syncNow()""")
+    page.wait_for_function("() => document.querySelector('#offline') && !document.querySelector('#offline').classList.contains('hidden')")
+    offsync = page.inner_text("#offline")
+    check("si el script falla sigue el aviso y los datos locales", offsync.startswith("Sin sincronizar") and "Leche" in page.evaluate("() => JSON.parse(localStorage.getItem('marco-v2.compra')).items.map(x => x.name).join(',')"), offsync)
+    box["fail"] = False
+    page.evaluate("""() => { const s = JSON.parse(localStorage.getItem('marco-v2.settings'));
+      s.calendars = [{ id: 'f', name: 'Festivos', color: '#8E5BC8', url: 'https://calendar.google.com/calendar/ical/es.spain%23holiday%40group.v.calendar.google.com/public/basic.ics', background: false }];
+      s.proxy = '/proxy?url='; localStorage.setItem('marco-v2.settings', JSON.stringify(s)); }""")
+    box["fail"] = True
+    page.reload(); page.wait_for_selector(".hoy")
+    page.wait_for_function("() => Marco.S.calStatus && Marco.S.calStatus.f", timeout=20000)
+    fb = page.evaluate("() => ({ demo: Marco.demoOn(), ok: Marco.S.calStatus.f && Marco.S.calStatus.f.ok, n: Marco.S.events.length, off: document.querySelector('#offline').classList.contains('hidden') })")
+    check("si el script falla, el iCal de respaldo sigue cargando", (not fb["demo"]) and fb["ok"] and fb["n"] > 3 and not fb["off"], fb)
+    ctx.close()
+
+    # ================= 2c) Salud con respuestas simuladas (sin Garmin real) =================
+    def salud_payload(stale=False):
+        days = []
+        start = dt.date(2026, 10, 15)
+        for i in range(7):
+            d = start + dt.timedelta(days=i)
+            last = i == 6
+            days.append({
+                "date": d.isoformat(),
+                "steps": 12345 if last else 1000 * (i + 1),
+                "restingHr": 48,
+                "bodyBatteryMin": 22,
+                "bodyBatteryMax": 95,
+                "sleepSeconds": 28800 if last else 25200,
+                "sleepScore": 91 if last else 70,
+                "deepSeconds": 5400, "lightSeconds": 14400, "remSeconds": 7200, "awakeSeconds": 1800,
+                "hrv": 62 if last else 40 + i, "hrvWeekly": 55, "hrvStatus": "BALANCED"
+            })
+        return {
+            "ok": True, "stale": stale, "demo": False,
+            "fetchedAt": "2026-10-21T16:00:00.000Z", "from": "2026-10-15", "to": "2026-10-21",
+            "stepsGoal": 9000, "days": days,
+            "workouts": [
+                {"date": "2026-10-20", "start": "2026-10-20T18:30:00", "type": "rowing", "name": "Remo de ejemplo", "duration": 1500, "distance": 4000, "avgHr": 136, "calories": 320},
+                {"date": "2026-10-18", "start": "2026-10-18T09:00:00", "type": "running", "name": "Carrera de prueba", "duration": 2400, "distance": 7000, "avgHr": 150, "calories": 500},
+                {"date": "2026-10-16", "start": "2026-10-16T12:00:00", "type": "yoga", "name": "Yoga de ejemplo", "duration": 1800, "distance": 0, "avgHr": 90, "calories": 120}
+            ]
+        }
+
+    ctx, page = new_page(b, 1024, 768, dt.datetime(2026, 10, 21, 17, 45, tzinfo=TZ))
+    salud_box = {"mode": "ok", "n": 0, "key_in_url": False}
+
+    def handle_salud(route):
+        req = route.request
+        if "key=" in (req.url or ""):
+            salud_box["key_in_url"] = True
+        try:
+            body = json.loads(req.post_data or "{}")
+        except Exception:
+            body = {}
+        if body.get("key") != "clave-de-ejemplo":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Clave incorrecta"}))
+        action = body.get("action")
+        if action == "salud":
+            salud_box["n"] += 1
+            if salud_box["mode"] == "down":
+                return route.abort()
+            if salud_box["mode"] == "error":
+                return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Sin datos de Garmin"}))
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps(salud_payload(salud_box["mode"] == "stale")))
+        if action == "calendars":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "calendars": [], "events": []}))
+        if action == "sync":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": body.get("state") or {}}))
+        return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True}))
+
+    page.route("**/__marco_salud", handle_salud)
+    page.goto(BASE); page.wait_for_selector(".hoy"); page.clock.run_for(400)
+    check("salud de ejemplo en Ahora", "EJEMPLO" in page.inner_text(".salud-mini") and "Sin datos de Garmin" not in page.inner_text(".salud-mini"))
+    tab = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      const menu = document.querySelector('.hoy-menu').getBoundingClientRect();
+      const next = document.querySelector('.next').getBoundingClientRect();
+      return { left: rail.right <= screen.left + 1, vertical: rail.height > rail.width, menu: menu.right <= next.left + 2 };
+    }""")
+    check("tablet apaisada: menú a la izquierda y semanal en la columna izquierda", tab["left"] and tab["vertical"] and tab["menu"], tab)
+    page.screenshot(path=os.path.join(OUT, "13-tablet-hoy.png"))
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud")
+    demo_txt = page.inner_text(".salud")
+    check("salud de ejemplo, con sueño, pasos y entrenos", "Datos de ejemplo" in demo_txt and "Sueño de anoche" in demo_txt and "Pasos de hoy" in demo_txt and "Carrera de ejemplo" in demo_txt and "Remo de ejemplo" not in demo_txt and page.locator(".tr-col").count() >= 14 and page.locator(".wo").count() >= 3)
+    page.screenshot(path=os.path.join(OUT, "14-salud-ejemplo.png"))
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncUrl")
+    page.fill("#syncUrl", BASE.rstrip("/") + "/__marco_salud")
+    page.fill("#syncKey", "clave-de-ejemplo")
+    page.click("[data-act=saveSync]")
+    page.wait_for_function("() => { const s = document.querySelector('#syncStatus'); return s && s.className.indexOf('ok') !== -1; }", timeout=20000)
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud")
+    page.wait_for_function("() => document.body.innerText.includes('91')")
+    real = page.inner_text(".salud")
+    check("salud usa la respuesta simulada y no el ejemplo", "91" in real and "12.345" in real and "Remo de ejemplo" in real and "Equilibrada" in real and "Datos de ejemplo" not in real and "22" in real and "95" in real, real[:240])
+    check("la clave no va en la URL de salud", not salud_box["key_in_url"] and salud_box["n"] >= 1)
+    stored = page.evaluate("() => localStorage.getItem('marco-v2.cache.salud') || ''")
+    check("la copia local no guarda la clave", stored.startswith("{") and "clave-de-ejemplo" not in stored and "GARMIN" not in stored and "Bearer" not in stored)
+    check("salud se pide al cargar y el intervalo es 30 min", page.evaluate("() => Marco.SALUD_EVERY === 30 * 60000 && Marco.S.saludLoads >= 1"))
+    salud_box["mode"] = "stale"
+    page.evaluate("() => Marco.loadSalud().then(() => Marco.render())")
+    page.wait_for_function("() => document.body.innerText.includes('sin actualizar')")
+    check("si Garmin marca la copia como antigua, se avisa", "sin actualizar" in page.inner_text(".salud-note"))
+    salud_box["mode"] = "down"
+    page.evaluate("() => Marco.loadSalud().then(() => Marco.render())")
+    kept = page.inner_text(".salud")
+    check("si Garmin no responde se queda la última copia", "12.345" in kept and "Remo de ejemplo" in kept and "Sin datos de Garmin" not in kept)
+    page.evaluate("() => { localStorage.removeItem('marco-v2.cache.salud'); Marco.S.salud = null; }")
+    salud_box["mode"] = "error"
+    page.evaluate("() => Marco.loadSalud().then(() => Marco.render())")
+    page.wait_for_selector(".salud-empty")
+    check("sin copia y sin Garmin: Sin datos de Garmin", page.inner_text(".salud-empty").startswith("💓 Salud") or "Sin datos de Garmin" in page.inner_text(".salud-empty"))
+    ctx.close()
+
+    ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
+    page.goto(BASE); page.wait_for_selector(".salud-mini"); page.clock.run_for(300)
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud-note")
+    check("móvil: salud de ejemplo visible", "Datos de ejemplo" in page.inner_text(".salud") and "Sueño de anoche" in page.inner_text(".salud"))
+    phone_rail = page.evaluate("""() => {
+      const rail = document.querySelector('#rail').getBoundingClientRect();
+      const screen = document.querySelector('#screen').getBoundingClientRect();
+      return rail.right <= screen.left + 1 && rail.height > rail.width && rail.top < 30;
+    }""")
+    check("móvil en Salud: el menú sigue a la izquierda", phone_rail)
+    page.screenshot(path=os.path.join(OUT, "15-salud-movil.png"))
     ctx.close()
 
     # ================= 3) Ajustes privados importados (NO se hacen capturas) =================
@@ -344,7 +730,7 @@ with sync_playwright() as p:
         page.on("response", lambda r: bad.append(f"{r.status} {r.url}") if r.status >= 400 and r.url.startswith(SUB.split('/marco')[0]) else None)
         page.goto(SUB); page.wait_for_selector(".hoy"); page.clock.run_for(1000); wait_data(page)
         ok = True
-        for tab, sel in [("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("menu", ".menu"), ("ajustes", ".ajustes"), ("hoy", ".hoy")]:
+        for tab, sel in [("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("menu", ".menu"), ("salud", ".salud"), ("ajustes", ".ajustes"), ("hoy", ".hoy")]:
             page.click(f"#rail [data-go={tab}]"); page.wait_for_selector(sel)
         check("subruta: todas las pestañas y sin 404", not bad and page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(247, 238, 226)", bad)
         ctx.close()

@@ -15,10 +15,12 @@
   }
   const CFG = window.CFG = deepMerge(window.MARCO_DEFAULTS, store.get('advanced', {}));
   { const adv = store.get('advanced', {}); if (adv.work && adv.work.shifts) CFG.work.shifts = adv.work.shifts; }
-  const settings = Object.assign({ calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled, eroskiNotifyEmail: '' }, store.get('settings', {}));
+  const settings = Object.assign({ calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled, eroskiNotifyEmail: '', syncUrl: '', syncKey: '', syncBg: {} }, store.get('settings', {}));
+  if (!settings.syncBg || typeof settings.syncBg !== 'object') settings.syncBg = {};
   const saveSettings = () => store.set('settings', settings);
   const realCalendars = () => settings.calendars.filter((c) => c.url && c.url.trim());
-  const demoOn = () => (settings.demo === null || settings.demo === undefined) ? realCalendars().length === 0 : !!settings.demo;
+  const syncReady = () => !!(String(settings.syncUrl || '').trim() && String(settings.syncKey || '').trim());
+  const demoOn = () => (settings.demo === null || settings.demo === undefined) ? (realCalendars().length === 0 && !syncReady()) : !!settings.demo;
   const kidsNames = () => CFG.kids.map((k) => k.name).join(' y ');
   const custodyOn = () => !!(CFG.custody && CFG.custody.enabled !== false && CFG.custody.anchor);
   const dayStatus = (d) => custodyOn() ? Custody.dayStatus(d) : 'none';
@@ -49,13 +51,21 @@
   }
 
   function doneMap() { return store.get('hechas', {}) || {}; }
-  function isDone(e) { return !!(e && doneMap()[e.id]); }
+  function isDone(e) {
+    const v = e && doneMap()[e.id];
+    if (!v) return false;
+    if (typeof v === 'object') return !!v.on;
+    return true;
+  }
   function toggleDone(id) {
     const map = doneMap();
-    if (map[id]) delete map[id]; else map[id] = Date.now();
+    const cur = map[id];
+    const on = cur && (typeof cur === 'object' ? !!cur.on : true);
+    map[id] = { on: !on, rev: Sync.nextRev() };
     const cutoff = Date.now() - 90 * 86400000;
     Object.keys(map).forEach((k) => { const ts = +String(k).split('@').pop(); if (ts && ts < cutoff) delete map[k]; });
     store.set('hechas', map);
+    Sync.touch();
     render();
     if (!$('#modal').classList.contains('hidden')) showEvent(id);
   }
@@ -73,12 +83,21 @@
   function menuState() {
     const s = store.get('menu', null);
     if (!s || typeof s !== 'object' || !s.plan) return defaultMenu();
-    return { span: s.span === 5 ? 5 : 7, dishes: Array.isArray(s.dishes) ? s.dishes.slice() : defaultMenu().dishes, plan: s.plan };
+    return {
+      span: s.span === 5 ? 5 : 7,
+      spanRev: s.spanRev || 0,
+      dishes: Array.isArray(s.dishes) ? s.dishes.slice() : defaultMenu().dishes,
+      dishMeta: Object.assign({}, s.dishMeta || {}),
+      plan: JSON.parse(JSON.stringify(s.plan))
+    };
   }
   function updateMenu(fn) {
+    const prev = menuState();
     const m = menuState();
     fn(m);
+    Sync.stampMenu(m, prev);
     store.set('menu', m);
+    Sync.touch();
     render();
   }
   function weekdayIndex(day) { return (day.getDay() + 6) % 7; }
@@ -109,10 +128,13 @@
   function paintOffline() {
     const el = $('#offline'); if (!el) return;
     const off = typeof navigator !== 'undefined' && navigator.onLine === false;
-    document.body.classList.toggle('is-offline', off);
-    if (!off) { el.classList.add('hidden'); el.textContent = ''; return; }
+    const down = !!(S && S.syncDown) && !off;
+    document.body.classList.toggle('is-offline', off || down);
+    if (!off && !down) { el.classList.add('hidden'); el.textContent = ''; return; }
     const at = lastDataAt();
-    el.textContent = at ? ('Sin conexión · datos de las ' + hm(new Date(at))) : 'Sin conexión · sin datos guardados';
+    const prefix = off ? 'Sin conexión · ' : 'Sin sincronizar · ';
+    const empty = off ? 'Sin conexión · sin datos guardados' : 'Sin sincronizar · sin datos guardados';
+    el.textContent = at ? (prefix + 'datos de las ' + hm(new Date(at))) : empty;
     el.classList.remove('hidden');
   }
 
@@ -144,7 +166,15 @@
     weather: store.get('cache.weather', null),
     pvpc: store.get('cache.pvpc', null),
     sleeping: false,
-    wakeUntil: 0
+    wakeUntil: 0,
+    dataDown: false,
+    calDown: false,
+    syncDown: false,
+    syncCount: 0,
+    syncDataStatus: store.get('cache.syncData', null),
+    syncCalStatus: store.get('cache.syncCal', null),
+    salud: null,
+    saludLoads: 0
   };
   // Citas en caché (por si arranca sin red)
   (store.get('cache.events', []) || []).forEach((e) => S.events.push(Object.assign({}, e, { start: new Date(e.start), end: new Date(e.end) })));
@@ -163,14 +193,51 @@
     return [addDays(m, -7), addDays(m, 7 * 14)];
   }
 
-  async function loadCalendars() {
+  function rememberSyncCal(st) {
+    S.syncCalStatus = st;
+    store.set('cache.syncCal', st);
+    S.calDown = !!(st && st.offline);
+    S.syncDown = !!(S.dataDown || S.calDown);
+    paintOffline();
+  }
+  function cacheEvents(list) {
+    store.set('cache.events', list.map((e) => Object.assign({}, e, { start: e.start.toISOString(), end: e.end.toISOString() })));
+  }
+  async function loadCalendars(opts) {
+    const quiet = opts && opts.quiet;
     const [rs, re] = range();
     const out = [];
     if (demoOn()) {
       Cal.demoCalendars(sod(now())).forEach((c) => out.push.apply(out, Cal.parseICS(c.text, c, rs, re)));
       S.events = out; S.calUpdated = Date.now();
       seedDemoDone();
+      S.calDown = false;
+      S.syncDown = !!S.dataDown;
+      paintOffline();
       return;
+    }
+    if (syncReady()) {
+      try {
+        const data = await Sync.fetchCalendars(rs, re);
+        const events = Sync.toEvents(data, settings.syncBg || {});
+        S.events = events;
+        S.calUpdated = Date.now();
+        store.set('cache.syncCals', data.calendars || []);
+        markFresh();
+        cacheEvents(events);
+        const status = { google: { ok: true, n: events.length, at: Date.now() } };
+        S.calStatus = status;
+        store.set('cache.calStatus', status);
+        rememberSyncCal({ ok: true, at: Date.now(), n: events.length, error: '', offline: false });
+        return;
+      } catch (e) {
+        const msg = String(e.message || e);
+        rememberSyncCal({ ok: false, at: Date.now(), error: msg, offline: !!(e && e.offline && !e.auth) });
+        S.calStatus = Object.assign({}, S.calStatus, { google: { ok: false, error: msg, at: Date.now() } });
+        store.set('cache.calStatus', S.calStatus);
+        if (!quiet && e && e.auth && !S.syncAuthToasted) { toast('⚠️ ' + msg, 6000); S.syncAuthToasted = true; }
+        if (!realCalendars().length) return;
+      }
     }
     const status = {};
     let anyOk = false;
@@ -187,11 +254,12 @@
         S.events.filter((x) => x.calName === c.name).forEach((x) => out.push(x));
       }
     }));
+    if (!anyOk && !out.length && S.events.length) S.events.forEach((x) => out.push(x));
     S.calStatus = status; store.set('cache.calStatus', status);
     S.events = out; S.calUpdated = Date.now();
-    if (anyOk) { markFresh(); store.set('cache.events', out.map((e) => Object.assign({}, e, { start: e.start.toISOString(), end: e.end.toISOString() }))); }
+    if (anyOk) { markFresh(); cacheEvents(out); }
     const bad = Object.values(status).filter((s) => !s.ok);
-    if (bad.length) toast('⚠️ ' + bad.length + ' calendario(s) sin actualizar: ' + bad[0].error, 6000);
+    if (bad.length && !quiet) toast('⚠️ ' + bad.length + ' calendario(s) sin actualizar: ' + bad[0].error, 6000);
   }
 
   async function loadWeather() {
@@ -202,9 +270,36 @@
     try { S.pvpc = await Luz.loadPVPC(sod(now())); store.set('cache.pvpc', S.pvpc); markFresh(); }
     catch (e) { console.warn(e); }
   }
+  function primeSalud() {
+    if (!syncReady()) { S.salud = Salud.demo(now()); return; }
+    const cached = store.get('cache.salud', null);
+    S.salud = (cached && cached.ok && !cached.demo) ? cached : { ok: false, empty: true };
+  }
+  async function loadSalud() {
+    S.saludLoads = (S.saludLoads || 0) + 1;
+    if (!syncReady()) { S.salud = Salud.demo(now()); return S.salud; }
+    const cached = store.get('cache.salud', null);
+    if (cached && cached.ok && !cached.demo) S.salud = cached;
+    try {
+      const data = await Sync.fetchSalud();
+      if (!data || data.ok === false) throw new Error('Sin datos de Garmin');
+      data.demo = false;
+      S.salud = data;
+      store.set('cache.salud', data);
+      return data;
+    } catch (e) {
+      if (S.salud && S.salud.ok && !S.salud.demo) {
+        S.salud = Object.assign({}, S.salud, { stale: true });
+        store.set('cache.salud', S.salud);
+        return S.salud;
+      }
+      S.salud = { ok: false, empty: true };
+      return S.salud;
+    }
+  }
   async function refreshAll(manual) {
     if (manual) toast('Actualizando…', 1500);
-    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC()]);
+    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC(), Sync.syncNow().catch((e) => console.warn(e)), loadSalud().catch((e) => console.warn(e))]);
     render();
     if (manual) toast('Actualizado a las ' + hm(now()));
   }
@@ -315,10 +410,6 @@
     const cur = list.find((e) => e.start <= t);
     const nxt = list.find((e) => e.start > t);
     const main = cur || nxt;
-    const meals = mealsFor(today);
-    const mealLine = meals.off
-      ? '<button class="next-meals" data-go="menu"><span>Fin de semana · sin menú</span></button>'
-      : '<button class="next-meals" data-go="menu"><span>Comida <b>' + esc(meals.comida || '—') + '</b></span><span>Cena <b>' + esc(meals.cena || '—') + '</b></span></button>';
     const tip = (w && Weather.advice) ? Weather.advice(w.hourly, allEvents(), t) : '';
     let body = '<div class="next-label">AHORA</div><div class="next-title">Sin citas a la vista</div>';
     if (main) {
@@ -332,7 +423,7 @@
         (after && sameDay(after.start, t) ? '<button class="next-after" data-ev="' + esc(after.id) + '">Después: ' + esc(hm(after.start) + ' ' + after.title) + '</button>' : '');
     }
     const nextHtml = '<div class="next-in' + (main && main === cur ? ' is-now' : '') + '"' + (main ? ' style="--c:' + esc(main.color) + '"' : '') + '>' +
-      body + mealLine + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
+      body + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
 
     // Semana
     const evs = allEvents();
@@ -353,7 +444,7 @@
 
     // Resúmenes
     const ninos = choresSummary();
-    const compra = store.get('compra', { items: [] }).items.filter((x) => !x.done);
+    const compra = (store.get('compra', { items: [] }).items || []).filter((x) => !x.done && !x.deleted);
     const p = Luz.period(t);
     const nw = Luz.nextWindow(t, 'valle');
 
@@ -361,13 +452,54 @@
       '<section class="sky ' + sky.cls + (sky.dark ? ' dark' : '') + '">' +
         '<div class="sky-left"><div class="big-clock" data-clock="big">' + hm(t) + '</div><div class="sky-date"><b>' + U.DIAS[t.getDay()] + '</b> ' + t.getDate() + ' de ' + U.MESES[t.getMonth()] + '</div>' + custodyBadge(t) + '</div>' +
         '<div class="sky-wx">' + wx + '</div></section>' +
+      renderHoyMenu(t) +
       '<section class="next card">' + nextHtml + '</section>' +
       '<section class="week">' + week + '</section>' +
       '<section class="sums">' +
         '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + (ninos.overdue ? ' · fuera de hora' : ''))) + '</div><div class="sum-chips">' + ninos.chips + '</div></button>' +
         '<button class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + compra.length + (compra.length === 1 ? ' cosa' : ' cosas') + '</div><div class="sum-sub">' + esc(compra.slice(0, 5).map((x) => x.name).join(' · ') || 'Lista vacía') + '</div></button>' +
         '<button class="card sum" data-go="luz"><div class="sum-h c-amber">⚡ LUZ · 2.0TD</div><div class="sum-big"><span class="per-dot" style="--c:' + Luz.COLOR[p] + '"></span>Ahora ' + Luz.NOMBRE[p].toLowerCase() + '</div><div class="sum-sub">' + (p === 'valle' ? 'Buen momento para lavadora y lavavajillas' : nw ? 'Valle ' + whenTxt(nw.start, t) : '') + '</div></button>' +
+        saludMini() +
       '</section></div>';
+  }
+
+  function renderHoyMenu(t) {
+    const m = menuState();
+    const letters = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const nDays = m.span === 5 ? 5 : 7;
+    const todayIdx = weekdayIndex(t);
+    let rows = '';
+    for (let i = 0; i < nDays; i++) {
+      const p = (m.plan && m.plan[String(i)]) || {};
+      rows += '<button type="button" class="hoy-md' + (i === todayIdx ? ' is-today' : '') + '" data-go="menu">' +
+        '<span class="hoy-md-n">' + letters[i] + '</span>' +
+        '<span class="hoy-md-meal"><span class="k">Comida</span> <b>' + esc(p.comida || '—') + '</b></span>' +
+        '<span class="hoy-md-meal"><span class="k">Cena</span> <b>' + esc(p.cena || '—') + '</b></span></button>';
+    }
+    return '<section class="hoy-menu card" aria-label="Menú semanal"><div class="card-h">🍲 Menú semanal</div><div class="hoy-mds">' + rows + '</div></section>';
+  }
+
+  function saludNow() {
+    const d = S.salud;
+    if (!d || (d.demo && syncReady())) return { ok: false, empty: true };
+    return d;
+  }
+  function saludMini() {
+    const d = saludNow();
+    if (!d || d.empty || d.ok === false) {
+      return '<button type="button" class="card sum salud-mini" data-go="salud"><div class="sum-h c-salud">💓 SALUD</div><div class="sum-big">Sin datos de Garmin</div><div class="sum-sub">Aparece al responder el script</div></button>';
+    }
+    const sleep = Salud.lastSleep(d);
+    const day = Salud.today(d, now());
+    const hrv = Salud.lastHrv(d);
+    const steps = day ? Salud.num(day.steps) : null;
+    const tag = d.demo ? '<span class="tag ej">EJEMPLO</span>' : (d.stale ? '<span class="tag">ANTIGUO</span>' : '');
+    const sleepTxt = sleep ? (Salud.hours(sleep.sleepSeconds) + (sleep.sleepScore != null ? ' · ' + sleep.sleepScore : '')) : 'Sin sueño';
+    const bits = [];
+    if (steps != null) bits.push(Salud.fmtInt(steps) + ' / ' + Salud.fmtInt(Salud.goal(d)) + ' pasos');
+    if (hrv && Salud.num(hrv.hrv) != null) bits.push('VFC ' + Salud.fmtInt(hrv.hrv));
+    if (day && Salud.num(day.bodyBatteryMin) != null) bits.push('batería ' + day.bodyBatteryMin + '–' + (day.bodyBatteryMax != null ? day.bodyBatteryMax : '–'));
+    return '<button type="button" class="card sum salud-mini" data-go="salud"><div class="sum-h c-salud">💓 SALUD ' + tag + '</div><div class="sum-big">' + esc(sleepTxt) + '</div><div class="sum-sub">' + esc(bits.join(' · ') || 'Salud') + '</div></button>';
   }
 
   /* ---------------- CALENDARIO ---------------- */
@@ -487,7 +619,7 @@
 
   /* ---------------- NIÑOS ---------------- */
   const K = () => Object.assign({ stars: {}, done: {}, pending: [], log: [] }, store.get('ninos', {}));
-  const saveK = (k) => store.set('ninos', k);
+  const saveK = (k) => { store.set('ninos', k); Sync.touch(); };
   const chores = () => CFG.chores;
   const rewards = () => CFG.rewards;
 
@@ -560,20 +692,21 @@
     const rws = rewards().map((r) => '<div class="reward"><div class="rw-h"><span class="rw-ic">' + esc(r.emoji) + '</span><span class="rw-n">' + esc(r.name) + '</span><span class="rw-c">' + r.cost + ' ⭐</span></div><div class="rw-kids">' +
       CFG.kids.map((kid) => {
         const s = k.stars[kid.id] || 0; const pct = Math.min(100, s / r.cost * 100);
-        const asked = k.pending.some((p) => p.kid === kid.id && p.reward === r.id);
+        const asked = (k.pending || []).some((p) => !p.deleted && p.kid === kid.id && p.reward === r.id);
         return '<div class="rw-kid" style="--c:' + kid.color + '"><span class="av sm">' + esc(kid.name[0]) + '</span><div class="prog"><div style="width:' + pct + '%"></div></div>' +
           (asked ? '<span class="rw-st">Pedido</span>' : s >= r.cost ? '<button class="btn sm" data-ask="' + esc(r.id) + '" data-kid="' + esc(kid.id) + '">Canjear</button>' : '<span class="rw-st">faltan ' + (r.cost - s) + '</span>') + '</div>';
       }).join('') + '</div></div>').join('');
-    const pend = k.pending.map((p) => {
+    const livePending = (k.pending || []).filter((p) => !p.deleted);
+    const pend = livePending.map((p) => {
       const kid = CFG.kids.find((x) => x.id === p.kid) || { name: p.kid }; const r = rewards().find((x) => x.id === p.reward) || { name: p.reward, cost: 0, emoji: '🎁' };
       return '<div class="pend"><span>' + esc(r.emoji + ' ' + kid.name + ': ' + r.name) + ' (' + r.cost + ' ⭐)</span><span><button class="btn sm ok" data-approve="' + esc(p.id) + '">Aprobar 🔒</button> <button class="btn sm ghost" data-reject="' + esc(p.id) + '">No</button></span></div>';
     }).join('');
-    const log = (k.log || []).slice(-6).reverse().map((l) => '<div class="log">' + esc(l) + '</div>').join('');
+    const log = (k.log || []).slice(-6).reverse().map((l) => '<div class="log">' + esc(typeof l === 'string' ? l : (l.text || '')) + '</div>').join('');
     screenEl.innerHTML = '<div class="ninos">' +
       '<section class="card"><div class="card-h">⭐ Tareas de hoy <span class="muted sm">' + (w === null ? '' : w ? 'Semana con ' + esc(CFG.parent) : 'Esta semana están con ' + esc(CFG.otherParent)) + '</span></div><div class="kid-chips">' + chips + '</div>' + strip + pause + rows +
         '<div class="muted sm">Cada uno toca su nombre al terminar. Volver a tocar lo deshace. Mañana, después del cole y noche. En la semana sin niños se pausan solas.</div></section>' +
       '<section class="col"><div class="card"><div class="card-h">🎁 Recompensas</div>' + rws + '</div>' +
-        '<div class="card"><div class="card-h">🔒 Pendiente de aprobar <span class="count">' + k.pending.length + '</span></div>' + (pend || '<div class="muted">Nada pendiente.</div>') +
+        '<div class="card"><div class="card-h">🔒 Pendiente de aprobar <span class="count">' + livePending.length + '</span></div>' + (pend || '<div class="muted">Nada pendiente.</div>') +
         (log ? '<div class="card-h sub">Últimos movimientos</div>' + log : '') + '</div></section></div>';
   }
 
@@ -585,11 +718,12 @@
     k.done[today] = k.done[today] || {};
     const arr = k.done[today][choreId] = k.done[today][choreId] || [];
     const i = arr.indexOf(kidId);
-    if (i >= 0) { arr.splice(i, 1); k.stars[kidId] = Math.max(0, (k.stars[kidId] || 0) - c.stars); k.log.push(hm(now()) + ' · ' + kid.name + ' deshace «' + c.name + '» (−' + c.stars + ' ⭐)'); }
-    else { arr.push(kidId); k.stars[kidId] = (k.stars[kidId] || 0) + c.stars; k.log.push(hm(now()) + ' · ' + kid.name + ' hizo «' + c.name + '» (+' + c.stars + ' ⭐)'); }
-    // limpia días antiguos (guarda 45, para la racha)
+    const off = i >= 0;
+    if (off) arr.splice(i, 1); else arr.push(kidId);
+    Sync.noteDone(k, today, choreId, kidId, !off);
+    Sync.noteStar(k, kidId, off ? -c.stars : c.stars);
+    Sync.noteLog(k, hm(now()) + ' · ' + kid.name + (off ? ' deshace «' : ' hizo «') + c.name + '» (' + (off ? '−' : '+') + c.stars + ' ⭐)');
     Object.keys(k.done).sort().slice(0, -45).forEach((d) => delete k.done[d]);
-    k.log = k.log.slice(-50);
     saveK(k); render();
   }
 
@@ -626,19 +760,24 @@
 
   /* ---------------- COMPRA ---------------- */
   const C = () => Object.assign({ items: [], counts: {} }, store.get('compra', {}));
-  const saveC = (c) => store.set('compra', c);
+  const saveC = (c) => { store.set('compra', c); Sync.touch(); };
+  const compraViva = (c) => (c.items || []).filter((x) => !x.deleted);
   function addItem(name) {
     name = (name || '').trim().replace(/\s+/g, ' ');
     if (!name) return;
     name = name[0].toUpperCase() + name.slice(1);
     const c = C();
-    const ex = c.items.find((x) => x.name.toLowerCase() === name.toLowerCase());
-    if (ex) ex.done = false; else c.items.push({ id: U.uid(), name, done: false, at: Date.now() });
+    const rev = Sync.nextRev();
+    const ex = (c.items || []).find((x) => !x.deleted && x.name.toLowerCase() === name.toLowerCase());
+    const tomb = (c.items || []).find((x) => x.deleted && x.name.toLowerCase() === name.toLowerCase());
+    if (ex) { ex.done = false; ex.rev = rev; }
+    else if (tomb) { tomb.deleted = false; tomb.done = false; tomb.rev = rev; tomb.at = Date.now(); }
+    else c.items.push({ id: U.uid(), name, done: false, deleted: false, at: Date.now(), rev: rev });
     c.counts[name] = (c.counts[name] || 0) + 1;
     saveC(c); render();
   }
   function habituales(c) {
-    const onList = new Set(c.items.filter((x) => !x.done).map((x) => x.name.toLowerCase()));
+    const onList = new Set(compraViva(c).filter((x) => !x.done).map((x) => x.name.toLowerCase()));
     const fromCounts = Object.entries(c.counts).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     const all = fromCounts.concat(CFG.habitualesBase);
     const seen = new Set(); const out = [];
@@ -646,7 +785,7 @@
     return out.slice(0, 9);
   }
   function listaPendienteTexto() {
-    const names = C().items.filter((x) => !x.done).map((x) => x.name);
+    const names = compraViva(C()).filter((x) => !x.done).map((x) => x.name);
     return { names: names, text: 'Lista de la compra:\n' + names.map((n) => '• ' + n).join('\n') };
   }
   function mailtoCesta(text) {
@@ -721,7 +860,7 @@
   }
   function renderCompra() {
     const c = C();
-    const items = c.items;
+    const items = compraViva(c);
     const pending = items.filter((x) => !x.done);
     screenEl.innerHTML = '<div class="compra">' +
       '<section class="card"><div class="card-h">🛒 Lista de la compra <span class="count">' + pending.length + '</span></div>' +
@@ -730,7 +869,7 @@
         '<div class="row-btns"><button class="btn ghost" data-act="clearDone">Quitar comprados</button><button class="btn ghost" data-act="share">Compartir lista</button><button class="btn" data-act="hazCesta">Haz la cesta</button></div></section>' +
       '<section class="card"><div class="card-h sub">HABITUALES · TOCA PARA AÑADIR</div><div class="habs">' +
         habituales(c).map((n) => '<button class="hab" data-hab="' + esc(n) + '"><b>' + esc(n) + '</b><span>+ Añadir</span></button>').join('') + '</div>' +
-        '<div class="muted sm">La lista se guarda en este dispositivo. «Compartir lista» la pasa al móvil. «Haz la cesta» la copia y abre un correo para Grok Bot (el de Ajustes). El marco no entra en la tienda.</div></section></div>';
+        '<div class="muted sm">La lista se guarda en este dispositivo y, si activas la sincronización, también en los demás. «Compartir lista» la pasa al móvil. «Haz la cesta» la copia y abre un correo para Grok Bot (el de Ajustes). El marco no entra en la tienda.</div></section></div>';
     const f = $('#addForm');
     f.onsubmit = (ev) => { ev.preventDefault(); const v = $('#addInput').value; addItem(v); setTimeout(() => { const i = $('#addInput'); if (i) i.focus(); }, 0); };
   }
@@ -760,7 +899,7 @@
       '<section class="card"><div class="menu-top"><div class="card-h" style="border:0;margin:0;padding:0">🍲 Menú de la semana</div><div class="span-toggle">' +
         '<button class="btn sm' + (m.span === 7 ? '' : ' ghost') + '" data-act="menuSpan" data-span="7">L–D</button>' +
         '<button class="btn sm' + (m.span === 5 ? '' : ' ghost') + '" data-act="menuSpan" data-span="5">L–V</button></div></div>' +
-      '<div class="muted sm">Primero la casilla, luego el plato. También se puede arrastrar. Se guarda solo en este dispositivo.</div>' +
+      '<div class="muted sm">Primero la casilla, luego el plato. También se puede arrastrar. Se guarda en este dispositivo y, si activas la sincronización, también en los demás.</div>' +
       days.join('') + '</section>' +
       '<section class="card"><div class="card-h sub">PLATOS HABITUALES</div><div class="dishes">' + dishes + '</div>' +
       '<form class="add" id="dishForm" autocomplete="off"><input id="dishInput" placeholder="Añadir plato" maxlength="40" enterkeyhint="done"><button class="btn" type="submit">Añadir</button></form>' +
@@ -828,7 +967,9 @@
   }
   function exportJson() {
     const st = JSON.parse(JSON.stringify(settings));
-    if (!$('#expCals').checked) { st.calendars = []; st.proxy = ''; }
+    if (!$('#expCals').checked) { st.calendars = []; st.proxy = ''; delete st.syncBg; }
+    delete st.syncUrl;
+    delete st.syncKey;
     const data = { tipo: 'marco-familiar-ajustes', version: 1, advanced: store.get('advanced', {}), settings: st, menu: menuState() };
     const txt = JSON.stringify(data, null, 2);
     try {
@@ -849,6 +990,9 @@
       const next = Object.assign({}, cur, d.settings);
       if (!d.settings.calendars || !d.settings.calendars.length) next.calendars = cur.calendars || [];
       if (!d.settings.proxy) next.proxy = cur.proxy || '';
+      if (!d.settings.syncUrl) next.syncUrl = cur.syncUrl || '';
+      if (!d.settings.syncKey) next.syncKey = cur.syncKey || '';
+      if (!d.settings.syncBg) next.syncBg = cur.syncBg || {};
       store.set('settings', next);
     }
     if (d.menu && typeof d.menu === 'object') store.set('menu', d.menu);
@@ -863,6 +1007,35 @@
   });
 
   /* ---------------- AJUSTES ---------------- */
+  function syncStatusLine() {
+    if (!syncReady()) return '<div class="sync-status" id="syncStatus">Sin configurar. Todo sigue en este dispositivo y el modo demo se comporta como siempre.</div>';
+    const d = S.syncDataStatus;
+    const c = S.syncCalStatus;
+    const parts = [];
+    if (d && d.ok) parts.push('Datos compartidos a las ' + hm(new Date(d.at)));
+    else if (d && d.error) parts.push('Datos: ' + d.error);
+    if (c && c.ok) parts.push((c.n || 0) + ' citas a las ' + hm(new Date(c.at)));
+    else if (c && c.error) parts.push('Calendarios: ' + c.error);
+    if (!parts.length) return '<div class="sync-status" id="syncStatus">Guardado en este dispositivo. Pulsa «Guardar y probar».</div>';
+    const bad = (d && !d.ok) || (c && !c.ok);
+    return '<div class="sync-status ' + (bad ? 'bad' : 'ok') + '" id="syncStatus">' + esc(parts.join(' · ')) + '</div>';
+  }
+  function syncCard() {
+    const cals = store.get('cache.syncCals', []) || [];
+    const bg = settings.syncBg || {};
+    const rows = cals.map((cal) => {
+      const on = Object.prototype.hasOwnProperty.call(bg, cal.id) ? !!bg[cal.id] : !!cal.background;
+      return '<label class="sync-cal"><span class="sync-dot" style="--c:' + esc(cal.color || '#C8243B') + '"></span><span class="sync-name">' + esc(cal.name || 'Calendario') + '</span><span class="bg-flag"><input type="checkbox" data-sync-bg="' + esc(cal.id) + '"' + (on ? ' checked' : '') + '> De fondo</span></label>';
+    }).join('');
+    return '<section class="card wide" id="syncCard"><div class="card-h">🔄 Sincronización con Google</div>' +
+      '<div class="muted sm">Opcional. Si lo configuras, las citas salen de tus calendarios de Google (sin dirección iCal ni proxy) y la compra, el menú, las estrellas y las citas hechas se comparten entre el marco y el móvil. Salud usa la misma clave para pedirle al script el resumen de Garmin: la clave de Garmin se queda en el script, no en el marco. La URL y la clave compartida se guardan solo en este dispositivo.</div>' +
+      '<label class="lbl">URL de la aplicación web</label><input id="syncUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" value="' + esc(settings.syncUrl || '') + '" placeholder="https://script.google.com/macros/s/…/exec">' +
+      '<label class="lbl">Clave compartida</label><div class="sync-key"><input id="syncKey" type="password" autocomplete="off" spellcheck="false" value="' + esc(settings.syncKey || '') + '" placeholder="una clave larga, solo tuya"><button class="btn sm ghost" data-act="showSyncKey" type="button">👁</button></div>' +
+      syncStatusLine() +
+      (rows ? '<div class="card-h sub">CALENDARIOS DE GOOGLE · DE FONDO NO ENTRA EN AHORA</div><div class="sync-cals">' + rows + '</div>' : '') +
+      '<div class="row-btns"><button class="btn" data-act="saveSync">Guardar y probar</button></div>' +
+      '<div class="muted sm">Vacío = como hasta ahora (modo demo si no hay iCal). El iCal de abajo queda de respaldo si esta conexión falla. «Haz la cesta» no cambia: copia la lista y abre el correo. Los nombres de la familia, el PIN y las direcciones no se sincronizan.</div></section>';
+  }
   function renderAjustes() {
     const calRows = (settings.calendars.length ? settings.calendars : []).map((c, i) => {
       const st = S.calStatus[c.id || String(i)];
@@ -875,8 +1048,9 @@
     const ch = chores().map((c) => [c.emoji, c.name, c.stars, c.slot || 'cole'].concat(c.kids && c.kids.length ? [c.kids.join(',')] : []).join(' | ')).join('\n');
     const rw = rewards().map((r) => [r.emoji, r.name, r.cost].join(' | ')).join('\n');
     screenEl.innerHTML = '<div class="ajustes">' +
-      '<section class="card"><div class="card-h">🗓️ Calendarios (iCal secreto de Google)</div>' +
-        '<div class="muted sm">En Google Calendar (web): Configuración → tu calendario → «Dirección secreta en formato iCal». Se guarda SOLO en este dispositivo (localStorage), nunca en el código.</div>' +
+      syncCard() +
+      '<section class="card wide"><div class="card-h">🗓️ Calendarios (iCal secreto de Google)</div>' +
+        '<div class="muted sm">Respaldo si no usas la sincronización de arriba, o si esa conexión falla. En Google Calendar (web): Configuración → tu calendario → «Dirección secreta en formato iCal». Se guarda SOLO en este dispositivo (localStorage), nunca en el código.</div>' +
         '<div id="calList">' + (calRows || '<div class="muted">No hay calendarios.</div>') + '</div>' +
         '<div class="row-btns"><button class="btn ghost" data-act="addCal">+ Añadir calendario</button></div>' +
         '<label class="lbl">Proxy CORS (opcional, prefijo que termina en <code>?url=</code>)</label><input id="proxy" value="' + esc(settings.proxy) + '" placeholder="https://marco-ics.tu-cuenta.workers.dev/?key=…&url=" spellcheck="false">' +
@@ -900,8 +1074,13 @@
       '<section class="card"><div class="card-h">🧩 Avanzado (JSON)</div><div class="muted sm">Sobrescribe la configuración a mano (para casos raros). Lo normal es usar «Familia» o «Importar».</div>' +
         '<textarea id="adv" rows="5" spellcheck="false">' + esc(JSON.stringify(store.get('advanced', {}), null, 2)) + '</textarea>' +
         '<div class="row-btns"><button class="btn" data-act="saveAdv">Guardar y recargar</button><button class="btn danger" data-act="wipe">Borrar todos los datos de este dispositivo</button></div>' +
-        '<div class="muted sm">Marco familiar · todo funciona en el navegador; no hay servidor propio.</div></section>' +
+        '<div class="muted sm">Marco familiar · sin sincronización todo se queda en el navegador. Con la tarjeta de arriba, un Apps Script tuyo reparte calendarios y listas. La clave no sale de este dispositivo.</div></section>' +
       '</div>';
+  }
+  function readSyncBg() {
+    const bg = Object.assign({}, settings.syncBg || {});
+    document.querySelectorAll('[data-sync-bg]').forEach((el) => { bg[el.getAttribute('data-sync-bg')] = el.checked; });
+    settings.syncBg = bg;
   }
   function readCalForm() {
     document.querySelectorAll('.cal-set').forEach((row) => {
@@ -932,14 +1111,14 @@
       case 'importJson': importJson($('#impTxt').value); break;
       case 'addCal': readCalForm(); settings.calendars.push({ id: U.uid(), name: 'Calendario ' + (settings.calendars.length + 1), color: ['#E8604C', '#3BA55C', '#2F80ED', '#8E5BC8', '#F5A623'][settings.calendars.length % 5], url: '', background: false }); saveSettings(); render(); break;
       case 'menuSpan': updateMenu((m) => { m.span = el.dataset.span === '5' ? 5 : 7; }); break;
-      case 'resetMenu': store.del('menu'); S.menuPick = null; toast('Menú de ejemplo'); render(); break;
+      case 'resetMenu': S.menuPick = null; updateMenu((m) => { const d = defaultMenu(); m.span = d.span; m.dishes = d.dishes.slice(); m.plan = JSON.parse(JSON.stringify(d.plan)); m._forceRev = true; }); toast('Menú de ejemplo'); break;
       case 'delCal': readCalForm(); settings.calendars.splice(+el.dataset.i, 1); saveSettings(); render(); break;
       case 'showUrl': { const inp = el.parentElement.querySelector('.cs-url'); inp.type = inp.type === 'password' ? 'text' : 'password'; break; }
       case 'saveCals':
         readCalForm();
         settings.calendars.forEach((c) => { if (!c.id) c.id = U.uid(); if (c.url && !/^https:\/\//i.test(c.url)) c.url = c.url.replace(/^webcal:\/\//i, 'https://'); });
         settings.proxy = $('#proxy').value.trim();
-        { const want = $('#demo').checked; const def = realCalendars().length === 0; settings.demo = want === def ? null : want; }
+        { const want = $('#demo').checked; const def = realCalendars().length === 0 && !syncReady(); settings.demo = want === def ? null : want; }
         saveSettings(); toast('Guardado. Probando calendarios…'); await loadCalendars(); render(); toast(demoOn() ? 'Modo demo activo' : 'Calendarios actualizados'); break;
       case 'savePrices':
         settings.prices = {};
@@ -950,7 +1129,34 @@
         const adv = store.get('advanced', {}); if (ch.length) adv.chores = ch; if (rw.length) adv.rewards = rw;
         store.set('advanced', adv); CFG.chores = adv.chores || CFG.chores; CFG.rewards = adv.rewards || CFG.rewards; toast('Tareas y recompensas guardadas'); render(); break;
       }
-      case 'resetStars': if (await requirePin('PIN para poner las estrellas a 0')) { const k = K(); k.stars = {}; k.pending = []; k.log.push(hm(now()) + ' · Estrellas a 0'); saveK(k); toast('Estrellas a 0'); } break;
+      case 'resetStars': if (await requirePin('PIN para poner las estrellas a 0')) { const k = K(); Sync.resetStars(k); Sync.noteLog(k, hm(now()) + ' · Estrellas a 0'); saveK(k); toast('Estrellas a 0'); } break;
+      case 'showSyncKey': { const inp = $('#syncKey'); if (inp) inp.type = inp.type === 'password' ? 'text' : 'password'; break; }
+      case 'saveSync': {
+        const rawUrl = $('#syncUrl').value;
+        const url = Sync.normalizeUrl(rawUrl);
+        if (rawUrl.trim() && !url) { toast('La URL tiene que ser https (en casa vale http://127.0.0.1 o localhost)'); break; }
+        const key = $('#syncKey').value.trim();
+        if (url && key.length < 8) { toast('La clave tiene que tener al menos 8 caracteres'); break; }
+        if (url && !key) { toast('Falta la clave'); break; }
+        readSyncBg();
+        settings.syncUrl = url || '';
+        settings.syncKey = key;
+        if (!url || !key) { settings.syncUrl = ''; settings.syncKey = ''; }
+        saveSettings();
+        S.syncAuthToasted = false;
+        S.dataDown = false;
+        S.calDown = false;
+        S.syncDown = false;
+        if (!syncReady()) { paintOffline(); toast('Sincronización apagada'); render(); break; }
+        toast('Probando…', 1500);
+        await Sync.syncNow();
+        await loadCalendars({ quiet: true });
+        await loadSalud().catch(() => {});
+        render();
+        const bad = (S.syncDataStatus && !S.syncDataStatus.ok) || (S.syncCalStatus && !S.syncCalStatus.ok);
+        toast(bad ? 'Guardado en este dispositivo. No he podido conectar.' : 'Sincronización lista');
+        break;
+      }
       case 'savePin': {
         const v = $('#pin1').value.trim();
         if (!/^\d{4,8}$/.test(v)) { toast('El PIN debe tener de 4 a 8 cifras'); break; }
@@ -1009,15 +1215,140 @@
     openModal('<div class="modal-t">' + esc(U.fechaLarga(d)) + '</div><div class="day-evs modal-list">' + eventsOn(d).map((e) => evItem(e, d)).join('') + '</div>');
   }
 
+  /* ---------------- SALUD ---------------- */
+  function renderSalud() {
+    const d = saludNow();
+    if (!d || d.empty || d.ok === false) {
+      screenEl.innerHTML = '<div class="salud"><section class="card salud-empty"><div class="card-h">💓 Salud</div><div class="sum-big">Sin datos de Garmin</div><div class="muted sm">Con la sincronización activa, el marco pide el resumen al script. Si Garmin no responde y no hay una copia en este dispositivo, no se inventan cifras.</div></section></div>';
+      return;
+    }
+    const t = now();
+    const sleep = Salud.lastSleep(d);
+    const day = Salud.today(d, t);
+    const hrv = Salud.lastHrv(d);
+    const goalN = Salud.goal(d);
+    const steps = day ? Salud.num(day.steps) : null;
+    const pct = steps == null || !goalN ? 0 : Math.max(0, Math.min(100, Math.round(steps / goalN * 100)));
+    const note = d.demo
+      ? '<div class="salud-note ej" role="status">Datos de ejemplo · no son de tu Garmin</div>'
+      : (d.stale ? '<div class="salud-note stale" role="status">Datos de Garmin sin actualizar · última copia de este dispositivo</div>' : '');
+    const parts = [['deep', 'Profundo', sleep && sleep.deepSeconds], ['rem', 'REM', sleep && sleep.remSeconds], ['light', 'Ligero', sleep && sleep.lightSeconds], ['awake', 'Despierto', sleep && sleep.awakeSeconds]];
+    const stages = sleep
+      ? '<div class="st-bar" role="img" aria-label="' + esc(parts.map((p) => p[1] + ' ' + Salud.hours(p[2])).join(', ')) + '">' +
+          parts.map((p) => '<span class="st-' + p[0] + '" style="flex:' + Math.max(0, Salud.num(p[2]) || 0) + '"></span>').join('') + '</div>' +
+        '<div class="st-legend">' + parts.map((p) => '<span><i class="st-' + p[0] + '"></i>' + p[1] + ' ' + esc(Salud.hours(p[2])) + '</span>').join('') + '</div>'
+      : '<div class="muted">Sin sueño registrado.</div>';
+    const days = Salud.daysOf(d);
+    const maxSleep = Math.max.apply(null, days.map((x) => Salud.num(x.sleepSeconds) || 0).concat([1]));
+    const maxSteps = Math.max.apply(null, days.map((x) => Salud.num(x.steps) || 0).concat([1]));
+    function bars(key, max, kind) {
+      return days.map((x) => {
+        const v = Salud.num(x[key]);
+        const h = v == null || v <= 0 ? 0 : Math.max(8, Math.round(v / max * 100));
+        const parsed = U.parseLocal(x.date);
+        const name = U.DIAS_C[parsed.getDay()];
+        const txt = name + ' ' + (v == null ? 'sin dato' : (kind === 'sleep' ? Salud.hours(v) : Salud.fmtInt(v) + ' pasos'));
+        return '<div class="tr-col" role="img" aria-label="' + esc(txt) + '"><div class="tr-bar" style="height:' + h + '%"></div><span>' + esc(name.slice(0, 1)) + '</span></div>';
+      }).join('');
+    }
+    const list = Salud.workouts(d);
+    const wos = list.map((w) => {
+      const when = w.date ? U.fechaCorta(U.parseLocal(w.date)) : '';
+      const bits = [when, Salud.hours(w.duration), Salud.fmtDist(w.distance), w.avgHr != null ? Salud.fmtInt(w.avgHr) + ' lpm' : '', w.calories != null ? Salud.fmtInt(w.calories) + ' kcal' : ''].filter(Boolean);
+      return '<article class="wo"><div class="wo-h"><b>' + esc(w.name || Salud.tipo(w.type)) + '</b><span class="wo-k">' + esc(Salud.tipo(w.type)) + '</span></div><div class="wo-m">' + esc(bits.join(' · ')) + '</div></article>';
+    }).join('');
+    const bb = day && Salud.num(day.bodyBatteryMin) != null ? (day.bodyBatteryMin + ' – ' + (day.bodyBatteryMax != null ? day.bodyBatteryMax : '–')) : '–';
+    const rhr = day && Salud.num(day.restingHr) != null ? Salud.fmtInt(day.restingHr) + ' lpm' : '–';
+    const hrvTxt = hrv && Salud.num(hrv.hrv) != null ? Salud.fmtInt(hrv.hrv) : '–';
+    const hrvSub = hrv ? ('Semana ' + (Salud.num(hrv.hrvWeekly) != null ? Salud.fmtInt(hrv.hrvWeekly) : '–') + ' · ' + Salud.hrvLabel(hrv.hrvStatus)) : 'Sin VFC';
+    const goalNote = d.stepsGoal ? '' : ' · objetivo de referencia';
+    screenEl.innerHTML = '<div class="salud">' + note +
+      '<div class="salud-grid">' +
+        '<section class="card salud-sleep"><div class="card-h">🌙 Sueño de anoche</div>' +
+          '<div class="sleep-big">' + esc(sleep ? Salud.hours(sleep.sleepSeconds) : '–') + '</div>' +
+          '<div class="sleep-score">Puntuación ' + esc(sleep && sleep.sleepScore != null ? String(sleep.sleepScore) : '–') + '</div>' +
+          stages +
+          (sleep && sleep.date ? '<div class="muted sm">' + esc(U.fechaCorta(U.parseLocal(sleep.date))) + '</div>' : '') +
+        '</section>' +
+        '<section class="card"><div class="card-h">🔋 Batería corporal</div><div class="metric-n">' + esc(bb) + '</div><div class="muted sm">Mínimo y máximo de hoy</div></section>' +
+        '<section class="card"><div class="card-h">💓 VFC de anoche</div><div class="metric-n">' + esc(hrvTxt) + '</div><div class="muted sm">' + esc(hrvSub) + '</div></section>' +
+        '<section class="card"><div class="card-h">👟 Pasos de hoy</div><div class="metric-n">' + esc(steps == null ? '–' : Salud.fmtInt(steps)) + '</div><div class="muted sm">de ' + esc(Salud.fmtInt(goalN)) + esc(goalNote) + '</div><div class="goal-track" role="img" aria-label="' + esc((steps == null ? 'sin pasos' : Salud.fmtInt(steps)) + ' de ' + Salud.fmtInt(goalN)) + '"><div style="width:' + pct + '%"></div></div></section>' +
+        '<section class="card"><div class="card-h">❤️ FC en reposo</div><div class="metric-n">' + esc(rhr) + '</div><div class="muted sm">Hoy</div></section>' +
+      '</div>' +
+      '<section class="card"><div class="card-h">Tendencia de 7 días</div><div class="trend-box">' +
+        '<div class="tr-sleep"><div class="wo-k">SUEÑO</div><div class="tr-bars">' + bars('sleepSeconds', maxSleep, 'sleep') + '</div></div>' +
+        '<div><div class="wo-k">PASOS</div><div class="tr-bars">' + bars('steps', maxSteps, 'steps') + '</div></div>' +
+      '</div></section>' +
+      '<section class="card"><div class="card-h">Entrenos <span class="count">' + list.length + '</span></div>' +
+        (wos || '<div class="muted">Sin entrenos en estos días.</div>') +
+      '</section></div>';
+  }
+
   /* ---------------- Navegación y eventos ---------------- */
-  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, menu: renderMenu, ajustes: renderAjustes };
+  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, menu: renderMenu, salud: renderSalud, ajustes: renderAjustes };
   function render() {
-    document.querySelectorAll('#rail [data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === S.screen));
+    document.querySelectorAll('#rail [data-go]').forEach((b) => {
+      const on = b.dataset.go === S.screen;
+      b.classList.toggle('on', on);
+      if (on) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    });
     document.body.dataset.screen = S.screen;
     try { (SCREENS[S.screen] || renderHoy)(); } catch (e) { console.error(e); screenEl.innerHTML = '<div class="card">Error al pintar: ' + esc(e.message) + '</div>'; }
     tickClocks();
   }
+  function closeDrawer() {
+    if (!document.documentElement.classList.contains('rail-drawer')) return;
+    document.documentElement.classList.remove('rail-drawer');
+    document.body.classList.remove('rail-drawer');
+    syncRailButton();
+  }
+  function railWantsCollapsed() {
+    const w = window.innerWidth || 1200;
+    if (w < 720) return true;
+    const pref = store.get('railCollapsed', null);
+    return pref === null ? w < 960 : !!pref;
+  }
+  function syncRailButton() {
+    const btn = document.querySelector('[data-act=railToggle]');
+    if (!btn) return;
+    const phone = (window.innerWidth || 1200) < 720;
+    const drawer = document.documentElement.classList.contains('rail-drawer');
+    const collapsed = document.documentElement.classList.contains('rail-collapsed');
+    const expanded = drawer || !collapsed;
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    btn.setAttribute('aria-label', expanded ? 'Contraer el menú' : 'Ampliar el menú');
+    const label = btn.querySelector('.nav-label');
+    if (label) label.textContent = phone ? (drawer ? 'Cerrar' : 'Menú') : (collapsed ? 'Ampliar' : 'Contraer');
+  }
+  function applyRail(opts) {
+    const phone = (window.innerWidth || 1200) < 720;
+    if (opts && opts.toggle) {
+      if (phone) {
+        const open = !document.documentElement.classList.contains('rail-drawer');
+        document.documentElement.classList.toggle('rail-drawer', open);
+        document.body.classList.toggle('rail-drawer', open);
+      } else {
+        const next = !document.documentElement.classList.contains('rail-collapsed');
+        store.set('railCollapsed', next);
+        document.documentElement.classList.toggle('rail-collapsed', next);
+        document.body.classList.toggle('rail-collapsed', next);
+        document.documentElement.classList.remove('rail-drawer');
+        document.body.classList.remove('rail-drawer');
+      }
+    } else {
+      const collapsed = railWantsCollapsed();
+      document.documentElement.classList.toggle('rail-collapsed', collapsed);
+      document.body.classList.toggle('rail-collapsed', collapsed);
+      if (!phone) {
+        document.documentElement.classList.remove('rail-drawer');
+        document.body.classList.remove('rail-drawer');
+      }
+    }
+    syncRailButton();
+  }
   async function go(name) {
+    closeDrawer();
     if (name === 'ajustes' && store.get('pin', null) && S.screen !== 'ajustes') { if (!(await pinPad('PIN de padres para Ajustes'))) return; }
     S.screen = name; S.lastTouch = Date.now(); render();
     screenEl.scrollTop = 0;
@@ -1032,7 +1363,15 @@
       const act = a.dataset.act;
       if (act === 'refresh') return refreshAll(true);
       if (act === 'sleep') return sleep(true);
-      if (act === 'clearDone') { const c = C(); c.items = c.items.filter((x) => !x.done); saveC(c); return render(); }
+      if (act === 'railToggle') return applyRail({ toggle: true });
+      if (act === 'railClose') return closeDrawer();
+      if (act === 'clearDone') {
+        const c = C();
+        const rev = Sync.nextRev();
+        (c.items || []).forEach((x) => { if (x.done && !x.deleted) { x.deleted = true; x.rev = rev; } });
+        saveC(c);
+        return render();
+      }
       if (act === 'share') {
         const txt = listaPendienteTexto().text;
         if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (e) { /* cancelado */ } }
@@ -1045,21 +1384,23 @@
     const da = t.closest('[data-dayall]'); if (da) return showDay(da.dataset.dayall);
     const ch = t.closest('[data-chore]'); if (ch) return toggleChore(ch.dataset.chore, ch.dataset.kid);
     const ask = t.closest('[data-ask]');
-    if (ask) { const k = K(); k.pending.push({ id: U.uid(), kid: ask.dataset.kid, reward: ask.dataset.ask, at: Date.now() }); saveK(k); toast('Pedido. Falta que lo apruebe un adulto.'); return render(); }
+    if (ask) { const k = K(); k.pending.push({ id: U.uid(), kid: ask.dataset.kid, reward: ask.dataset.ask, at: Date.now(), rev: Sync.nextRev(), deleted: false }); saveK(k); toast('Pedido. Falta que lo apruebe un adulto.'); return render(); }
     const ap = t.closest('[data-approve]');
     if (ap) {
       if (!(await requirePin('PIN para aprobar el canje'))) return;
       const k = K(); const p = k.pending.find((x) => x.id === ap.dataset.approve); if (!p) return;
       const r = rewards().find((x) => x.id === p.reward); const kid = CFG.kids.find((x) => x.id === p.kid);
       if (r && (k.stars[p.kid] || 0) >= r.cost) {
-        k.stars[p.kid] -= r.cost; k.log.push(hm(now()) + ' · ✅ ' + (kid ? kid.name : '') + ' canjea «' + r.name + '» (−' + r.cost + ' ⭐)'); toast('¡Canje aprobado! 🎉');
+        Sync.noteStar(k, p.kid, -r.cost);
+        Sync.noteLog(k, hm(now()) + ' · ✅ ' + (kid ? kid.name : '') + ' canjea «' + r.name + '» (−' + r.cost + ' ⭐)');
+        toast('¡Canje aprobado! 🎉');
       } else toast('No le llegan las estrellas');
-      k.pending = k.pending.filter((x) => x.id !== p.id); saveK(k); return render();
+      Sync.dropPending(k, p.id); saveK(k); return render();
     }
     const rj = t.closest('[data-reject]');
-    if (rj) { const k = K(); k.pending = k.pending.filter((x) => x.id !== rj.dataset.reject); saveK(k); return render(); }
+    if (rj) { const k = K(); Sync.dropPending(k, rj.dataset.reject); saveK(k); return render(); }
     const it = t.closest('[data-item]');
-    if (it) { const c = C(); const x = c.items.find((y) => y.id === it.dataset.item); if (x) x.done = !x.done; saveC(c); return render(); }
+    if (it) { const c = C(); const x = (c.items || []).find((y) => y.id === it.dataset.item); if (x) { x.done = !x.done; x.rev = Sync.nextRev(); } saveC(c); return render(); }
     const hb = t.closest('[data-hab]'); if (hb) return addItem(hb.dataset.hab);
     const clearSlot = t.closest('[data-clear-slot]');
     if (clearSlot) { const slot = clearSlot.closest('[data-slot]'); if (slot) assignMeal(slot.dataset.day, slot.dataset.meal, ''); return; }
@@ -1108,7 +1449,22 @@
     const dish = (ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || dragDish;
     if (dish) assignMeal(slot.dataset.day, slot.dataset.meal, dish);
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeModal(); closeDrawer(); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const rail = document.getElementById('rail');
+    if (!rail || !rail.contains(document.activeElement)) return;
+    const items = Array.prototype.slice.call(rail.querySelectorAll('button.nav'));
+    const i = items.indexOf(document.activeElement);
+    if (i < 0 || !items.length) return;
+    e.preventDefault();
+    let n = i;
+    if (e.key === 'ArrowDown') n = (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') n = (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') n = 0;
+    else n = items.length - 1;
+    items[n].focus();
+  });
 
   /* ---------------- Reloj, noche y refresco ---------------- */
   function tickClocks() {
@@ -1152,8 +1508,12 @@
       if (t.getHours() === 4 && t.getMinutes() === 0 && !U.simulated) location.reload();
     }
   }, 1000);
-  setInterval(() => loadCalendars().then(() => { if (!userBusy()) render(); }).catch(() => { }), 15 * 60000);
+  setInterval(() => {
+    Promise.all([loadCalendars().catch(() => {}), Sync.syncNow().catch(() => {})]).then(() => { if (!userBusy()) render(); });
+  }, 15 * 60000);
   setInterval(() => loadWeather().then(() => { if (!userBusy()) render(); }), 30 * 60000);
+  setInterval(() => { if (!syncReady()) return; loadSalud().then(() => { if (!userBusy()) render(); }).catch(() => {}); }, Salud.EVERY);
+  window.addEventListener('resize', () => applyRail());
   setInterval(() => loadPVPC().then(() => { if (!userBusy()) render(); }), 60 * 60000);
   window.addEventListener('online', () => { paintOffline(); refreshAll(false); });
   window.addEventListener('offline', paintOffline);
@@ -1164,12 +1524,41 @@
     navigator.serviceWorker.register(new URL('sw.js', base), { scope: base.href }).catch(() => {});
   }
 
+  Sync.attach({
+    settings: function () { return settings; },
+    onApplied: function () {
+      if (S.screen === 'ajustes' || !$('#modal').classList.contains('hidden')) return;
+      const a = document.activeElement;
+      const sel = a && a.id ? a.id : '';
+      const val = a && 'value' in a ? a.value : '';
+      const start = a && a.selectionStart;
+      render();
+      if (!sel) return;
+      const n = document.getElementById(sel);
+      if (n && 'value' in n) {
+        n.value = val;
+        try { n.focus(); if (start != null) n.setSelectionRange(start, start); } catch (e) { /* el campo ya no está */ }
+      }
+    },
+    onDataStatus: function (st) {
+      S.syncDataStatus = st;
+      store.set('cache.syncData', st);
+      S.dataDown = !!(st && st.offline);
+      S.syncDown = !!(S.dataDown || S.calDown);
+      if (st && st.ok) S.syncCount = (S.syncCount || 0) + 1;
+      paintOffline();
+    },
+    toast: toast
+  });
+
   // Arranque
+  applyRail();
+  primeSalud();
   const hash = (location.hash || '').replace('#', '');
   if (SCREENS[hash] && hash !== 'ajustes') S.screen = hash;
   render();
   refreshAll(false);
 
   // Para pruebas automáticas
-  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, loadCalendars, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline };
+  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, loadSalud, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline, SALUD_EVERY: Salud.EVERY };
 })();
