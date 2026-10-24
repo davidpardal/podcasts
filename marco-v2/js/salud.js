@@ -373,6 +373,7 @@
       restingHr: restingHr,
       bodyBatteryMin: wellnessGap ? null : 14 + (idx % 18),
       bodyBatteryMax: wellnessGap ? null : 72 + (idx % 22),
+      bodyBatteryCharged: wellnessGap ? null : 40 + (idx % 35),
       sleepSeconds: sec,
       sleepScore: sleepScore,
       deepSeconds: deep,

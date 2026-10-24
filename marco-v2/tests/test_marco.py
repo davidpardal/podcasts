@@ -169,7 +169,36 @@ with sync_playwright() as p:
         if tab == "ajustes":
             check("ajustes: formulario de familia e importar/exportar", page.is_visible("#f_kids") and page.is_visible("#impTxt"))
             check("ajustes: calendarios de fondo", "De fondo" in page.inner_text(".ajustes"))
+            check("ajustes: dinero, plazos y entreno", page.is_visible("#dinLuz") and page.is_visible("#dinSubs") and page.is_visible("#plazosTxt") and page.is_visible("#ent3"))
         page.screenshot(path=os.path.join(OUT, f"{i}-{tab}.png"))
+    page.click("#rail [data-go=dinero]"); page.wait_for_selector(".dinero-ahorro")
+    dinero0 = page.inner_text(".dinero")
+    check("dinero: ejemplos en euros y ahorro vacío", "ejemplo" in dinero0.lower() and "€" in dinero0 and page.get_attribute(".dinero-ahorro", "data-ahorro") == "" and "Revista (ejemplo)" in dinero0)
+    page.screenshot(path=os.path.join(OUT, "18-dinero.png"))
+    page.click("#rail [data-go=plazos]"); page.wait_for_selector(".plazo")
+    semaforo = page.evaluate("""() => Array.from(document.querySelectorAll('.plazo')).map(r => r.dataset.tone + ':' + r.dataset.title)""")
+    check("plazos: fecha ascendente y semáforo", semaforo == ["rojo:Registro (ejemplo)", "ambar:Hotel (ejemplo)", "verde:Vuelo (ejemplo)"], semaforo)
+    check("plazos: días que quedan", "quedan 2 días" in page.inner_text(".plazo.rojo") and "quedan 12 días" in page.inner_text(".plazo.ambar"))
+    page.screenshot(path=os.path.join(OUT, "19-plazos.png"))
+    page.click("#rail [data-go=semana]"); page.wait_for_selector(".semana-banner")
+    semana = page.inner_text(".semana")
+    check("semana con los niños: banner, tareas y compra", "Esta semana con los niños" in semana and "Hacer la cama" in semana and "Peque A" in semana and "Peque B" in semana and "pendiente" in semana.lower())
+    check("semana: la agenda no inventa un cole", "colegio" not in semana.lower() and "Agenda" in semana)
+    page.screenshot(path=os.path.join(OUT, "20-semana.png"))
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#dinLuz")
+    page.fill("#dinLuz", "40"); page.fill("#dinLuzP", "55")
+    page.fill("#dinFibra", "45"); page.fill("#dinFibraP", "45"); page.fill("#dinFibraAlt", "39")
+    page.fill("#dinSuscP", "20")
+    page.click("[data-act=saveDinero]")
+    page.click("#rail [data-go=dinero]"); page.wait_for_selector(".dinero-ahorro")
+    check("ahorro = mes pasado − este mes", page.get_attribute(".dinero-ahorro", "data-ahorro") == "19.02" and "€" in page.inner_text(".dinero-ahorro"))
+    check("fibra: compara la alternativa", "alternativa" in page.inner_text(".dinero").lower())
+    page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#ent3")
+    page.select_option("#ent3", "running")
+    page.click("[data-act=saveEntreno]")
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud-hoy")
+    hoy = page.inner_text(".salud-hoy").lower()
+    check("salud: franja Hoy con el entreno de Ajustes", page.get_attribute(".hoy-bit[data-entreno]", "data-entreno") == "running" and "hoy" in hoy and "batería" in hoy)
     # PIN y canje
     page.evaluate("""() => { localStorage.setItem('marco-v2.pin', JSON.stringify('2468'));
       const k = JSON.parse(localStorage.getItem('marco-v2.ninos')); k.stars['peque-b'] = 6; localStorage.setItem('marco-v2.ninos', JSON.stringify(k)); }""")
@@ -323,6 +352,10 @@ with sync_playwright() as p:
     check("sábado sin niños: tareas en pausa", "En pausa" in page.locator(".sum").first.inner_text())
     page.click("#rail [data-go=ninos]"); page.wait_for_selector(".pause-banner")
     check("la pausa se explica en Niños", "pausa" in page.inner_text(".pause-banner").lower())
+    page.click("#rail [data-go=semana]"); page.wait_for_selector(".semana-calma")
+    check("sábado: semana sin niños y el menú sigue", "Semana sin niños — tareas pausadas" in page.inner_text(".semana") and page.is_visible("#rail [data-go=semana]"))
+    page.click("#rail [data-go=plazos]"); page.wait_for_selector(".plazo.gris")
+    check("plazo pasado en gris", page.get_attribute(".plazo.gris", "data-title") == "Registro (ejemplo)")
     page.click("#rail [data-go=luz]"); page.wait_for_selector(".luz")
     check("luz sábado = valle", "Valle" in page.inner_text(".per-big"))
     ctx.close()
@@ -650,6 +683,8 @@ process.stdin.on("end", function () {
     page.wait_for_selector(".trend-card")
     demo_txt = page.inner_text(".salud")
     check("salud de ejemplo, con sueño, pasos y entrenos", "Datos de ejemplo" in demo_txt and "no son de tu Garmin" in demo_txt and "Sueño de anoche" in demo_txt and "Pasos de hoy" in demo_txt and "Carrera de ejemplo" in demo_txt and "Remo de ejemplo" not in demo_txt and page.locator(".trend-card").count() == 6 and page.locator(".wo").count() >= 3 and "EJEMPLO" in demo_txt)
+    hoy_ej = page.inner_text(".salud-hoy").lower()
+    check("salud de ejemplo: franja Hoy", page.locator(".salud-hoy").count() == 1 and "sueño" in hoy_ej and "descanso" in hoy_ej and "batería" in hoy_ej and page.get_attribute("[data-entreno]", "data-entreno") == "descanso")
     trends = page.evaluate("""() => {
       const d = Salud.demo(U.now());
       const t7 = Salud.trends(d, 7, U.now());
@@ -794,7 +829,7 @@ process.stdin.on("end", function () {
         page.on("response", lambda r: bad.append(f"{r.status} {r.url}") if r.status >= 400 and r.url.startswith(SUB.split('/marco')[0]) else None)
         page.goto(SUB); page.wait_for_selector(".hoy"); page.clock.run_for(1000); wait_data(page)
         ok = True
-        for tab, sel in [("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("menu", ".menu"), ("salud", ".salud"), ("ajustes", ".ajustes"), ("hoy", ".hoy")]:
+        for tab, sel in [("calendario", ".cal-week"), ("luz", ".luz"), ("dinero", ".dinero"), ("plazos", ".plazos"), ("ninos", ".ninos"), ("semana", ".semana"), ("compra", ".compra"), ("menu", ".menu"), ("salud", ".salud"), ("ajustes", ".ajustes"), ("hoy", ".hoy")]:
             page.click(f"#rail [data-go={tab}]"); page.wait_for_selector(sel)
         check("subruta: todas las pestañas y sin 404", not bad and page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(247, 238, 226)", bad)
         ctx.close()
