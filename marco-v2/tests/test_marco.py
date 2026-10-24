@@ -378,12 +378,16 @@ with sync_playwright() as p:
           and "/usersummary-service/v2/dailysummaries" in gs
           and "/sleep-service/sleep/dailySleepSummariesByDate" in gs
           and "/hrv-service/hrv/daily/" in gs
+          and "/weight-service/weight/range/" in gs
+          and "addDaysIso_(today, -27)" in gs and "addDaysIso_(today, -55)" in gs
+          and "weightGrams" in gs
           and "Bearer " in gs)
     check("script no escribe la clave ni el token en el registro", "Logger.log(key" not in gs and "Logger.log(token" not in gs and "Logger.log(clave" not in gs)
     check("manifiesto puede llamar a Garmin", "https://www.googleapis.com/auth/script.external_request" in (manifest.get("oauthScopes") or []))
     readme_gs = open(os.path.join(HERE, "..", "apps-script", "README.md"), encoding="utf-8").read()
     check("readme de apps-script explica GARMIN_PERSONAL_API_KEY",
-          "GARMIN_PERSONAL_API_KEY" in readme_gs and "Propiedades del script" in readme_gs and "no imprime" in readme_gs)
+          "GARMIN_PERSONAL_API_KEY" in readme_gs and "Propiedades del script" in readme_gs and "no imprime" in readme_gs
+          and "Nueva versión" in readme_gs and "28" in readme_gs and "weightGrams" in readme_gs)
     check("script guarda el token hasta 5 min antes de exp y la salud 30 min", "exp - now - 300" in gs and "1800" in gs and "old.stale = true" in gs)
 
     def js_merge(stored, incoming):
@@ -643,9 +647,61 @@ process.stdin.on("end", function () {
     check("tablet apaisada: menú a la izquierda y semanal en la columna izquierda", tab["left"] and tab["vertical"] and tab["menu"], tab)
     page.screenshot(path=os.path.join(OUT, "13-tablet-hoy.png"))
     page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud")
+    page.wait_for_selector(".trend-card")
     demo_txt = page.inner_text(".salud")
-    check("salud de ejemplo, con sueño, pasos y entrenos", "Datos de ejemplo" in demo_txt and "Sueño de anoche" in demo_txt and "Pasos de hoy" in demo_txt and "Carrera de ejemplo" in demo_txt and "Remo de ejemplo" not in demo_txt and page.locator(".tr-col").count() >= 14 and page.locator(".wo").count() >= 3)
+    check("salud de ejemplo, con sueño, pasos y entrenos", "Datos de ejemplo" in demo_txt and "no son de tu Garmin" in demo_txt and "Sueño de anoche" in demo_txt and "Pasos de hoy" in demo_txt and "Carrera de ejemplo" in demo_txt and "Remo de ejemplo" not in demo_txt and page.locator(".trend-card").count() == 6 and page.locator(".wo").count() >= 3 and "EJEMPLO" in demo_txt)
+    trends = page.evaluate("""() => {
+      const d = Salud.demo(U.now());
+      const t7 = Salud.trends(d, 7, U.now());
+      const t28 = Salud.trends(d, 28, U.now());
+      const steps = t7.find(m => m.key === 'steps');
+      const peso = t28.find(m => m.key === 'weightGrams');
+      const pulso = t7.find(m => m.key === 'restingHr');
+      const gapSvg = Salud.chartSvg(
+        [{ date: '2026-10-01', steps: 1000 }, { date: '2026-10-02' }, { date: '2026-10-03', steps: 0 }],
+        'steps', '#3BA55C', 'int', 'pasos');
+      const card = document.querySelector('[data-metric=steps]');
+      return {
+        days: d.days.length,
+        demo: !!d.demo,
+        nullSteps: d.days.filter(x => x.steps == null).length,
+        zeroSteps: d.days.filter(x => x.steps === 0).length,
+        nullWeight: d.days.filter(x => x.weightGrams == null).length,
+        steps: { avg: steps.avg, delta: steps.delta, points: steps.count, gaps: steps.days.filter(x => Salud.num(x.steps) == null).length, circles: card.querySelectorAll('circle').length, domGaps: +card.dataset.gaps },
+        pulso: { cur: pulso.current, avg: pulso.avg, delta: pulso.delta },
+        peso: { cur: peso.current, avg: peso.avg, delta: peso.delta, gaps: peso.days.filter(x => Salud.num(x.weightGrams) == null).length },
+        gapCircles: (gapSvg.match(/<circle /g) || []).length,
+        gapLines: (gapSvg.split('<polyline').length - 1),
+        keys: t7.map(m => m.key).join(',')
+      };
+    }""")
+    check("demo: 28 días con huecos y sin ceros inventados", trends["days"] == 28 and trends["demo"] and trends["nullSteps"] >= 1 and trends["zeroSteps"] == 0 and trends["nullWeight"] >= 1 and trends["keys"] == "restingHr,hrv,steps,weightGrams,sleepSeconds,trainingSeconds", trends)
+    check("demo: pasos a 7 días, media, variación y hueco sin punto", trends["steps"]["avg"] and trends["steps"]["delta"] is not None and trends["steps"]["gaps"] >= 1 and trends["steps"]["circles"] == trends["steps"]["points"] and trends["steps"]["domGaps"] == trends["steps"]["gaps"], trends["steps"])
+    check("demo: pulso con valor, media y variación", trends["pulso"]["cur"] and trends["pulso"]["avg"] and trends["pulso"]["delta"] is not None, trends["pulso"])
+    check("un cero real se pinta y un hueco no une la línea", trends["gapCircles"] == 2 and trends["gapLines"] == 0, trends)
+    check("textos de las tendencias", "Pulso en reposo" in demo_txt and "Peso" in demo_txt and "VFC" in demo_txt and "Pasos" in demo_txt and "Descanso" in demo_txt and "Entreno" in demo_txt and "día sin dato" in demo_txt and "respecto a los 7 días anteriores" in demo_txt)
     page.screenshot(path=os.path.join(OUT, "14-salud-ejemplo.png"))
+    check("tablet 1024: Salud sin scroll horizontal", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+    page.set_viewport_size({"width": 1280, "height": 1500})
+    page.evaluate("() => document.querySelector('.salud').scrollIntoView({block:'start'})")
+    page.wait_for_timeout(150)
+    check("tablet: tendencias de 7 días sin scroll horizontal", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+    page.screenshot(path=os.path.join(OUT, "16-salud-tendencia-7.png"))
+    page.click('[data-range="28"]')
+    page.wait_for_function("() => document.querySelector('[data-range=\"28\"]').getAttribute('aria-pressed') === 'true'")
+    page.evaluate("() => document.querySelector('.salud').scrollIntoView({block:'start'})")
+    page.wait_for_timeout(150)
+    wide28 = page.inner_text(".salud-trends")
+    peso28 = page.evaluate("""() => {
+      const m = Salud.trends(Salud.demo(U.now()), 28, U.now()).find(x => x.key === 'weightGrams');
+      const card = document.querySelector('[data-metric=weightGrams]');
+      return { cur: m.current, avg: m.avg, delta: m.delta, circles: card.querySelectorAll('circle').length, points: +card.dataset.points, gaps: +card.dataset.gaps };
+    }""")
+    check("demo: peso a 28 días con media, variación y huecos", "respecto a los 28 días anteriores" in wide28 and "7 días anteriores" not in wide28 and peso28["cur"] and peso28["avg"] and peso28["delta"] is not None and peso28["circles"] == peso28["points"] and peso28["gaps"] > peso28["points"], peso28)
+    check("tablet: tendencias de 28 días sin scroll horizontal", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+    page.screenshot(path=os.path.join(OUT, "17-salud-tendencia-28.png"))
+    page.click('[data-range="7"]')
+    page.set_viewport_size({"width": 1024, "height": 768})
     page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#syncUrl")
     page.fill("#syncUrl", BASE.rstrip("/") + "/__marco_salud")
     page.fill("#syncKey", "clave-de-ejemplo")
@@ -677,7 +733,15 @@ process.stdin.on("end", function () {
     ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
     page.goto(BASE); page.wait_for_selector(".salud-mini"); page.clock.run_for(300)
     page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud-note")
-    check("móvil: salud de ejemplo visible", "Datos de ejemplo" in page.inner_text(".salud") and "Sueño de anoche" in page.inner_text(".salud"))
+    check("móvil: salud de ejemplo visible", "Datos de ejemplo" in page.inner_text(".salud") and "Sueño de anoche" in page.inner_text(".salud") and "EJEMPLO" in page.inner_text(".salud"))
+    movil_trend = page.evaluate("""() => {
+      const cards = Array.prototype.slice.call(document.querySelectorAll('.trend-card'));
+      if (cards.length < 2) return { ok: false, n: cards.length };
+      const a = cards[0].getBoundingClientRect();
+      const b = cards[1].getBoundingClientRect();
+      return { ok: b.top >= a.bottom - 2 && document.documentElement.scrollWidth <= innerWidth + 1, n: cards.length, top: Math.round(b.top - a.bottom) };
+    }""")
+    check("móvil: tendencias en una columna y sin scroll horizontal", movil_trend.get("ok"), movil_trend)
     phone_rail = page.evaluate("""() => {
       const rail = document.querySelector('#rail').getBoundingClientRect();
       const screen = document.querySelector('#screen').getBoundingClientRect();

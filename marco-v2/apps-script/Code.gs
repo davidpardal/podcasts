@@ -479,10 +479,14 @@ function mergeHechas_(a, b) {
  * La clave GARMIN_PERSONAL_API_KEY solo se lee de Propiedades del script.
  * El JWT vive en CacheService hasta ~5 min antes de exp. No se registra ni se devuelve.
  * Cualquier fallo de Garmin devuelve la última respuesta buena con stale:true.
+ * La respuesta trae 28 días (hoy incluido). Un día sin medida no lleva ese campo:
+ * el marco lo pinta como un corte, no como cero. El peso va en gramos.
+ * `previous.avg` es la media del periodo anterior (otros 28 días), para la variación.
  */
 
 var GARMIN_BASE = 'https://personal.connectapi.garmin.com';
 var GARMIN_TOKEN_URL = GARMIN_BASE + '/personalapitoken-service/personal-api/personal-api-key/token';
+var GARMIN_SALUD_KEY = 'mv2-garmin-salud-28';
 
 function claveGarmin_() {
   return String(PropertiesService.getScriptProperties().getProperty('GARMIN_PERSONAL_API_KEY') || '').trim();
@@ -490,7 +494,7 @@ function claveGarmin_() {
 
 function salud_() {
   var cache = CacheService.getScriptCache();
-  var hit = cache.get('mv2-garmin-salud');
+  var hit = cache.get(GARMIN_SALUD_KEY);
   if (hit) {
     try {
       var parsed = JSON.parse(hit);
@@ -505,8 +509,8 @@ function salud_() {
   try {
     var data = construirSalud_();
     var json = JSON.stringify(data);
-    cache.put('mv2-garmin-salud', json, 1800);
-    try { PropertiesService.getScriptProperties().setProperty('GARMIN_SALUD_LAST', json); } catch (e2) { /* la copia de 30 min basta */ }
+    cache.put(GARMIN_SALUD_KEY, json, 1800);
+    try { guardarCopiaSalud_(json); } catch (e2) { /* la copia de 30 min basta */ }
     return data;
   } catch (err) {
     try { cache.remove('mv2-garmin-jwt'); } catch (e3) { /* sin caché de token */ }
@@ -514,11 +518,36 @@ function salud_() {
   }
 }
 
+function guardarCopiaSalud_(json) {
+  var props = PropertiesService.getScriptProperties();
+  var n = Math.max(1, Math.ceil(json.length / CHUNK));
+  if (n > 4) return;
+  var prev = parseInt(props.getProperty('GARMIN_SALUD_N') || '0', 10);
+  for (var i = 0; i < n; i++) props.setProperty('GARMIN_SALUD_' + i, json.substring(i * CHUNK, (i + 1) * CHUNK));
+  for (var j = n; j < prev; j++) props.deleteProperty('GARMIN_SALUD_' + j);
+  props.setProperty('GARMIN_SALUD_N', String(n));
+  try { props.deleteProperty('GARMIN_SALUD_LAST'); } catch (e) { /* la copia vieja, de una sola propiedad, ya no hace falta */ }
+}
+
+function leerCopiaSalud_() {
+  var props = PropertiesService.getScriptProperties();
+  var n = parseInt(props.getProperty('GARMIN_SALUD_N') || '0', 10);
+  if (n > 0) {
+    var parts = [];
+    for (var i = 0; i < n; i++) parts.push(props.getProperty('GARMIN_SALUD_' + i) || '');
+    return parts.join('');
+  }
+  return props.getProperty('GARMIN_SALUD_LAST') || '';
+}
+
 function saludAntiguo_() {
   var last = '';
-  try { last = PropertiesService.getScriptProperties().getProperty('GARMIN_SALUD_LAST') || ''; } catch (e) { last = ''; }
+  try { last = leerCopiaSalud_(); } catch (e) { last = ''; }
   if (!last) {
-    try { last = CacheService.getScriptCache().get('mv2-garmin-salud') || ''; } catch (e2) { last = ''; }
+    try {
+      var cache = CacheService.getScriptCache();
+      last = cache.get(GARMIN_SALUD_KEY) || cache.get('mv2-garmin-salud') || '';
+    } catch (e2) { last = ''; }
   }
   if (last) {
     try {
@@ -603,28 +632,68 @@ function jwtExp_(token) {
 
 function pedirSalud_(token) {
   var today = Utilities.formatDate(new Date(), 'Europe/Madrid', 'yyyy-MM-dd');
-  var start = addDaysIso_(today, -6);
-  var q = 'startDate=' + encodeURIComponent(start) + '&endDate=' + encodeURIComponent(today);
-  var paths = [
-    '/activitylist-service/activities/search/activities?start=0&limit=10&' + q,
-    '/usersummary-service/v2/dailysummaries?' + q,
-    '/sleep-service/sleep/dailySleepSummariesByDate?' + q,
-    '/hrv-service/hrv/daily/' + encodeURIComponent(start) + '/' + encodeURIComponent(today)
+  var start = addDaysIso_(today, -27);
+  var prevEnd = addDaysIso_(today, -28);
+  var prevStart = addDaysIso_(today, -55);
+  var qNow = 'startDate=' + encodeURIComponent(start) + '&endDate=' + encodeURIComponent(today);
+  var qPrev = 'startDate=' + encodeURIComponent(prevStart) + '&endDate=' + encodeURIComponent(prevEnd);
+  var qAll = 'startDate=' + encodeURIComponent(prevStart) + '&endDate=' + encodeURIComponent(today);
+  var calls = [
+    { path: '/activitylist-service/activities/search/activities?start=0&limit=50&' + qAll, optional: true },
+    { path: '/usersummary-service/v2/dailysummaries?' + qAll, optional: false },
+    { path: '/sleep-service/sleep/dailySleepSummariesByDate?' + qNow, optional: false },
+    { path: '/sleep-service/sleep/dailySleepSummariesByDate?' + qPrev, optional: true },
+    { path: '/hrv-service/hrv/daily/' + encodeURIComponent(prevStart) + '/' + encodeURIComponent(today), optional: false },
+    { path: '/weight-service/weight/range/' + encodeURIComponent(prevStart) + '/' + encodeURIComponent(today) + '?includeAll=true', optional: true }
   ];
-  var reqs = paths.map(function (p) {
+  var reqs = calls.map(function (c) {
     return {
-      url: GARMIN_BASE + p,
+      url: GARMIN_BASE + c.path,
       method: 'get',
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
       muteHttpExceptions: true
     };
   });
   var res = UrlFetchApp.fetchAll(reqs);
-  var payloads = res.map(function (r) {
-    if (r.getResponseCode() < 200 || r.getResponseCode() >= 300) throw new Error('garmin-http');
-    try { return JSON.parse(r.getContentText() || 'null'); } catch (e) { throw new Error('garmin-json'); }
-  });
-  return compactarSalud_(payloads[0], payloads[1], payloads[2], payloads[3], start, today);
+  var payloads = [];
+  for (var i = 0; i < res.length; i++) payloads.push(leeJson_(res[i], calls[i].optional));
+  var activities = payloads[0];
+  if (asList_(activities, ['activities']).length >= 50) {
+    try {
+      var more = UrlFetchApp.fetch(GARMIN_BASE + '/activitylist-service/activities/search/activities?start=50&limit=50&' + qAll, {
+        method: 'get',
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+        muteHttpExceptions: true
+      });
+      activities = juntarActividades_(activities, leeJson_(more, true));
+    } catch (e) { /* con la primera página de entrenos basta */ }
+  }
+  return compactarSalud_(activities, payloads[1], payloads[2], payloads[3], payloads[4], payloads[5], start, prevStart, prevEnd, today);
+}
+
+function leeJson_(res, optional) {
+  var code = res.getResponseCode();
+  if (code === 401 || code === 403) {
+    if (optional) return null;
+    throw new Error('garmin-http');
+  }
+  if (code < 200 || code >= 300) {
+    if (optional) return null;
+    throw new Error('garmin-http');
+  }
+  var text = res.getContentText() || '';
+  if (!text) return optional ? null : {};
+  try { return JSON.parse(text); } catch (e) {
+    if (optional) return null;
+    throw new Error('garmin-json');
+  }
+}
+
+function juntarActividades_(a, b) {
+  var left = asList_(a, ['activities']);
+  var right = asList_(b, ['activities']);
+  if (!right.length) return a || [];
+  return left.concat(right);
 }
 
 function addDaysIso_(iso, delta) {
@@ -709,7 +778,9 @@ function diaVacio_(date) {
     awakeSeconds: null,
     hrv: null,
     hrvWeekly: null,
-    hrvStatus: null
+    hrvStatus: null,
+    weightGrams: null,
+    trainingSeconds: null
   };
 }
 
@@ -717,29 +788,7 @@ function dentro_(date, start, end) {
   return !!date && date >= start && date <= end;
 }
 
-function compactarSalud_(activities, summaries, sleep, hrv, start, today) {
-  var dates = [];
-  for (var i = 6; i >= 0; i--) dates.push(addDaysIso_(today, -i));
-  var map = {};
-  dates.forEach(function (d) { map[d] = diaVacio_(d); });
-  var stepsGoal = null;
-
-  asList_(summaries, ['data', 'dailySummaries', 'summaries']).forEach(function (row) {
-    if (!row) return;
-    var date = String(row.calendarDate || '').slice(0, 10);
-    if (!map[date]) return;
-    var day = map[date];
-    day.steps = entero_(descend_(row, ['movement', 'steps']));
-    day.restingHr = entero_(descend_(row, ['heartRate', 'restingValue']));
-    day.bodyBatteryMin = entero_(descend_(row, ['bodyBattery', 'minValue']));
-    day.bodyBatteryMax = entero_(descend_(row, ['bodyBattery', 'maxValue']));
-    if (stepsGoal == null) {
-      stepsGoal = entero_(descend_(row, ['movement', 'stepGoal']));
-      if (stepsGoal == null) stepsGoal = entero_(descend_(row, ['movement', 'goal']));
-      if (stepsGoal == null) stepsGoal = entero_(descend_(row, ['movement', 'stepsGoal']));
-    }
-  });
-
+function aplicarSueno_(map, sleep) {
   asList_(sleep, ['dailySleepSummaries', 'sleepSummaries', 'data']).forEach(function (row) {
     if (!row) return;
     var date = String(row.calendarDate || '').slice(0, 10);
@@ -754,6 +803,113 @@ function compactarSalud_(activities, summaries, sleep, hrv, start, today) {
     if (scores && typeof scores === 'object') day.sleepScore = entero_(scores.overall != null ? scores.overall : scores);
     else day.sleepScore = entero_(scores);
   });
+}
+
+function fechaPeso_(row) {
+  if (!row || typeof row !== 'object') return '';
+  var d = row.summaryDate || row.calendarDate || '';
+  if (!d && row.latestWeight && row.latestWeight.calendarDate) d = row.latestWeight.calendarDate;
+  if (!d && typeof row.date === 'string') d = row.date;
+  return String(d || '').slice(0, 10);
+}
+
+function marcaPeso_(row) {
+  if (!row || typeof row !== 'object') return 0;
+  var src = row.latestWeight && typeof row.latestWeight === 'object' ? row.latestWeight : row;
+  var t = Number(src.timestampGMT || src.samplePk || 0);
+  if (!isFinite(t) || t <= 0) t = Number(src.date);
+  return isFinite(t) ? t : 0;
+}
+
+/* Garmin manda el peso en gramos. Si el número es de una báscula en kg (menos de 500), se pasa a gramos. */
+function gramosPeso_(row) {
+  if (row == null || row === '') return null;
+  var raw = null;
+  if (typeof row === 'number' || typeof row === 'string') raw = unwrap_(row);
+  else if (typeof row === 'object') {
+    raw = unwrap_(row.weight);
+    if (raw == null && row.latestWeight != null) raw = gramosPeso_(row.latestWeight);
+    if (raw == null && row.value != null) raw = unwrap_(row.value.weight != null ? row.value.weight : row.value);
+  }
+  if (raw == null || !isFinite(raw) || raw <= 0) return null;
+  if (raw < 500) raw = raw * 1000;
+  return Math.round(raw);
+}
+
+function filasPeso_(payload) {
+  if (!payload) return [];
+  var summaries = asList_(payload, ['dailyWeightSummaries', 'weightSummaries']);
+  var looksDaily = summaries.length && (summaries[0].latestWeight != null || summaries[0].summaryDate || summaries[0].minWeight != null);
+  var rows = looksDaily ? summaries : asList_(payload, ['allWeightMetrics', 'weightMetrics', 'weights', 'dateWeightList']);
+  return rows.map(function (row) {
+    var src = looksDaily && row.latestWeight != null ? row.latestWeight : row;
+    return { date: fechaPeso_(row), grams: gramosPeso_(src), at: marcaPeso_(row) };
+  });
+}
+
+function aplicarPeso_(map, payload) {
+  var best = {};
+  filasPeso_(payload).forEach(function (p) {
+    if (!p.date || !map[p.date] || p.grams == null) return;
+    var prev = best[p.date];
+    if (!prev || p.at >= prev.at) best[p.date] = p;
+  });
+  Object.keys(best).forEach(function (d) { map[d].weightGrams = best[d].grams; });
+}
+
+function mediaCampo_(rows, key) {
+  var sum = 0;
+  var n = 0;
+  rows.forEach(function (row) {
+    var v = row ? row[key] : null;
+    if (v == null || !isFinite(v)) return;
+    sum += v;
+    n++;
+  });
+  if (!n) return null;
+  return Math.round(sum / n);
+}
+
+function sinNulos_(day) {
+  var out = { date: day.date };
+  Object.keys(day).forEach(function (k) {
+    if (k === 'date' || day[k] == null || day[k] === '') return;
+    out[k] = day[k];
+  });
+  return out;
+}
+
+function compactarSalud_(activities, summaries, sleepNow, sleepPrev, hrv, weight, start, prevStart, prevEnd, today) {
+  var shown = [];
+  var prevDates = [];
+  for (var i = 27; i >= 0; i--) shown.push(addDaysIso_(today, -i));
+  for (var j = 55; j >= 28; j--) prevDates.push(addDaysIso_(today, -j));
+  var map = {};
+  shown.concat(prevDates).forEach(function (d) { map[d] = diaVacio_(d); });
+  var stepsGoal = null;
+  var stepsGoalDate = '';
+
+  asList_(summaries, ['data', 'dailySummaries', 'summaries']).forEach(function (row) {
+    if (!row) return;
+    var date = String(row.calendarDate || '').slice(0, 10);
+    if (!map[date]) return;
+    var day = map[date];
+    var steps = entero_(descend_(row, ['movement', 'steps']));
+    if (steps == null) steps = entero_(row.totalSteps);
+    day.steps = steps;
+    var rhr = entero_(descend_(row, ['heartRate', 'restingValue']));
+    if (rhr == null) rhr = entero_(row.restingHeartRate);
+    day.restingHr = rhr;
+    day.bodyBatteryMin = entero_(descend_(row, ['bodyBattery', 'minValue']));
+    day.bodyBatteryMax = entero_(descend_(row, ['bodyBattery', 'maxValue']));
+    var goal = entero_(descend_(row, ['movement', 'stepGoal']));
+    if (goal == null) goal = entero_(descend_(row, ['movement', 'goal']));
+    if (goal == null) goal = entero_(descend_(row, ['movement', 'stepsGoal']));
+    if (goal != null && date >= stepsGoalDate) { stepsGoal = goal; stepsGoalDate = date; }
+  });
+
+  aplicarSueno_(map, sleepPrev);
+  aplicarSueno_(map, sleepNow);
 
   asList_(hrv, ['hrvSummaries']).forEach(function (row) {
     if (!row) return;
@@ -765,11 +921,19 @@ function compactarSalud_(activities, summaries, sleep, hrv, start, today) {
     day.hrvStatus = textoEstado_(row.status);
   });
 
+  aplicarPeso_(map, weight);
+
   var workouts = [];
   asList_(activities, ['activities']).forEach(function (a) {
     if (!a) return;
     var startLocal = corto_(a.startTimeLocal, 32);
     var date = (startLocal.match(/^(\d{4}-\d{2}-\d{2})/) || [null, ''])[1];
+    if (!dentro_(date, prevStart, today) || !map[date]) return;
+    var dur = entero_(a.duration);
+    if (dur != null) {
+      if (map[date].trainingSeconds == null) map[date].trainingSeconds = 0;
+      map[date].trainingSeconds += dur;
+    }
     if (!dentro_(date, start, today)) return;
     var typeKey = '';
     if (a.activityType && typeof a.activityType === 'object' && a.activityType.typeKey) typeKey = corto_(a.activityType.typeKey, 40);
@@ -779,7 +943,7 @@ function compactarSalud_(activities, summaries, sleep, hrv, start, today) {
       start: startLocal,
       type: typeKey,
       name: corto_(a.activityName || typeKey || 'Actividad', 80),
-      duration: entero_(a.duration),
+      duration: dur,
       distance: entero_(a.distance),
       avgHr: entero_(a.averageHR),
       calories: entero_(a.calories)
@@ -788,14 +952,21 @@ function compactarSalud_(activities, summaries, sleep, hrv, start, today) {
   workouts.sort(function (a, b) { return String(b.start || b.date).localeCompare(String(a.start || a.date)); });
   if (workouts.length > 7) workouts = workouts.slice(0, 7);
 
+  var avg = {};
+  ['steps', 'restingHr', 'hrv', 'weightGrams', 'sleepSeconds', 'trainingSeconds'].forEach(function (key) {
+    var m = mediaCampo_(prevDates.map(function (d) { return map[d]; }), key);
+    if (m != null) avg[key] = m;
+  });
+
   return {
     ok: true,
     stale: false,
     fetchedAt: new Date().toISOString(),
-    from: dates[0],
+    from: shown[0],
     to: today,
     stepsGoal: stepsGoal,
-    days: dates.map(function (d) { return map[d]; }),
+    days: shown.map(function (d) { return sinNulos_(map[d]); }),
+    previous: { from: prevStart, to: prevEnd, avg: avg },
     workouts: workouts
   };
 }

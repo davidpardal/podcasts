@@ -174,7 +174,8 @@
     syncDataStatus: store.get('cache.syncData', null),
     syncCalStatus: store.get('cache.syncCal', null),
     salud: null,
-    saludLoads: 0
+    saludLoads: 0,
+    saludDias: 7
   };
   // Citas en caché (por si arranca sin red)
   (store.get('cache.events', []) || []).forEach((e) => S.events.push(Object.assign({}, e, { start: new Date(e.start), end: new Date(e.end) })));
@@ -1230,7 +1231,7 @@
     const steps = day ? Salud.num(day.steps) : null;
     const pct = steps == null || !goalN ? 0 : Math.max(0, Math.min(100, Math.round(steps / goalN * 100)));
     const note = d.demo
-      ? '<div class="salud-note ej" role="status">Datos de ejemplo · no son de tu Garmin</div>'
+      ? '<div class="salud-note ej" role="status">Datos de ejemplo · cifras inventadas para ver la pantalla, no son de tu Garmin</div>'
       : (d.stale ? '<div class="salud-note stale" role="status">Datos de Garmin sin actualizar · última copia de este dispositivo</div>' : '');
     const parts = [['deep', 'Profundo', sleep && sleep.deepSeconds], ['rem', 'REM', sleep && sleep.remSeconds], ['light', 'Ligero', sleep && sleep.lightSeconds], ['awake', 'Despierto', sleep && sleep.awakeSeconds]];
     const stages = sleep
@@ -1238,19 +1239,6 @@
           parts.map((p) => '<span class="st-' + p[0] + '" style="flex:' + Math.max(0, Salud.num(p[2]) || 0) + '"></span>').join('') + '</div>' +
         '<div class="st-legend">' + parts.map((p) => '<span><i class="st-' + p[0] + '"></i>' + p[1] + ' ' + esc(Salud.hours(p[2])) + '</span>').join('') + '</div>'
       : '<div class="muted">Sin sueño registrado.</div>';
-    const days = Salud.daysOf(d);
-    const maxSleep = Math.max.apply(null, days.map((x) => Salud.num(x.sleepSeconds) || 0).concat([1]));
-    const maxSteps = Math.max.apply(null, days.map((x) => Salud.num(x.steps) || 0).concat([1]));
-    function bars(key, max, kind) {
-      return days.map((x) => {
-        const v = Salud.num(x[key]);
-        const h = v == null || v <= 0 ? 0 : Math.max(8, Math.round(v / max * 100));
-        const parsed = U.parseLocal(x.date);
-        const name = U.DIAS_C[parsed.getDay()];
-        const txt = name + ' ' + (v == null ? 'sin dato' : (kind === 'sleep' ? Salud.hours(v) : Salud.fmtInt(v) + ' pasos'));
-        return '<div class="tr-col" role="img" aria-label="' + esc(txt) + '"><div class="tr-bar" style="height:' + h + '%"></div><span>' + esc(name.slice(0, 1)) + '</span></div>';
-      }).join('');
-    }
     const list = Salud.workouts(d);
     const wos = list.map((w) => {
       const when = w.date ? U.fechaCorta(U.parseLocal(w.date)) : '';
@@ -1273,12 +1261,19 @@
         '<section class="card"><div class="card-h">🔋 Batería corporal</div><div class="metric-n">' + esc(bb) + '</div><div class="muted sm">Mínimo y máximo de hoy</div></section>' +
         '<section class="card"><div class="card-h">💓 VFC de anoche</div><div class="metric-n">' + esc(hrvTxt) + '</div><div class="muted sm">' + esc(hrvSub) + '</div></section>' +
         '<section class="card"><div class="card-h">👟 Pasos de hoy</div><div class="metric-n">' + esc(steps == null ? '–' : Salud.fmtInt(steps)) + '</div><div class="muted sm">de ' + esc(Salud.fmtInt(goalN)) + esc(goalNote) + '</div><div class="goal-track" role="img" aria-label="' + esc((steps == null ? 'sin pasos' : Salud.fmtInt(steps)) + ' de ' + Salud.fmtInt(goalN)) + '"><div style="width:' + pct + '%"></div></div></section>' +
-        '<section class="card"><div class="card-h">❤️ FC en reposo</div><div class="metric-n">' + esc(rhr) + '</div><div class="muted sm">Hoy</div></section>' +
+        '<section class="card"><div class="card-h">❤️ Pulso en reposo</div><div class="metric-n">' + esc(rhr) + '</div><div class="muted sm">Hoy</div></section>' +
       '</div>' +
-      '<section class="card"><div class="card-h">Tendencia de 7 días</div><div class="trend-box">' +
-        '<div class="tr-sleep"><div class="wo-k">SUEÑO</div><div class="tr-bars">' + bars('sleepSeconds', maxSleep, 'sleep') + '</div></div>' +
-        '<div><div class="wo-k">PASOS</div><div class="tr-bars">' + bars('steps', maxSteps, 'steps') + '</div></div>' +
-      '</div></section>' +
+      '<section class="card salud-trends"><div class="card-h">Tendencias' +
+        (d.demo ? '<span class="tag ej">EJEMPLO</span>' : '') +
+        '<div class="trend-toggle" role="group" aria-label="Periodo de las tendencias">' +
+          '<button type="button" data-act="saludRange" data-range="7" class="' + (S.saludDias === 28 ? '' : 'on') + '" aria-pressed="' + (S.saludDias === 28 ? 'false' : 'true') + '">7 días</button>' +
+          '<button type="button" data-act="saludRange" data-range="28" class="' + (S.saludDias === 28 ? 'on' : '') + '" aria-pressed="' + (S.saludDias === 28 ? 'true' : 'false') + '">28 días</button>' +
+        '</div></div>' +
+        '<p class="trend-hint">Un corte en la línea es un día sin dato, no un cero.</p>' +
+        (!d.demo && Salud.daysOf(d).length < (S.saludDias === 28 ? 28 : 7)
+          ? '<p class="trend-hint">Esta copia trae ' + Salud.daysOf(d).length + ' días. Para ver el periodo entero, publica la versión nueva del script y pulsa Actualizar.</p>'
+          : '') +
+        '<div class="trend-grid">' + Salud.trendCards(d, S.saludDias === 28 ? 28 : 7, t) + '</div></section>' +
       '<section class="card"><div class="card-h">Entrenos <span class="count">' + list.length + '</span></div>' +
         (wos || '<div class="muted">Sin entrenos en estos días.</div>') +
       '</section></div>';
@@ -1365,6 +1360,15 @@
       if (act === 'sleep') return sleep(true);
       if (act === 'railToggle') return applyRail({ toggle: true });
       if (act === 'railClose') return closeDrawer();
+      if (act === 'saludRange') {
+        const n = a.dataset.range === '28' ? 28 : 7;
+        if (S.saludDias === n) return;
+        const top = screenEl.scrollTop;
+        S.saludDias = n;
+        render();
+        screenEl.scrollTop = top;
+        return;
+      }
       if (act === 'clearDone') {
         const c = C();
         const rev = Sync.nextRev();
