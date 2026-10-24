@@ -25,6 +25,8 @@ window.MARCO_DEFAULTS = {
   // Tarifa de luz. NO se inventan precios: si quieres verlos, cópialos de tu factura en Ajustes.
   tariff: { name: '', prices: { punta: null, llano: null, valle: null } },
   nightClock: { enabled: true, from: '23:00', to: '07:00' },
+  // Referencia para los pasos si Garmin no manda objetivo. No es un dato personal.
+  stepsGoal: 10000,
   // slot: manana | cole | noche. kids vacío o ausente = todos. La semana sin niños (custodia) pausa las tareas.
   chores: [
     { id: 'cama', emoji: '🛏️', name: 'Hacer la cama', stars: 1, slot: 'manana' },

@@ -544,6 +544,10 @@
     return call('calendars', { start: start.toISOString(), end: end.toISOString() });
   }
 
+  async function fetchSalud() {
+    return call('salud');
+  }
+
   window.Sync = {
     attach: function (next) { api = Object.assign(api, next || {}); },
     configured: configured,
@@ -559,6 +563,7 @@
     touch: touch,
     syncNow: syncNow,
     fetchCalendars: fetchCalendars,
+    fetchSalud: fetchSalud,
     toEvents: toEvents,
     snapshot: snapshot
   };
