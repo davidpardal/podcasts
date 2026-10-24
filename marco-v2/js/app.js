@@ -1007,6 +1007,273 @@
     }
   });
 
+  /* ---------------- DINERO, PLAZOS, ENTRENO, SEMANA ---------------- */
+  const ENTRENO_TIPOS = [
+    { id: 'fuerza', label: 'Fuerza' },
+    { id: 'running', label: 'Running' },
+    { id: 'descanso', label: 'Descanso' }
+  ];
+  function parseEuro(raw) {
+    const v = String(raw == null ? '' : raw).trim().replace(/\s/g, '').replace('€', '').replace(',', '.');
+    if (v === '' || !isFinite(+v)) return null;
+    return Math.round(+v * 100) / 100;
+  }
+  function fmtEuro(n) {
+    if (n == null || !isFinite(+n)) return '—';
+    const x = Math.round(+n * 100) / 100;
+    let s;
+    try { s = x.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    catch (e) { s = x.toFixed(2).replace('.', ','); }
+    return s + ' €';
+  }
+  function euroTxt(n) { return n == null ? '' : String(n).replace('.', ','); }
+  function dineroRaw() {
+    if (settings.dinero && typeof settings.dinero === 'object') return settings.dinero;
+    if (CFG.dinero && typeof CFG.dinero === 'object') return CFG.dinero;
+    return window.MARCO_DEFAULTS.dinero;
+  }
+  function dinero() {
+    const raw = dineroRaw() || {};
+    const subs = Array.isArray(raw.suscripciones) ? raw.suscripciones : [];
+    return {
+      luzEste: parseEuro(raw.luzEste),
+      luzPasado: parseEuro(raw.luzPasado),
+      fibraEste: parseEuro(raw.fibraEste),
+      fibraPasado: parseEuro(raw.fibraPasado),
+      fibraAlt: parseEuro(raw.fibraAlt),
+      suscPasado: parseEuro(raw.suscPasado),
+      suscripciones: subs.filter((s) => s && String(s.name || '').trim()).map((s, i) => ({
+        id: s.id || ('sub-' + i),
+        name: String(s.name).trim(),
+        euros: parseEuro(s.euros),
+        eurosPasado: parseEuro(s.eurosPasado),
+        cancelBy: /^\d{4}-\d{2}-\d{2}$/.test(String(s.cancelBy || '')) ? String(s.cancelBy) : ''
+      }))
+    };
+  }
+  function sumEuros(list, key) {
+    let cents = 0;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i][key] == null) return null;
+      cents += Math.round(list[i][key] * 100);
+    }
+    return cents / 100;
+  }
+  function dineroTotales(d) {
+    const subsEste = sumEuros(d.suscripciones, 'euros');
+    let subsPasado = null;
+    if (!d.suscripciones.length) subsPasado = 0;
+    else if (d.suscripciones.every((s) => s.eurosPasado != null)) subsPasado = sumEuros(d.suscripciones, 'eurosPasado');
+    else if (d.suscPasado != null) subsPasado = d.suscPasado;
+    const este = (d.luzEste != null && d.fibraEste != null && subsEste != null)
+      ? (Math.round(d.luzEste * 100) + Math.round(d.fibraEste * 100) + Math.round(subsEste * 100)) / 100 : null;
+    const pasado = (d.luzPasado != null && d.fibraPasado != null && subsPasado != null)
+      ? (Math.round(d.luzPasado * 100) + Math.round(d.fibraPasado * 100) + Math.round(subsPasado * 100)) / 100 : null;
+    return { este: este, pasado: pasado, ahorro: (este != null && pasado != null) ? (Math.round(pasado * 100) - Math.round(este * 100)) / 100 : null, subsEste: subsEste, subsPasado: subsPasado };
+  }
+  function plazosRaw() {
+    if (Array.isArray(settings.plazos)) return settings.plazos;
+    if (Array.isArray(CFG.plazos)) return CFG.plazos;
+    return window.MARCO_DEFAULTS.plazos || [];
+  }
+  function plazos() {
+    return plazosRaw().filter((p) => p && String(p.title || '').trim() && /^\d{4}-\d{2}-\d{2}$/.test(String(p.due || ''))).map((p, i) => ({
+      id: p.id || ('plazo-' + i),
+      title: String(p.title).trim(),
+      due: String(p.due),
+      note: String(p.note || '').trim()
+    })).sort((a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title, 'es'));
+  }
+  function plazoEstado(due, t) {
+    const d = U.parseLocal(due);
+    if (isNaN(d)) return { tone: 'gris', days: null, label: 'fecha no válida' };
+    const days = U.dayDiff(U.sod(t), U.sod(d));
+    let tone = 'verde';
+    if (days < 0) tone = 'gris';
+    else if (days <= 3) tone = 'rojo';
+    else if (days <= 14) tone = 'ambar';
+    let label;
+    if (days < 0) label = days === -1 ? 'hace 1 día' : 'hace ' + (-days) + ' días';
+    else if (days === 0) label = 'hoy';
+    else if (days === 1) label = 'queda 1 día';
+    else label = 'quedan ' + days + ' días';
+    return { tone: tone, days: days, label: label };
+  }
+  function entrenoMap() {
+    const raw = (settings.entreno && typeof settings.entreno === 'object') ? settings.entreno : ((CFG.entreno && typeof CFG.entreno === 'object') ? CFG.entreno : {});
+    const out = {};
+    for (let i = 0; i < 7; i++) {
+      const v = String(raw[String(i)] || 'descanso');
+      out[String(i)] = ENTRENO_TIPOS.some((x) => x.id === v) ? v : 'descanso';
+    }
+    return out;
+  }
+  function entrenoHoy(t) { return entrenoMap()[String((t || now()).getDay())]; }
+  function entrenoLabel(id) {
+    const hit = ENTRENO_TIPOS.find((x) => x.id === id);
+    return hit ? hit.label : 'Descanso';
+  }
+  function esEjemplo(s) { return /ejemplo/i.test(String(s || '')); }
+  function subsToText(list) {
+    return (list || []).map((s) => [s.name, euroTxt(s.euros), s.cancelBy || '', euroTxt(s.eurosPasado)].join(' | ')).join('\n');
+  }
+  function parseSubs(txt) {
+    return String(txt || '').split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map((p, i) => ({
+      id: (slug(p[0], i) || 'sub') + '-' + i,
+      name: p[0],
+      euros: parseEuro(p[1]),
+      cancelBy: /^\d{4}-\d{2}-\d{2}$/.test(p[2] || '') ? p[2] : '',
+      eurosPasado: parseEuro(p[3])
+    }));
+  }
+  function plazosToText(list) {
+    return (list || []).map((p) => [p.title, p.due, p.note || ''].join(' | ')).join('\n');
+  }
+  function parsePlazos(txt) {
+    const rows = String(txt || '').split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0] || p[1]);
+    const ok = [];
+    let bad = 0;
+    rows.forEach((p, i) => {
+      if (!p[0] || !/^\d{4}-\d{2}-\d{2}$/.test(p[1] || '')) { bad++; return; }
+      ok.push({ id: (slug(p[0], i) || 'plazo') + '-' + p[1], title: p[0], due: p[1], note: p[2] || '' });
+    });
+    return { ok: ok, bad: bad };
+  }
+  function dineroCards() {
+    const d = dinero();
+    return '<section class="card wide" id="dineroCard"><div class="card-h">💶 Dinero del mes</div>' +
+      '<div class="muted sm">Importes en € que rellenas tú. No hay cuentas, contratos ni lecturas del contador. Los nombres con «ejemplo» son de muestra.</div>' +
+      '<div class="card-h sub">LUZ · TRAMOS HORARIOS</div>' +
+      '<div class="muted sm">Coste previsto del mes. La tarifa va por tramos (punta, llano y valle); las horas de hoy están en Luz.</div>' +
+      '<div class="grid2"><label class="lbl">Previsto este mes (€)<input id="dinLuz" inputmode="decimal" value="' + esc(euroTxt(d.luzEste)) + '" placeholder="0,00"></label>' +
+      '<label class="lbl">Mes pasado (€)<input id="dinLuzP" inputmode="decimal" value="' + esc(euroTxt(d.luzPasado)) + '" placeholder="0,00"></label></div>' +
+      '<div class="card-h sub">FIBRA Y MÓVIL</div>' +
+      '<div class="grid3"><label class="lbl">Este mes (€)<input id="dinFibra" inputmode="decimal" value="' + esc(euroTxt(d.fibraEste)) + '" placeholder="0,00"></label>' +
+      '<label class="lbl">Mes pasado (€)<input id="dinFibraP" inputmode="decimal" value="' + esc(euroTxt(d.fibraPasado)) + '" placeholder="0,00"></label>' +
+      '<label class="lbl">Alternativa fibra + 1 línea (€)<input id="dinFibraAlt" inputmode="decimal" value="' + esc(euroTxt(d.fibraAlt)) + '" placeholder="opcional"></label></div>' +
+      '<div class="card-h sub">SUSCRIPCIONES</div>' +
+      '<div class="muted sm">Una por línea: <code>nombre | €/mes | baja AAAA-MM-DD | € mes pasado</code>. La baja y el mes pasado son opcionales. Vacío = ninguna.</div>' +
+      '<textarea id="dinSubs" rows="4" spellcheck="false">' + esc(subsToText(d.suscripciones)) + '</textarea>' +
+      '<label class="lbl">Total suscripciones del mes pasado (€), si no lo pones en cada línea<input id="dinSuscP" inputmode="decimal" value="' + esc(euroTxt(d.suscPasado)) + '" placeholder="opcional"></label>' +
+      '<div class="row-btns"><button class="btn" data-act="saveDinero">Guardar dinero</button></div></section>';
+  }
+  function plazosCard() {
+    return '<section class="card" id="plazosCard"><div class="card-h">⏳ Plazos</div>' +
+      '<div class="muted sm">Una por línea: <code>título | AAAA-MM-DD | nota</code>. Rojo a 3 días o menos, ámbar a 14, verde después y gris si ya pasó. Los de «ejemplo» no son trámites reales.</div>' +
+      '<textarea id="plazosTxt" rows="5" spellcheck="false">' + esc(plazosToText(plazos())) + '</textarea>' +
+      '<div class="row-btns"><button class="btn" data-act="savePlazos">Guardar plazos</button></div></section>';
+  }
+  function entrenoCard() {
+    const map = entrenoMap();
+    const opts = (cur) => ENTRENO_TIPOS.map((t) => '<option value="' + t.id + '"' + (cur === t.id ? ' selected' : '') + '>' + esc(t.label) + '</option>').join('');
+    const rows = WD.map(([n, name]) => '<label class="lbl">' + name + '<select id="ent' + n + '">' + opts(map[String(n)]) + '</select></label>').join('');
+    return '<section class="card"><div class="card-h">💪 Entreno previsto</div>' +
+      '<div class="muted sm">Tipo de cada día para la franja Hoy de Salud: fuerza, running o descanso. No hay un plan personal en el código.</div>' +
+      '<div class="wds">' + rows + '</div>' +
+      '<div class="row-btns"><button class="btn" data-act="saveEntreno">Guardar entreno</button></div></section>';
+  }
+  function renderDinero() {
+    const d = dinero();
+    const tot = dineroTotales(d);
+    const ahorroCls = tot.ahorro == null ? '' : (tot.ahorro > 0 ? ' good' : (tot.ahorro < 0 ? ' bad' : ''));
+    const luzSub = d.luzPasado != null ? 'Mes pasado ' + fmtEuro(d.luzPasado) : 'Mes pasado sin rellenar';
+    let fibraSub = d.fibraPasado != null ? 'Mes pasado ' + fmtEuro(d.fibraPasado) : 'Mes pasado sin rellenar';
+    if (d.fibraAlt != null) {
+      fibraSub += ' · Alternativa fibra + 1 línea ' + fmtEuro(d.fibraAlt);
+      if (d.fibraEste != null) {
+        const diff = (Math.round(d.fibraAlt * 100) - Math.round(d.fibraEste * 100)) / 100;
+        fibraSub += diff === 0 ? ' (igual)' : (diff > 0 ? ' (la alternativa cuesta ' + fmtEuro(diff) + ' más)' : ' (la alternativa cuesta ' + fmtEuro(-diff) + ' menos)');
+      }
+    }
+    const rows = d.suscripciones.map((s) => {
+      const baja = s.cancelBy ? ' · baja ' + U.fechaCorta(U.parseLocal(s.cancelBy)) : '';
+      const tag = esEjemplo(s.name) ? ' <span class="tag ej">EJEMPLO</span>' : '';
+      return '<div class="sub-row"><span>' + esc(s.name) + tag + '<div class="muted sm" style="margin:0">' + esc(baja.replace(/^ · /, '') || 'Sin fecha de baja') + '</div></span><b>' + esc(fmtEuro(s.euros)) + '</b></div>';
+    }).join('');
+    const subsTotal = tot.subsEste == null ? '—' : fmtEuro(tot.subsEste);
+    screenEl.innerHTML = '<div class="dinero"><div class="dinero-grid">' +
+      '<section class="card span2 dinero-ahorro" data-ahorro="' + (tot.ahorro == null ? '' : String(tot.ahorro)) + '" data-este="' + (tot.este == null ? '' : String(tot.este)) + '" data-pasado="' + (tot.pasado == null ? '' : String(tot.pasado)) + '"><div class="card-h">Ahorro vs mes pasado</div>' +
+        '<div class="money-big' + ahorroCls + '">' + esc(fmtEuro(tot.ahorro)) + '</div>' +
+        '<div class="muted sm">Es la suma del mes pasado menos la de este mes (luz + fibra y móvil + suscripciones). Si falta un importe, sale —. Este mes ' + esc(fmtEuro(tot.este)) + ' · mes pasado ' + esc(fmtEuro(tot.pasado)) + '.</div></section>' +
+      '<section class="card"><div class="card-h">⚡ Luz del mes</div><div class="money-big">' + esc(fmtEuro(d.luzEste)) + '</div>' +
+        '<div class="muted sm">Coste previsto. Tarifa por tramos horarios: punta, llano y valle. Las horas están en Luz; el € lo pones en Ajustes. ' + esc(luzSub) + '.</div></section>' +
+      '<section class="card"><div class="card-h">📶 Fibra y móvil</div><div class="money-big">' + esc(fmtEuro(d.fibraEste)) + '</div>' +
+        '<div class="muted sm">' + esc(fibraSub) + '.</div></section>' +
+      '<section class="card span2"><div class="card-h">📌 Suscripciones <span class="count">' + esc(subsTotal) + '</span></div>' +
+        (rows || '<div class="muted">Ninguna. Puedes añadirlas en Ajustes.</div>') +
+        '<div class="muted sm">Los ítems «ejemplo» no son contratos reales. Precios siempre en €.</div></section>' +
+      '</div></div>';
+  }
+  function renderPlazos() {
+    const t = now();
+    const list = plazos();
+    const rows = list.map((p) => {
+      const st = plazoEstado(p.due, t);
+      const tag = esEjemplo(p.title) ? ' <span class="tag ej">EJEMPLO</span>' : '';
+      return '<article class="plazo ' + st.tone + '" data-tone="' + st.tone + '" data-due="' + esc(p.due) + '" data-title="' + esc(p.title) + '"><span class="plazo-dot ' + st.tone + '" aria-hidden="true"></span><div class="plazo-n">' + esc(p.title) + tag +
+        '<div class="muted sm" style="margin:0">' + esc(U.fechaCorta(U.parseLocal(p.due)) + (p.note ? ' · ' + p.note : '')) + '</div></div><div class="plazo-d">' + esc(st.label) + '</div></article>';
+    }).join('');
+    const legend = '<div class="muted sm"><span class="plazo-dot rojo"></span> Rojo: 3 días o menos · <span class="plazo-dot ambar"></span> Ámbar: 14 días o menos · <span class="plazo-dot verde"></span> Verde: más tarde · <span class="plazo-dot gris"></span> Gris: ya pasó. Ordenados por fecha.</div>';
+    screenEl.innerHTML = '<div class="plazos"><section class="card"><div class="card-h">⏳ Plazos <span class="count">' + list.length + '</span></div>' +
+      (rows || '<div class="muted">No hay plazos. Añádelos en Ajustes.</div>') + legend +
+      '<div class="muted sm">Registro, hotel y vuelo, si salen con «ejemplo», son marcadores de muestra. Cámbialos en Ajustes.</div></section></div>';
+  }
+  function agendaHasta(t) {
+    const next = custodyOn() ? Custody.nextHandover(t) : null;
+    const end = next ? U.sod(next.at) : addDays(U.sod(t), 6);
+    const seen = {};
+    const out = [];
+    let d = U.sod(t);
+    for (let i = 0; i < 16 && d <= end; i++) {
+      eventsOn(d).forEach((e) => {
+        if (!e || e.background || e.virtual || seen[e.id]) return;
+        seen[e.id] = true;
+        out.push(e);
+      });
+      d = addDays(d, 1);
+    }
+    return { events: out.slice(0, 8), until: next };
+  }
+  function tareasPorNino(t) {
+    const k = K();
+    const today = dayKey(t);
+    const done = (k.done || {})[today] || {};
+    return CFG.kids.map((kid) => {
+      const list = chores().filter((c) => choreKids(c).some((x) => x.id === kid.id));
+      const rows = list.map((c) => {
+        const on = (done[c.id] || []).indexOf(kid.id) !== -1;
+        const od = !on && slotOverdue(c, t);
+        return '<div class="chore' + (od ? ' overdue' : '') + '"><div class="ch-ic">' + esc(c.emoji) + '</div><div class="ch-n">' + esc(c.name) + '<div class="ch-s">' + esc(slotMeta(slotId(c)).name) + ' · +' + c.stars + ' ⭐' + (od ? ' · fuera de hora' : '') + '</div></div><div class="ch-kids"><button class="kid-btn' + (on ? ' on' : '') + '" style="--c:' + kid.color + '" data-chore="' + esc(c.id) + '" data-kid="' + esc(kid.id) + '">' + (on ? '✓ ' : '') + esc(kid.name) + '</button></div></div>';
+      }).join('') || '<div class="muted">Sin tareas para este niño.</div>';
+      return '<div class="semana-kid"><span class="kid-chip lg" style="--c:' + kid.color + '"><span class="av">' + esc((kid.name || '?')[0]) + '</span>' + esc(kid.name) + '</span>' + rows + '</div>';
+    }).join('');
+  }
+  function renderSemana() {
+    const t = now();
+    const home = kidsHome(t);
+    if (!home) {
+      const nx = custodyOn() ? Custody.nextHandover(t) : null;
+      const when = nx ? U.fechaCorta(nx.at) + ' a las ' + hm(nx.at) : '';
+      screenEl.innerHTML = '<div class="semana"><section class="card semana-calma"><div class="semana-pause">Semana sin niños — tareas pausadas</div>' +
+        '<div class="muted">Las tareas esperan a la próxima semana en casa.' + (when ? ' Vuelven el ' + esc(when) + '.' : '') + ' El menú de la izquierda sigue aquí.</div></section></div>';
+      return;
+    }
+    const nx = custodyOn() ? Custody.nextHandover(t) : null;
+    const until = nx ? 'Hasta el ' + U.fechaCorta(nx.at) + ' a las ' + hm(nx.at) + '.' : 'Custodia sin activar: las tareas siguen en marcha.';
+    const ag = agendaHasta(t);
+    const citas = ag.events.length
+      ? ag.events.map((e) => '<button type="button" class="agenda-row" data-ev="' + esc(e.id) + '"><b>' + esc(e.title) + '</b><span class="muted sm">' + esc((e.allDay ? 'Todo el día' : hm(e.start)) + ' · ' + U.fechaCorta(e.start)) + '</span></button>').join('')
+      : '<div class="muted">Sin citas en la agenda de estos días.</div>';
+    const n = compraViva(C()).filter((x) => !x.done).length;
+    const compraTxt = n === 0 ? 'Nada pendiente en la lista' : (n === 1 ? '1 pendiente en la lista' : n + ' pendientes en la lista');
+    screenEl.innerHTML = '<div class="semana"><div class="semana-banner">Esta semana con los niños</div><div class="semana-grid">' +
+      '<section class="card"><div class="card-h">Tareas de hoy <span class="muted sm">' + esc(until) + '</span></div>' + tareasPorNino(t) +
+        '<div class="muted sm">Las mismas tareas que en Niños, agrupadas por niño. Los nombres salen de Ajustes.</div></section>' +
+      '<div class="col"><section class="card"><div class="card-h">Agenda</div>' + citas +
+        '<div class="muted sm">Citas de los calendarios que ya tienes, hasta el próximo cambio. No hay datos de cole en el código.</div></section>' +
+        '<button type="button" class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + esc(compraTxt) + '</div><div class="sum-sub">La cesta se arma en Compra.</div></button></div></div></div>';
+  }
+
   /* ---------------- AJUSTES ---------------- */
   function syncStatusLine() {
     if (!syncReady()) return '<div class="sync-status" id="syncStatus">Sin configurar. Todo sigue en este dispositivo y el modo demo se comporta como siempre.</div>';
@@ -1062,6 +1329,9 @@
       '<section class="card"><div class="card-h">⚡ Precios de ' + esc(tariffName()) + '</div><div class="muted sm">Opcional. Cópialos de tu factura o contrato (€/kWh). Si los dejas vacíos no se enseña ningún precio.</div>' +
         '<div class="prices">' + ['punta', 'llano', 'valle'].map((k) => '<label>' + Luz.NOMBRE[k] + '<input id="p_' + k + '" inputmode="decimal" value="' + esc(pr[k] == null ? '' : pr[k]) + '" placeholder="0,000"></label>').join('') + '</div>' +
         '<div class="row-btns"><button class="btn" data-act="savePrices">Guardar precios</button></div></section>' +
+      dineroCards() +
+      plazosCard() +
+      entrenoCard() +
       '<section class="card"><div class="card-h">⭐ Tareas y recompensas</div><div class="muted sm">Una por línea: <code>emoji | nombre | estrellas | franja | niños</code>. Franja: <code>manana</code>, <code>cole</code> o <code>noche</code>. Niños: ids separados por coma; vacío = todos. En la semana sin niños (custodia) se pausan solas.</div>' +
         '<label class="lbl">Tareas</label><textarea id="choresTxt" rows="5">' + esc(ch) + '</textarea><label class="lbl">Recompensas</label><textarea id="rewardsTxt" rows="4">' + esc(rw) + '</textarea>' +
         '<div class="row-btns"><button class="btn" data-act="saveChores">Guardar</button><button class="btn ghost" data-act="resetStars">Poner estrellas a 0 🔒</button></div></section>' +
@@ -1125,6 +1395,38 @@
         settings.prices = {};
         ['punta', 'llano', 'valle'].forEach((k) => { const v = $('#p_' + k).value.trim().replace(',', '.'); settings.prices[k] = v === '' || isNaN(+v) ? null : +v; });
         saveSettings(); toast('Precios guardados'); break;
+      case 'saveDinero': {
+        const subs = parseSubs($('#dinSubs').value);
+        if (subs.some((s) => s.euros == null)) { toast('Cada suscripción necesita un importe en €'); break; }
+        settings.dinero = {
+          luzEste: parseEuro($('#dinLuz').value),
+          luzPasado: parseEuro($('#dinLuzP').value),
+          fibraEste: parseEuro($('#dinFibra').value),
+          fibraPasado: parseEuro($('#dinFibraP').value),
+          fibraAlt: parseEuro($('#dinFibraAlt').value),
+          suscPasado: parseEuro($('#dinSuscP').value),
+          suscripciones: subs
+        };
+        saveSettings(); toast('Dinero guardado'); render(); break;
+      }
+      case 'savePlazos': {
+        const parsed = parsePlazos($('#plazosTxt').value);
+        if (parsed.bad && !parsed.ok.length && $('#plazosTxt').value.trim()) { toast('Cada plazo necesita título y fecha AAAA-MM-DD'); break; }
+        settings.plazos = parsed.ok;
+        saveSettings();
+        toast(parsed.bad ? 'Plazos guardados. ' + parsed.bad + (parsed.bad === 1 ? ' línea no válida' : ' líneas no válidas') : 'Plazos guardados');
+        render(); break;
+      }
+      case 'saveEntreno': {
+        const ent = {};
+        WD.forEach(([n]) => {
+          const el = $('#ent' + n);
+          const v = el ? el.value : 'descanso';
+          ent[String(n)] = ENTRENO_TIPOS.some((x) => x.id === v) ? v : 'descanso';
+        });
+        settings.entreno = ent;
+        saveSettings(); toast('Entreno guardado'); break;
+      }
       case 'saveChores': {
         const ch = parseLines($('#choresTxt').value, 'stars'), rw = parseLines($('#rewardsTxt').value, 'cost');
         const adv = store.get('advanced', {}); if (ch.length) adv.chores = ch; if (rw.length) adv.rewards = rw;
@@ -1217,10 +1519,43 @@
   }
 
   /* ---------------- SALUD ---------------- */
+  function saludHoyStrip(d) {
+    const t = now();
+    const usable = d && d.ok !== false && !d.empty;
+    const sleep = usable ? Salud.lastSleep(d) : null;
+    const day = usable ? Salud.today(d, t) : null;
+    const charged = day ? Salud.num(day.bodyBatteryCharged) : null;
+    const bbMin = day ? Salud.num(day.bodyBatteryMin) : null;
+    const bbMax = day ? Salud.num(day.bodyBatteryMax) : null;
+    let bbMain = '—';
+    let bbSub = 'Sin batería corporal en esta copia';
+    if (charged != null) {
+      bbMain = Salud.fmtInt(charged);
+      const bits = [];
+      if (bbMin != null) bits.push('mín ' + Salud.fmtInt(bbMin));
+      if (bbMax != null) bits.push('máx ' + Salud.fmtInt(bbMax));
+      bbSub = bits.length ? bits.join(' · ') : 'Energía de hoy';
+    } else if (bbMin != null || bbMax != null) {
+      bbMain = (bbMin != null ? Salud.fmtInt(bbMin) : '–') + ' – ' + (bbMax != null ? Salud.fmtInt(bbMax) : '–');
+      bbSub = 'Mínimo y máximo de hoy';
+    }
+    const sleepMain = sleep ? Salud.hours(sleep.sleepSeconds) : '—';
+    const sleepSub = sleep
+      ? ('Puntuación ' + (sleep.sleepScore != null ? sleep.sleepScore : '–') + (sleep.date ? ' · ' + U.fechaCorta(U.parseLocal(sleep.date)) : ''))
+      : 'Sin sueño en esta copia';
+    const tipoId = entrenoHoy(t);
+    const wos = usable ? Salud.workouts(d).filter((w) => w.date === dayKey(t)) : [];
+    const woSub = wos.length ? ('Garmin: ' + (wos[0].name || Salud.tipo(wos[0].type))) : 'Según Ajustes · fuerza, running o descanso';
+    return '<section class="card salud-hoy"><div class="card-h">Hoy</div><div class="salud-hoy-row">' +
+      '<div class="hoy-bit"><div class="wo-k">SUEÑO</div><div class="metric-n">' + esc(sleepMain) + '</div><div class="muted sm">' + esc(sleepSub) + '</div></div>' +
+      '<div class="hoy-bit"><div class="wo-k">BATERÍA / ENERGÍA</div><div class="metric-n">' + esc(bbMain) + '</div><div class="muted sm">' + esc(bbSub) + '</div></div>' +
+      '<div class="hoy-bit" data-entreno="' + esc(tipoId) + '"><div class="wo-k">ENTRENO</div><div class="metric-n">' + esc(entrenoLabel(tipoId)) + '</div><div class="muted sm">' + esc(woSub) + '</div></div>' +
+      '</div></section>';
+  }
   function renderSalud() {
     const d = saludNow();
     if (!d || d.empty || d.ok === false) {
-      screenEl.innerHTML = '<div class="salud"><section class="card salud-empty"><div class="card-h">💓 Salud</div><div class="sum-big">Sin datos de Garmin</div><div class="muted sm">Con la sincronización activa, el marco pide el resumen al script. Si Garmin no responde y no hay una copia en este dispositivo, no se inventan cifras.</div></section></div>';
+      screenEl.innerHTML = '<div class="salud">' + saludHoyStrip(d) + '<section class="card salud-empty"><div class="card-h">💓 Salud</div><div class="sum-big">Sin datos de Garmin</div><div class="muted sm">Con la sincronización activa, el marco pide el resumen al script. Si Garmin no responde y no hay una copia en este dispositivo, no se inventan cifras. El tipo de entreno sí se elige en Ajustes.</div></section></div>';
       return;
     }
     const t = now();
@@ -1250,7 +1585,7 @@
     const hrvTxt = hrv && Salud.num(hrv.hrv) != null ? Salud.fmtInt(hrv.hrv) : '–';
     const hrvSub = hrv ? ('Semana ' + (Salud.num(hrv.hrvWeekly) != null ? Salud.fmtInt(hrv.hrvWeekly) : '–') + ' · ' + Salud.hrvLabel(hrv.hrvStatus)) : 'Sin VFC';
     const goalNote = d.stepsGoal ? '' : ' · objetivo de referencia';
-    screenEl.innerHTML = '<div class="salud">' + note +
+    screenEl.innerHTML = '<div class="salud">' + note + saludHoyStrip(d) +
       '<div class="salud-grid">' +
         '<section class="card salud-sleep"><div class="card-h">🌙 Sueño de anoche</div>' +
           '<div class="sleep-big">' + esc(sleep ? Salud.hours(sleep.sleepSeconds) : '–') + '</div>' +
@@ -1280,7 +1615,7 @@
   }
 
   /* ---------------- Navegación y eventos ---------------- */
-  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, ninos: renderNinos, compra: renderCompra, menu: renderMenu, salud: renderSalud, ajustes: renderAjustes };
+  const SCREENS = { hoy: renderHoy, calendario: renderCalendario, luz: renderLuz, dinero: renderDinero, plazos: renderPlazos, ninos: renderNinos, semana: renderSemana, compra: renderCompra, menu: renderMenu, salud: renderSalud, ajustes: renderAjustes };
   function render() {
     document.querySelectorAll('#rail [data-go]').forEach((b) => {
       const on = b.dataset.go === S.screen;

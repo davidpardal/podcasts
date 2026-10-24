@@ -27,6 +27,27 @@ window.MARCO_DEFAULTS = {
   nightClock: { enabled: true, from: '23:00', to: '07:00' },
   // Referencia para los pasos si Garmin no manda objetivo. No es un dato personal.
   stepsGoal: 10000,
+  // Importes del mes. Vacíos hasta Ajustes. Las suscripciones de abajo son de muestra.
+  dinero: {
+    luzEste: null,
+    luzPasado: null,
+    fibraEste: null,
+    fibraPasado: null,
+    fibraAlt: null,
+    suscPasado: null,
+    suscripciones: [
+      { id: 'ej-revista', name: 'Revista (ejemplo)', euros: 4.99, cancelBy: '', eurosPasado: null },
+      { id: 'ej-musica', name: 'Música (ejemplo)', euros: 10.99, cancelBy: '2026-11-30', eurosPasado: null }
+    ]
+  },
+  // Plazos de muestra (título, fecha, nota). No son trámites reales.
+  plazos: [
+    { id: 'ej-registro', title: 'Registro (ejemplo)', due: '2026-10-23', note: 'Ejemplo, no es un trámite real' },
+    { id: 'ej-hotel', title: 'Hotel (ejemplo)', due: '2026-11-02', note: 'Ejemplo' },
+    { id: 'ej-vuelo', title: 'Vuelo (ejemplo)', due: '2026-12-18', note: 'Ejemplo' }
+  ],
+  // 0 = domingo … 6 = sábado. fuerza | running | descanso. No es un plan personal.
+  entreno: { 0: 'descanso', 1: 'descanso', 2: 'descanso', 3: 'descanso', 4: 'descanso', 5: 'descanso', 6: 'descanso' },
   // slot: manana | cole | noche. kids vacío o ausente = todos. La semana sin niños (custodia) pausa las tareas.
   chores: [
     { id: 'cama', emoji: '🛏️', name: 'Hacer la cama', stars: 1, slot: 'manana' },

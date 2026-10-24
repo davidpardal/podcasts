@@ -770,6 +770,7 @@ function diaVacio_(date) {
     restingHr: null,
     bodyBatteryMin: null,
     bodyBatteryMax: null,
+    bodyBatteryCharged: null,
     sleepSeconds: null,
     sleepScore: null,
     deepSeconds: null,
@@ -902,6 +903,10 @@ function compactarSalud_(activities, summaries, sleepNow, sleepPrev, hrv, weight
     day.restingHr = rhr;
     day.bodyBatteryMin = entero_(descend_(row, ['bodyBattery', 'minValue']));
     day.bodyBatteryMax = entero_(descend_(row, ['bodyBattery', 'maxValue']));
+    var bbNow = entero_(descend_(row, ['bodyBattery', 'chargedValue']));
+    if (bbNow == null) bbNow = entero_(descend_(row, ['bodyBattery', 'currentValue']));
+    if (bbNow == null) bbNow = entero_(descend_(row, ['bodyBattery', 'mostRecentValue']));
+    day.bodyBatteryCharged = bbNow;
     var goal = entero_(descend_(row, ['movement', 'stepGoal']));
     if (goal == null) goal = entero_(descend_(row, ['movement', 'goal']));
     if (goal == null) goal = entero_(descend_(row, ['movement', 'stepsGoal']));
