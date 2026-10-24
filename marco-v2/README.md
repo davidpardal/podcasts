@@ -65,7 +65,7 @@ Sirve para dos cosas, sin montar un servidor:
 
 No se sincronizan los nombres de la familia, el PIN, los precios ni las direcciones. Las tareas (el catálogo) se definen en cada dispositivo, o las copias con Importar/Exportar; lo que viaja es quién las ha hecho y las estrellas. **«Haz la cesta» sigue igual:** copia los pendientes y abre el correo de Ajustes. El marco no entra en la tienda.
 
-**Salud** (sueño, batería corporal, VFC, pasos, pulso en reposo y los últimos entrenos) sale de la API personal de Garmin, leída por el mismo script. El marco la pide al arrancar y cada 30 minutos, y guarda la última copia en el dispositivo para abrirla sin red. Si no configuras la sincronización, la pantalla enseña datos de ejemplo bien marcados. La clave de Garmin no baja al marco: va en `GARMIN_PERSONAL_API_KEY`, como explica `apps-script/README.md`.
+**Salud** (sueño, batería corporal, VFC, pasos, pulso en reposo, peso y los últimos entrenos) sale de la API personal de Garmin, leída por el mismo script. En la pantalla hay tendencias de **7 y 28 días** (valor de ahora, media del periodo y cambio respecto al periodo anterior). Un día sin medida es un corte, no un cero. El marco la pide al arrancar y cada 30 minutos, y guarda la última copia en el dispositivo para abrirla sin red. Si no configuras la sincronización, la pantalla enseña **datos de ejemplo** de 28 días, bien marcados. La clave de Garmin no baja al marco: va en `GARMIN_PERSONAL_API_KEY`, como explica `apps-script/README.md`. Para ver los 28 días y el peso de verdad hay que publicar una **versión nueva** del Apps Script (la URL no cambia).
 
 Los calendarios **de fondo** se pueden fijar de dos maneras (vale cualquiera):
 

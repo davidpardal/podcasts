@@ -17,13 +17,18 @@ Los nombres se escriben tal cual, en mayúsculas. El valor de Garmin es el que t
 
 Después de cambiar una propiedad no hace falta una implementación nueva. Después de cambiar `Code.gs` o `appsscript.json`, sí: **Implementar → Administrar implementaciones → editar → nueva versión**. La primera vez que el script llame a Garmin, Google pedirá permiso para conectarse a un servicio externo (`script.external_request`). Acéptalo. `probar` en el editor dice si la propiedad de Garmin está presente y **no imprime** ni la clave ni ningún token.
 
+**Esta versión del script hay que publicarla otra vez.** Las tendencias de 28 días y el peso están en `Code.gs`. Si la aplicación web sigue en una versión anterior, el marco solo recibe 7 días y sin peso. No hace falta una implementación nueva ni cambiar la URL del marco: **Implementar → Administrar implementaciones → lápiz de la aplicación web → Versión: Nueva versión → Implementar**. La dirección que acaba en `/exec` se queda igual. En el marco, pulsa **Actualizar** (la copia de este dispositivo se renueva en ese momento, o sola a los 30 minutos).
+
 ## Qué hace la acción `salud`
 
 El marco la pide al abrir y cada 30 minutos, con la misma `MARCO_KEY` en el cuerpo (nunca en la URL). El script:
 
 1. Lee `GARMIN_PERSONAL_API_KEY` de las propiedades.
 2. Pide un JWT con `POST https://personal.connectapi.garmin.com/personalapitoken-service/personal-api/personal-api-key/token` y la cabecera `Authorization: ApiKey …`. El cuerpo de la respuesta es el token en texto. Lo deja en `CacheService` hasta unos 5 minutos antes de la fecha `exp` del JWT.
-3. Con `Authorization: Bearer …` lee los últimos 7 días (sueño, resumen diario, VFC y hasta 10 actividades) y devuelve un JSON corto.
-4. Guarda esa respuesta unos 30 minutos. Si Garmin falla, devuelve la última respuesta buena con `"stale": true`. Si no hay ninguna, `{ "ok": false, "error": "Sin datos de Garmin" }`.
+3. Con `Authorization: Bearer …` pide los **últimos 28 días** y, solo para calcular la variación, los 28 anteriores (no viajan día a día). Son el resumen diario (pasos y pulso en reposo: `/usersummary-service/v2/dailysummaries`), el sueño (como mucho 31 días por llamada, por eso van en dos tandas), la VFC (`/hrv-service/hrv/daily/…`), el peso (`/weight-service/weight/range/…`, en gramos) y hasta unas 100 actividades.
+4. Devuelve un JSON corto: `days` (28 fechas, de la más antigua a hoy), `previous.avg` (medias del periodo anterior) y los últimos entrenos. Si un día no tiene medida, **ese campo no viene**: el marco deja un corte en la línea y no pinta un cero. El peso del día es el último pesaje (`weightGrams`).
+5. Guarda esa respuesta unos 30 minutos (`CacheService`) y una copia en las propiedades por si Garmin falla después (`GARMIN_SALUD_N` y `GARMIN_SALUD_0`…). Si Garmin falla, devuelve la última respuesta buena con `"stale": true`. Si no hay ninguna, `{ "ok": false, "error": "Sin datos de Garmin" }`.
 
-La clave y el token no se escriben en el registro ni se mandan al marco. El marco guarda el JSON en el dispositivo (`marco-v2.cache.salud`) para poder abrirlo sin red. Para olvidar la copia del script, borra la propiedad `GARMIN_SALUD_LAST`.
+La clave y el token no se escriben en el registro ni se mandan al marco. El marco guarda el JSON en el dispositivo (`marco-v2.cache.salud`) para poder abrirlo sin red. Para olvidar la copia del script, borra `GARMIN_SALUD_N`, `GARMIN_SALUD_0`, `GARMIN_SALUD_1`… y, si aún existe, `GARMIN_SALUD_LAST`.
+
+Sin pesajes en Garmin Connect, la gráfica de peso sale con cortes. El resto de Salud sigue igual.
