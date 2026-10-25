@@ -166,6 +166,46 @@ with sync_playwright() as p:
                 page.fill("#addInput", item); page.press("#addInput", "Enter")
             page.click(".item >> nth=3")
             check("compra: 4 pendientes", page.inner_text(".compra .count") == "4")
+            hab = page.evaluate("""() => {
+              const prev = localStorage.getItem('marco-v2.compra');
+              const pad = (n) => String(n).padStart(2, '0');
+              function paint(pendingN, total) {
+                const counts = {};
+                const items = [];
+                for (let i = 1; i <= total; i++) {
+                  const name = 'Prod ' + pad(i);
+                  counts[name] = 1000 - i;
+                  if (i <= pendingN) items.push({ id: 'hab' + i, name: name, done: false, deleted: false, at: 1, rev: 1 });
+                }
+                localStorage.setItem('marco-v2.compra', JSON.stringify({ items: items, counts: counts }));
+                Marco.render();
+                return Array.from(document.querySelectorAll('.hab')).map((el) => el.getAttribute('data-hab'));
+              }
+              function paintBase() {
+                const counts = {};
+                for (let i = 1; i <= 18; i++) counts['Prod ' + pad(i)] = 1000 - i;
+                localStorage.setItem('marco-v2.compra', JSON.stringify({ items: [], counts: counts }));
+                Marco.render();
+                return Array.from(document.querySelectorAll('.hab')).map((el) => el.getAttribute('data-hab'));
+              }
+              let top, backfill, capped, base;
+              try {
+                top = paint(0, 50);
+                backfill = paint(10, 50);
+                capped = paint(25, 50);
+                base = paintBase();
+              } finally {
+                if (prev == null) localStorage.removeItem('marco-v2.compra');
+                else localStorage.setItem('marco-v2.compra', prev);
+                Marco.render();
+              }
+              return { top: top, backfill: backfill, capped: capped, base: base };
+            }""")
+            seq = lambda a, b: ["Prod %02d" % i for i in range(a, b + 1)]
+            check("habituales: 21 en pantalla, los más frecuentes", hab["top"] == seq(1, 21), hab["top"])
+            check("habituales: otros 21 del ranking rellenan si los primeros ya están", hab["backfill"] == seq(11, 31), hab["backfill"])
+            check("habituales: el grupo se corta en 42 (no entra el 43)", hab["capped"] == seq(26, 42), hab["capped"])
+            check("habituales: tras los contadores entran los de la base", hab["base"] == seq(1, 18) + ["Leche", "Pan", "Huevos"], hab["base"])
         if tab == "ajustes":
             check("ajustes: formulario de familia e importar/exportar", page.is_visible("#f_kids") and page.is_visible("#impTxt"))
             check("ajustes: calendarios de fondo", "De fondo" in page.inner_text(".ajustes"))

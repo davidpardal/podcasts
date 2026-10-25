@@ -777,13 +777,25 @@
     c.counts[name] = (c.counts[name] || 0) + 1;
     saveC(c); render();
   }
+  // 21 en pantalla. El ranking admite 42 (otros 21 detrás) por si los primeros
+  // ya están en la lista pendiente; no hay segunda página.
   function habituales(c) {
+    const SHOW = 21;
+    const POOL = 42;
     const onList = new Set(compraViva(c).filter((x) => !x.done).map((x) => x.name.toLowerCase()));
     const fromCounts = Object.entries(c.counts).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     const all = fromCounts.concat(CFG.habitualesBase);
-    const seen = new Set(); const out = [];
-    all.forEach((n) => { const l = n.toLowerCase(); if (!onList.has(l) && !seen.has(l)) { seen.add(l); out.push(n); } });
-    return out.slice(0, 9);
+    const seen = new Set(); const ranked = [];
+    all.forEach((n) => {
+      const l = n.toLowerCase();
+      if (seen.has(l)) return;
+      seen.add(l);
+      ranked.push(n);
+    });
+    const pool = ranked.slice(0, POOL);
+    const out = [];
+    pool.forEach((n) => { if (!onList.has(n.toLowerCase()) && out.length < SHOW) out.push(n); });
+    return out;
   }
   function listaPendienteTexto() {
     const names = compraViva(C()).filter((x) => !x.done).map((x) => x.name);
