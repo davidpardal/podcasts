@@ -1,7 +1,7 @@
 /**
  * Marco familiar v2 · puente con Google (calendarios + datos compartidos).
  * Se pega en script.google.com. NO pongas aquí claves ni datos personales.
- * MARCO_KEY y GARMIN_PERSONAL_API_KEY van en Propiedades del script
+ * MARCO_KEY, GARMIN_PERSONAL_API_KEY y AEMET_API_KEY van en Propiedades del script
  * (Ajustes del proyecto). El script no las escribe en el registro ni las devuelve.
  *
  * La mezcla es la misma que en js/sync.js (mergeState): por elemento,
@@ -45,6 +45,8 @@ function probar() {
   Logger.log('De fondo: ' + BACKGROUND_CALENDARS.join(', '));
   var garminListo = claveGarmin_().length > 0;
   Logger.log(garminListo ? 'Garmin: propiedad GARMIN_PERSONAL_API_KEY presente (no se muestra).' : 'Garmin: falta GARMIN_PERSONAL_API_KEY. Salud no tendrá datos.');
+  var aemetListo = claveAemet_().length > 0;
+  Logger.log(aemetListo ? 'AEMET: propiedad AEMET_API_KEY presente (no se muestra).' : 'AEMET: falta AEMET_API_KEY. No habrá avisos.');
 }
 
 function handle_(e, body) {
@@ -60,6 +62,7 @@ function handle_(e, body) {
     if (action === 'calendars') return json_(calendarios_(body));
     if (action === 'sync') return json_(sincronizar_(body.state || {}));
     if (action === 'salud') return json_(salud_());
+    if (action === 'avisos') return json_(avisos_());
     return json_({ ok: false, error: 'Acción desconocida' });
   } catch (err) {
     return json_({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -974,4 +977,253 @@ function compactarSalud_(activities, summaries, sleepNow, sleepPrev, hrv, weight
     previous: { from: prevStart, to: prevEnd, avg: avg },
     workouts: workouts
   };
+}
+
+/* ---------- Avisos AEMET (OpenData, CAP) ----------
+ * La clave AEMET_API_KEY solo se lee de Propiedades del script.
+ * No se escribe en el registro ni se devuelve al marco.
+ * Área por defecto: eus (País Vasco). Se queda lo naranja y lo rojo de Álava / Vitoria.
+ * Si AEMET falla, ok:false y el marco no pinta chip.
+ */
+
+var AEMET_AVISOS_URL = 'https://opendata.aemet.es/opendata/api/avisos_cap/ultimoelaborado/area/';
+var AEMET_CACHE_KEY = 'mv2-aemet-avisos';
+
+function claveAemet_() {
+  return String(PropertiesService.getScriptProperties().getProperty('AEMET_API_KEY') || '').trim();
+}
+
+function areaAemet_() {
+  var raw = String(PropertiesService.getScriptProperties().getProperty('AEMET_AREA') || 'eus').trim().toLowerCase();
+  return /^[a-z]{2,8}$/.test(raw) ? raw : 'eus';
+}
+
+function foldAemet_(s) {
+  return String(s || '').toLowerCase()
+    .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o')
+    .replace(/ú/g, 'u').replace(/ü/g, 'u').replace(/ñ/g, 'n');
+}
+
+function avisoFallo_(msg, key) {
+  var s = String(msg || 'Sin avisos de AEMET');
+  if (key) s = s.split(key).join('…');
+  return { ok: false, error: s.slice(0, 180) };
+}
+
+function avisos_() {
+  var key = claveAemet_();
+  if (!key) return { ok: true, alerts: [], configured: false };
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get(AEMET_CACHE_KEY);
+  if (hit) {
+    try { return JSON.parse(hit); } catch (e) { /* caché rara: se pide otra vez */ }
+  }
+  try {
+    var area = areaAemet_();
+    var url = AEMET_AVISOS_URL + area + '?api_key=' + encodeURIComponent(key);
+    var first = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    var code = first.getResponseCode();
+    var metaText = first.getContentText() || '';
+    if (code < 200 || code >= 300) return avisoFallo_('AEMET no responde', key);
+    var meta = {};
+    try { meta = JSON.parse(metaText); } catch (e) { return avisoFallo_('AEMET no ha devuelto JSON', key); }
+    if (!meta || !meta.datos) return avisoFallo_('AEMET sin datos', key);
+    var second = UrlFetchApp.fetch(String(meta.datos), { muteHttpExceptions: true, followRedirects: true });
+    if (second.getResponseCode() < 200 || second.getResponseCode() >= 300) return avisoFallo_('AEMET sin el aviso', key);
+    var alerts = filtrarAvisos_(cuerpoAvisos_(second.getContentText() || ''));
+    var out = { ok: true, alerts: alerts, fetched: new Date().toISOString(), area: area };
+    try { cache.put(AEMET_CACHE_KEY, JSON.stringify(out), 1800); } catch (e2) { /* el marco igual recibe la lista */ }
+    return out;
+  } catch (err) {
+    return avisoFallo_('Sin avisos de AEMET', key);
+  }
+}
+
+function cuerpoAvisos_(raw) {
+  var s = String(raw || '').replace(/^\uFEFF/, '').trim();
+  if (!s) return [];
+  if (s.charAt(0) === '"' || s.charAt(0) === '{' || s.charAt(0) === '[') {
+    try {
+      var parsed = JSON.parse(s);
+      if (typeof parsed === 'string') s = String(parsed).trim();
+      else return avisosDesdeJson_(parsed);
+    } catch (e) { /* sigue como XML */ }
+  }
+  return avisosDesdeXmlTexto_(s);
+}
+
+function avisosDesdeXmlTexto_(s) {
+  var out = [];
+  if (s.indexOf('<alert') === -1) return out;
+  var parts = s.split(/<\/alert>/i);
+  parts.forEach(function (part) {
+    var i = part.search(/<alert[\s>]/i);
+    if (i < 0) return;
+    var xml = part.slice(i) + '</alert>';
+    try {
+      var root = XmlService.parse(xml).getRootElement();
+      avisosDeAlerta_(root).forEach(function (a) { out.push(a); });
+    } catch (e) { /* un aviso mal formado no tira el resto */ }
+  });
+  return out;
+}
+
+function hijo_(el, name) {
+  if (!el) return null;
+  var ns = el.getNamespace();
+  var c = ns ? el.getChild(name, ns) : null;
+  if (!c) c = el.getChild(name);
+  return c;
+}
+
+function hijos_(el, name) {
+  if (!el) return [];
+  var ns = el.getNamespace();
+  var list = ns ? el.getChildren(name, ns) : [];
+  if (!list || !list.length) list = el.getChildren(name);
+  return list || [];
+}
+
+function texto_(el, name) {
+  var c = hijo_(el, name);
+  return c ? String(c.getText() || '').trim() : '';
+}
+
+function avisosDeAlerta_(alertEl) {
+  var status = foldAemet_(texto_(alertEl, 'status'));
+  var msg = foldAemet_(texto_(alertEl, 'msgType'));
+  if (msg === 'cancel' || status === 'cancel' || status === 'test' || status === 'exercise' || status === 'draft') return [];
+  var infos = hijos_(alertEl, 'info');
+  if (!infos.length) return [];
+  var prefer = infos.filter(function (info) { return foldAemet_(texto_(info, 'language')).indexOf('es') === 0; });
+  var list = prefer.length ? prefer : infos;
+  var out = [];
+  list.forEach(function (info) {
+    var aviso = avisoDeInfo_(info);
+    if (aviso) out.push(aviso);
+  });
+  return out;
+}
+
+function avisoDeInfo_(info) {
+  var params = [];
+  var nivelTxt = '';
+  hijos_(info, 'parameter').forEach(function (p) {
+    var name = texto_(p, 'valueName');
+    var value = texto_(p, 'value');
+    if (!value) return;
+    params.push(value);
+    if (/nivel/i.test(name)) nivelTxt += ' ' + value;
+  });
+  var level = nivelAviso_(nivelTxt || params.join(' '), texto_(info, 'severity'));
+  if (!level) return null;
+  var areas = [];
+  var codes = [];
+  hijos_(info, 'area').forEach(function (area) {
+    var desc = texto_(area, 'areaDesc');
+    if (desc) areas.push(desc);
+    hijos_(area, 'geocode').forEach(function (g) {
+      var value = texto_(g, 'value');
+      if (value) codes.push(value);
+    });
+  });
+  var blob = areas.concat(params).join(' · ');
+  if (!esAlava_(blob, codes)) return null;
+  var onset = texto_(info, 'onset') || texto_(info, 'effective');
+  var expires = texto_(info, 'expires');
+  if (!vigenteAviso_(onset, expires)) return null;
+  var event = texto_(info, 'event');
+  var headline = texto_(info, 'headline');
+  var description = texto_(info, 'description');
+  var instruction = texto_(info, 'instruction');
+  var text = description;
+  if (instruction) text = text ? (text + '\n\n' + instruction) : instruction;
+  if (!text) text = headline;
+  return {
+    level: level,
+    event: event.slice(0, 80),
+    headline: headline.slice(0, 240),
+    text: String(text || '').slice(0, 1500),
+    area: areas.join(', ').slice(0, 160) || 'Álava',
+    until: expires,
+    onset: onset
+  };
+}
+
+function nivelAviso_(params, severity) {
+  var n = foldAemet_(params);
+  if (/\brojo\b/.test(n)) return 'rojo';
+  if (/\bnaranja\b/.test(n)) return 'naranja';
+  if (/\bamarillo\b/.test(n)) return '';
+  var s = foldAemet_(severity);
+  if (s === 'extreme') return 'rojo';
+  if (s === 'severe') return 'naranja';
+  return '';
+}
+
+function codigoAlava_(code) {
+  var c = String(code || '').trim();
+  return c === '01' || c === '1' || /^01\d{3}$/.test(c);
+}
+
+function codigoFuera_(code) {
+  var c = String(code || '').trim();
+  return c === '20' || c === '48' || /^20\d{3}$/.test(c) || /^48\d{3}$/.test(c);
+}
+
+function esAlava_(text, codes) {
+  var list = codes || [];
+  if (list.some(codigoAlava_)) return true;
+  var t = foldAemet_(text);
+  var alava = /alava|araba|vitoria|gasteiz/.test(t);
+  var otra = /bizkaia|vizcaya|gipuzkoa|guipuzcoa|donostia|bilbao/.test(t) || list.some(codigoFuera_);
+  if (alava) return true;
+  if (otra) return false;
+  return /pais vasco|euskadi|comunidad autonoma vasca/.test(t);
+}
+
+function vigenteAviso_(onset, expires) {
+  var now = Date.now();
+  var exp = Date.parse(expires || '');
+  if (!isNaN(exp) && exp < now) return false;
+  var on = Date.parse(onset || '');
+  if (!isNaN(on) && on > now + 48 * 3600000) return false;
+  return true;
+}
+
+function filtrarAvisos_(list) {
+  var seen = {};
+  var out = [];
+  (list || []).forEach(function (a) {
+    if (!a || (a.level !== 'rojo' && a.level !== 'naranja')) return;
+    var k = a.level + '|' + foldAemet_(a.event) + '|' + foldAemet_(a.area);
+    if (seen[k]) return;
+    seen[k] = true;
+    out.push(a);
+  });
+  out.sort(function (a, b) { return (a.level === 'rojo' ? 0 : 1) - (b.level === 'rojo' ? 0 : 1); });
+  return out.slice(0, 6);
+}
+
+function avisosDesdeJson_(j) {
+  if (!j) return [];
+  if (typeof j === 'string') return avisosDesdeXmlTexto_(j);
+  var arr = Array.isArray(j) ? j : (j.alerts || j.avisos || []);
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function (a) {
+    if (!a || typeof a !== 'object') return null;
+    var level = nivelAviso_(a.level || a.nivel || '', a.severity || a.severidad || '');
+    var area = String(a.area || a.areaDesc || a.zona || '');
+    var text = String(a.text || a.description || a.descripcion || a.headline || '');
+    if (!level || !esAlava_(area + ' ' + text, a.codes || [])) return null;
+    return {
+      level: level,
+      event: String(a.event || a.evento || '').slice(0, 80),
+      headline: String(a.headline || a.titulo || '').slice(0, 240),
+      text: text.slice(0, 1500),
+      area: area.slice(0, 160) || 'Álava',
+      until: String(a.until || a.expires || ''),
+      onset: String(a.onset || '')
+    };
+  }).filter(function (a) { return !!a; });
 }

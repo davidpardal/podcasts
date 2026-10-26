@@ -109,6 +109,8 @@
       ev('baloncesto', 'Baloncesto (demo) · cambio de hora', ['RECURRENCE-ID;' + tz(tueNext, 17, 30), 'DTSTART;' + tz(tueNext, 18, 30), 'DTEND;' + tz(tueNext, 20, 0)],
         ['DESCRIPTION:Ejemplo de excepción RECURRENCE-ID: esta semana entrena una hora más tarde.']),
       ev('musica', 'Clase de música (demo)', ['DTSTART;' + tz(wed, 18, 0), 'DTEND;' + tz(wed, 19, 0)], ['RRULE:FREQ=WEEKLY;BYDAY=WE;COUNT=30', 'LOCATION:Escuela de música de ejemplo']),
+      ev('ef', 'Educación física (demo)', ['DTSTART;' + tz(today, 9, 0), 'DTEND;' + tz(today, 10, 0)], ['DESCRIPTION:Cita de ejemplo para la mochila (chándal).']),
+      ev('piscina', 'Piscina (demo)', ['DTSTART;' + tz(U.addDays(today, 1), 17, 0), 'DTEND;' + tz(U.addDays(today, 1), 18, 0)], ['DESCRIPTION:Cita de ejemplo para la mochila (toalla).']),
       ev('cole', 'Reunión del cole (demo)', ['DTSTART;' + tz(U.addDays(today, 6), 19, 0), 'DTEND;' + tz(U.addDays(today, 6), 20, 0)], ['DESCRIPTION:Reunión trimestral con la tutora (dato inventado).']),
       ev('cumple', 'Cumpleaños de Sara (demo)', ['DTSTART;VALUE=DATE:' + fmt(U.addDays(today, 9)), 'DTEND;VALUE=DATE:' + fmt(U.addDays(today, 10))]),
       ev('excursion', 'Excursión del cole (demo)', ['DTSTART;VALUE=DATE:' + fmt(U.addDays(today, 15)), 'DTEND;VALUE=DATE:' + fmt(U.addDays(today, 18))])

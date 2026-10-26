@@ -548,6 +548,10 @@
     return call('salud');
   }
 
+  async function fetchAvisos() {
+    return call('avisos');
+  }
+
   window.Sync = {
     attach: function (next) { api = Object.assign(api, next || {}); },
     configured: configured,
@@ -564,6 +568,7 @@
     syncNow: syncNow,
     fetchCalendars: fetchCalendars,
     fetchSalud: fetchSalud,
+    fetchAvisos: fetchAvisos,
     toEvents: toEvents,
     snapshot: snapshot
   };

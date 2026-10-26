@@ -62,6 +62,15 @@ window.MARCO_DEFAULTS = {
     { id: 'plan', emoji: '🎳', name: 'Plan especial el finde', cost: 25 }
   ],
   habitualesBase: ['Leche', 'Pan', 'Huevos', 'Fruta', 'Yogures', 'Café', 'Papel higiénico', 'Tomates'],
+  // Mochila: palabras del título de la cita → objeto. «día libre» apaga la mochila ese día.
+  // Se edita en Ajustes. No es un calendario escolar: solo palabras genéricas.
+  backpack: [
+    { match: 'baloncesto|basket', item: 'equipación', emoji: '🏀' },
+    { match: 'educación física|ef|e.f|gym|gimnasia', item: 'chándal', emoji: '👕' },
+    { match: 'piscina|natación', item: 'toalla', emoji: '🏊' },
+    { match: 'excursión|salida', item: 'almuerzo', emoji: '🥪' },
+    { match: 'no hay cole|sin cole|festivo', item: 'día libre', emoji: '🏠', off: true }
+  ],
   // Menú semanal de ejemplo (0 = lunes … 6 = domingo). Se sustituye al guardar en el dispositivo.
   menu: {
     span: 7,

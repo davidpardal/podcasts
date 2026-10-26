@@ -48,7 +48,7 @@ html.rail-collapsed .nav-label { position: absolute; width: 1px; height: 1px; pa
 .demo-pill { position: absolute; top: 0.25rem; left: 50%; transform: translateX(-50%); z-index: 5; background: #FFF3C4; color: #7A5B00; border: 1px solid #F1D97A; font-size: 0.7rem; font-weight: 700; letter-spacing: .06em; padding: 0.12rem 0.7rem; border-radius: 1rem; white-space: nowrap; }
 
 /* ---------- HOY ---------- */
-.hoy { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); grid-template-rows: minmax(6.2rem, 10.2rem) auto minmax(0, 1fr) auto; gap: 0.75rem; }
+.hoy { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); grid-template-rows: minmax(6.2rem, auto) auto minmax(0, 1fr) auto; gap: 0.75rem; }
 .sky { grid-column: 1; border-radius: var(--r); padding: 1rem 1.6rem; display: flex; align-items: center; gap: 1.2rem; transition: background 3s; overflow: hidden; }
 .sky-day { background: linear-gradient(120deg, #8EC5FC, #E0F0FF); }
 .sky-dawn { background: linear-gradient(120deg, #F6B48F, #B7C9F2); }
@@ -61,7 +61,12 @@ html.rail-collapsed .nav-label { position: absolute; width: 1px; height: 1px; pa
 .sky:not(.dark) .sky-date { color: var(--soft); } .sky:not(.dark) .sky-date b { color: var(--ink); }
 .custody-badge { margin-top: 0.45rem; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding: 0.25rem 0.7rem; border-radius: 1rem; background: rgba(255,255,255,.75); color: var(--ink); align-self: flex-start; }
 .custody-badge.is-parent { background: #fff; box-shadow: inset 0 0 0 2px var(--rain); }
-.sky-wx { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 1rem; min-width: 0; }
+.sky-wx { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 1rem; min-width: 0; flex-wrap: wrap; }
+.aemet-row { flex: 1 0 100%; display: flex; justify-content: flex-end; gap: 0.35rem; flex-wrap: wrap; }
+.aemet-chip { border: 0; border-radius: 999px; font-weight: 800; font-size: 0.82rem; padding: 0.28rem 0.75rem; cursor: pointer; line-height: 1.2; }
+.aemet-chip.naranja { background: #F5A623; color: #3a2500; }
+.aemet-chip.rojo { background: #D9483B; color: #fff; }
+.aemet-chip .tag { margin-left: 0.35rem; vertical-align: 0.05rem; }
 .wx-now { text-align: center; }
 .wx-ic { font-size: 2.6rem; line-height: 1; } .wx-temp { font-size: 2.2rem; font-weight: 600; }
 .wx-mm { font-size: 0.85rem; } .wx-rain, .wx-drain { white-space: nowrap; font-size: 0.75rem; opacity: .8; } .hi { color: var(--rain); font-weight: 700; opacity: 1 !important; }
@@ -115,6 +120,7 @@ html.rail-collapsed .nav-label { position: absolute; width: 1px; height: 1px; pa
 .day.is-today { box-shadow: 0 0 0 2px var(--accent) inset; }
 .shift { background: #CDEBE8; color: #1D5E58; font-size: 0.72rem; font-weight: 700; border-radius: 0.5rem; padding: 0.15rem 0.4rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shift.off { background: #E3EFD3; color: #4F6B2B; }
+.day-tag { align-self: flex-start; font-size: 0.68rem; font-weight: 800; letter-spacing: .03em; background: #F3E4C4; color: #6b4e16; border-radius: 999px; padding: 0.08rem 0.45rem; }
 .shift.sm { font-size: 0.65rem; padding: 0.05rem 0.3rem; text-align: left; }
 .kids-chip { font-size: 0.7rem; color: #1F4E8C; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .day-evs { display: flex; flex-direction: column; gap: 0.35rem; overflow: hidden; border-top: 1px solid var(--line); padding-top: 0.4rem; min-height: 0; }
@@ -189,6 +195,13 @@ html.rail-collapsed .nav-label { position: absolute; width: 1px; height: 1px; pa
 
 /* ---------- NIÑOS ---------- */
 .ninos { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; align-items: start; }
+.ninos > .mochila-card, .semana-grid > .mochila-card { grid-column: 1 / -1; }
+.mochila-days { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.mochila-when { font-weight: 800; margin-bottom: 0.35rem; display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
+.stickers { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sticker { display: inline-flex; align-items: center; gap: 0.35rem; background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 0.28rem 0.75rem 0.28rem 0.45rem; font-weight: 700; }
+.sticker.off { background: #E3EFD3; border-color: #c9deaf; }
+.sticker-ic { font-size: 1.15rem; line-height: 1; }
 .col { display: flex; flex-direction: column; gap: 0.9rem; }
 .kid-chips { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
 .streak { display: flex; align-items: center; gap: 0.55rem; margin: 0.15rem 0 0.7rem; flex-wrap: wrap; }
@@ -269,7 +282,7 @@ code { background: var(--hl); padding: 0 0.3rem; border-radius: 0.3rem; font-siz
 .pin-k { height: 4.5rem; border-radius: 1.2rem; background: var(--hl); font-size: 1.6rem; font-weight: 700; text-align: center; }
 .night { position: fixed; inset: 0; background: #000; color: #5a5a5a; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .night-time { font-size: 12rem; font-weight: 200; font-variant-numeric: tabular-nums; } .night-date { font-size: 1.6rem; }
-.night-next { margin-top: 1.4rem; max-width: 90vw; font-size: 1.35rem; color: #8d8d8d; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.night-next { margin-top: 1.4rem; max-width: 90vw; font-size: 1.35rem; color: #8d8d8d; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .night-hint { position: absolute; bottom: 1.5rem; font-size: 0.8rem; color: #333; }
 .offline { position: fixed; top: 0; left: var(--rail-w); right: 0; z-index: 16; background: #2C261F; color: #fff; font-size: 0.8rem; font-weight: 700; text-align: center; padding: 0.38rem 0.8rem; }
 body.is-offline #screen { padding-top: 2.3rem; }
@@ -292,7 +305,7 @@ body.is-offline .demo-pill { top: 2.15rem; }
   .cal-head { display: none; }
   .cal-row { grid-template-columns: 1fr; gap: 0.4rem; }
   .cell { min-height: 0; } .cell.is-past { display: none; }
-  .luz, .ninos, .compra, .ajustes { grid-template-columns: 1fr; }
+  .luz, .ninos, .compra, .ajustes, .mochila-days { grid-template-columns: 1fr; }
   .luz-pvpc, .ajustes > .card:first-child, .ajustes > .card.wide { grid-column: auto; }
   .cal-set { grid-template-columns: 1fr 3rem; } .cal-set .cs-url { grid-column: 1 / -1; }
   .habs { grid-template-columns: repeat(2, 1fr); }
