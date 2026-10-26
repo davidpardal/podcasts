@@ -83,6 +83,45 @@ with sync_playwright() as p:
       [{ title: 'Baloncesto (demo)', start: new Date(2026, 9, 21, 17, 30), end: new Date(2026, 9, 21, 19, 0), allDay: false }],
       new Date(2026, 9, 21, 16, 0))""")
     check("lluvia a las 17:00 y baloncesto: chubasquero", "chubasquero" in tip and "Baloncesto" in tip and "17:00" in tip, tip)
+    pack = page.evaluate("""() => {
+      const hoy = U.sod(U.now());
+      const man = U.addDays(hoy, 1);
+      const h = Marco.packDay(hoy);
+      const m = Marco.packDay(man);
+      const rules = Mochila.compile();
+      const fest = Mochila.forDay(new Date(2026, 9, 12, 10), [{ title: 'Baloncesto', background: false }], { home: true });
+      const sin = Mochila.forDay(new Date(2026, 9, 21, 10), [{ title: 'Sin cole y baloncesto', background: false }], { home: true });
+      const jefe = Mochila.hit(rules, 'Reunión con el jefe');
+      const ef = Mochila.hit(rules, 'EF');
+      const pau = Mochila.forDay(hoy, [{ title: 'Baloncesto' }], { home: false });
+      const amarillo = Mochila.normAvisos({ ok: true, alerts: [{ level: 'amarillo', event: 'Lluvia', area: 'Álava', text: 'no' }, { level: 'naranja', event: 'Viento', area: 'Álava', text: 'sí' }] });
+      return {
+        hoy: h.items.map(i => i.item), man: m.items.map(i => i.item), paused: h.paused,
+        fest: fest.off && fest.items.map(i => i.item).join(','),
+        sin: sin.off && sin.tags.some(t => t.id === 'sin-cole'),
+        jefe: !jefe, ef: ef && ef.rule.item,
+        pau: pau.paused && pau.items.length === 0,
+        prud: (U.festivoEtiqueta(new Date(2026, 3, 28)) || {}).name,
+        blanca: (U.festivoEtiqueta(new Date(2026, 7, 5)) || {}).name,
+        viernes: (U.festivoEtiqueta(new Date(2026, 3, 3)) || {}).name,
+        lunes: (U.festivoEtiqueta(new Date(2026, 3, 6)) || {}).name,
+        luz: Luz.period(new Date(2026, 3, 28, 11, 0)),
+        nac: U.esFestivoNacional(new Date(2026, 3, 28)),
+        line: Marco.morningLine(U.now()),
+        amarillo: amarillo.alerts.map(a => a.level + ':' + a.event)
+      };
+    }""")
+    check("mochila de hoy: chándal por educación física", pack["hoy"] == ["chándal"], pack["hoy"])
+    check("mochila de mañana: toalla y equipación", pack["man"] == ["toalla", "equipación"], pack["man"])
+    check("sin custodia la mochila no se pausa", pack["paused"] is False)
+    check("festivo nacional: día libre y no la equipación", pack["fest"] == "día libre", pack["fest"])
+    check("sin cole gana a baloncesto", pack["sin"] is True)
+    check("«ef» no casa dentro de jefe", pack["jefe"] is True and pack["ef"] == "chándal", pack["ef"])
+    check("semana sin niños: la mochila no lista objetos", pack["pau"] is True)
+    check("etiquetas de Álava y Vitoria", pack["prud"] == "San Prudencio" and pack["blanca"] == "Virgen Blanca" and pack["viernes"] == "Viernes Santo" and pack["lunes"] == "Lunes de Pascua", pack)
+    check("esas etiquetas no cambian la luz", pack["luz"] == "punta" and pack["nac"] is False, pack["luz"])
+    check("lo primero de mañana nombra la mochila", "Lo primero de mañana" in pack["line"] and "mochila:" in pack["line"], pack["line"])
+    check("el chip ignora el aviso amarillo", pack["amarillo"] == ["naranja:Viento"], pack["amarillo"])
 
     # ================= 2) Capturas con ajustes genéricos de ejemplo =================
     set_ajustes(page, EJEMPLO); wait_data(page)
@@ -158,6 +197,8 @@ with sync_playwright() as p:
             check("una tarea solo de Peque A", page.locator("[data-chore=basura]").count() == 1)
             check("franja de la mañana fuera de hora", page.locator(".chore.overdue").count() >= 1)
             check("racha de la semana", page.locator(".streak").count() == 1)
+            mochila = page.inner_text(".mochila-card")
+            check("niños: pegatinas de la mochila", "chándal" in mochila and "toalla" in mochila and "equipación" in mochila, mochila)
             for c, k in [("cama", "peque-a"), ("deberes", "peque-a"), ("cama", "peque-b"), ("cuarto", "peque-b"), ("mesa", "peque-b")]:
                 page.click(f"[data-chore={c}][data-kid={k}]")
             check("niños: estrellas suman", "Peque A ⭐ 3" in page.inner_text(".kid-chips") and "Peque B ⭐ 4" in page.inner_text(".kid-chips"), page.inner_text(".kid-chips"))
@@ -170,6 +211,7 @@ with sync_playwright() as p:
             check("ajustes: formulario de familia e importar/exportar", page.is_visible("#f_kids") and page.is_visible("#impTxt"))
             check("ajustes: calendarios de fondo", "De fondo" in page.inner_text(".ajustes"))
             check("ajustes: dinero, plazos y entreno", page.is_visible("#dinLuz") and page.is_visible("#dinSubs") and page.is_visible("#plazosTxt") and page.is_visible("#ent3"))
+            check("ajustes: reglas de la mochila", page.is_visible("#mochilaTxt") and "baloncesto|basket" in page.input_value("#mochilaTxt") and "día libre" in page.input_value("#mochilaTxt"))
         page.screenshot(path=os.path.join(OUT, f"{i}-{tab}.png"))
     page.click("#rail [data-go=dinero]"); page.wait_for_selector(".dinero-ahorro")
     dinero0 = page.inner_text(".dinero")
@@ -184,6 +226,7 @@ with sync_playwright() as p:
     semana = page.inner_text(".semana")
     check("semana con los niños: banner, tareas y compra", "Esta semana con los niños" in semana and "Hacer la cama" in semana and "Peque A" in semana and "Peque B" in semana and "pendiente" in semana.lower())
     check("semana: la agenda no inventa un cole", "colegio" not in semana.lower() and "Agenda" in semana)
+    check("semana: enseña la mochila", "Mochila" in semana and "chándal" in semana)
     page.screenshot(path=os.path.join(OUT, "20-semana.png"))
     page.click("#rail [data-go=ajustes]"); page.wait_for_selector("#dinLuz")
     page.fill("#dinLuz", "40"); page.fill("#dinLuzP", "55")
@@ -226,6 +269,12 @@ with sync_playwright() as p:
     exp = json.loads(page.input_value(".share-ta"))
     check("exportar da JSON importable sin calendarios", exp.get("tipo") == "marco-familiar-ajustes" and exp["settings"]["calendars"] == [] and exp["advanced"]["kids"][2]["name"] == "Peque Z" and exp.get("menu", {}).get("plan"))
     page.click("[data-close]")
+    page.fill("#mochilaTxt", "baloncesto|basket → pelota")
+    page.click("[data-act=saveMochila]")
+    propia = page.evaluate("() => Marco.packDay(U.addDays(U.sod(U.now()), 1)).items.map(i => i.item)")
+    check("una regla guardada cambia la mochila de mañana", propia == ["pelota"], propia)
+    page.click("[data-act=resetMochila]")
+    check("restaurar la lista por defecto", "educación física|ef" in page.input_value("#mochilaTxt") and page.evaluate("() => Marco.packDay(U.sod(U.now())).items.map(i => i.item).join(',')") == "chándal")
     page.click("#rail [data-go=menu]"); page.wait_for_selector(".menu")
     page.screenshot(path=os.path.join(OUT, "11-menu.png"))
     check("menú de lunes a domingo", page.locator(".menu-day").count() == 7 and page.locator(".menu-slot").count() == 14)
@@ -422,6 +471,15 @@ with sync_playwright() as p:
           "GARMIN_PERSONAL_API_KEY" in readme_gs and "Propiedades del script" in readme_gs and "no imprime" in readme_gs
           and "Nueva versión" in readme_gs and "28" in readme_gs and "weightGrams" in readme_gs)
     check("script guarda el token hasta 5 min antes de exp y la salud 30 min", "exp - now - 300" in gs and "1800" in gs and "old.stale = true" in gs)
+    check("script: avisos AEMET OpenData y la clave solo en propiedades",
+          "action === 'avisos'" in gs and "AEMET_API_KEY" in gs
+          and "https://opendata.aemet.es/opendata/api/avisos_cap/ultimoelaborado/area/" in gs
+          and "function claveAemet_" in gs and "api_key=" in gs)
+    check("script no registra la clave de AEMET", "Logger.log(claveAemet_" not in gs and "Logger.log(key" not in gs and "Logger.log(token" not in gs)
+    sw = open(os.path.join(HERE, "..", "sw.js"), encoding="utf-8").read()
+    check("el service worker incluye la mochila y sube la caché", "marco-v2-shell-v7" in sw and "./js/mochila.js" in sw)
+    check("readme de apps-script explica AEMET_API_KEY",
+          "AEMET_API_KEY" in readme_gs and "avisos_cap" in readme_gs and "Nueva versión" in readme_gs and "no imprime" in readme_gs)
 
     def js_merge(stored, incoming):
         proc = subprocess.run(
@@ -474,6 +532,16 @@ process.stdin.on("end", function () {
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": False, "error": "Clave incorrecta"}))
         if box["fail"]:
             return route.abort()
+        if body.get("action") == "avisos":
+            return route.fulfill(status=200, content_type="application/json", body=json.dumps({
+                "ok": True,
+                "alerts": [
+                    {"level": "naranja", "event": "Viento", "headline": "Aviso naranja por viento",
+                     "text": "Rachas fuertes en el interior de Álava. Texto de ejemplo del script.",
+                     "area": "Álava", "until": "2026-10-22T20:00:00+02:00"},
+                    {"level": "amarillo", "event": "Lluvia", "text": "Este amarillo no se pinta", "area": "Álava"}
+                ]
+            }))
         if body.get("action") == "calendars":
             return route.fulfill(status=200, content_type="application/json", body=json.dumps(CALENDARS))
         if body.get("action") == "salud":
@@ -558,6 +626,12 @@ process.stdin.on("end", function () {
     check("cita de ejemplo y turno de fondo", "Familia ejemplo" in page.inner_text("#syncCard") and turno_on and "Reunión de ejemplo" in ev_txt and "Turno ejemplo·fondo" in ev_txt, ev_txt)
     page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-title")
     check("ahora enseña la cita y no el turno de fondo", "Reunión" in page.inner_text(".next-title") and "Turno" not in page.inner_text(".next-title"))
+    page.wait_for_selector(".aemet-chip.naranja")
+    check("aviso naranja del script, sin el amarillo", page.inner_text(".aemet-chip") == "Aviso naranja · Viento" and "Lluvia" not in page.inner_text(".sky"))
+    page.click(".aemet-chip")
+    page.wait_for_selector(".modal-d")
+    check("al tocar el chip se lee el aviso entero", "Rachas fuertes en el interior de Álava" in page.inner_text(".modal-d") and "Álava" in page.inner_text(".modal-card"))
+    page.click("[data-close]")
     check("el turno se pinta de fondo", page.locator(".ev-bg", has_text="Turno ejemplo").count() >= 1)
     page.click("#rail [data-go=compra]"); page.wait_for_selector(".compra")
     check("llega la compra del otro dispositivo", "Pan del otro móvil" in page.inner_text(".items"))
@@ -784,6 +858,28 @@ process.stdin.on("end", function () {
     }""")
     check("móvil en Salud: el menú sigue a la izquierda", phone_rail)
     page.screenshot(path=os.path.join(OUT, "15-salud-movil.png"))
+    ctx.close()
+
+    # ================= 2d) Mochila en pausa y chip de ejemplo =================
+    ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 27, 10, 0, tzinfo=TZ))
+    page.goto(BASE); page.wait_for_selector(".hoy"); page.clock.run_for(500)
+    set_ajustes(page, EJEMPLO); wait_data(page)
+    page.click("#rail [data-go=ninos]"); page.wait_for_selector(".mochila-card")
+    pausa = page.inner_text(".mochila-card")
+    check("semana sin niños: la mochila está en pausa", "En pausa" in pausa and "equipación" not in pausa and "chándal" not in pausa, pausa)
+    page.click("#rail [data-go=semana]"); page.wait_for_selector(".semana-pause")
+    check("semana sin niños: el texto incluye la mochila", "mochila" in page.inner_text(".semana").lower())
+    ctx.close()
+
+    ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 21, 17, 45, tzinfo=TZ))
+    page.goto(BASE + "?aviso=muestra"); page.wait_for_selector(".hoy"); page.clock.run_for(500)
+    page.wait_for_selector(".aemet-chip.naranja")
+    check("?aviso=muestra pinta el chip de ejemplo", "Aviso naranja" in page.inner_text(".aemet-chip") and "EJEMPLO" in page.inner_text(".aemet-chip"))
+    page.click(".aemet-chip"); page.wait_for_selector(".modal-d")
+    check("el ejemplo dice que no es un aviso real", "no es un aviso real" in page.inner_text(".modal-card"))
+    page.click("[data-close]")
+    page.evaluate("() => { Marco.S.avisos = { ok: false, alerts: [] }; Marco.render(); }")
+    check("si la petición de avisos falla no hay chip", page.locator(".aemet-chip").count() == 0)
     ctx.close()
 
     # ================= 3) Ajustes privados importados (NO se hacen capturas) =================

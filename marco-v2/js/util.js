@@ -46,6 +46,46 @@
   const FESTIVOS_FIJOS = ['01-01', '01-06', '05-01', '08-15', '10-12', '11-01', '12-06', '12-08', '12-25'];
   const esFestivoNacional = (d) => FESTIVOS_FIJOS.includes(pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
 
+  // Domingo de Pascua (algoritmo gregoriano anónimo). Sirve para Viernes Santo y Lunes de Pascua.
+  function domingoPascua(year) {
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+  }
+
+  // Etiqueta de día para la mochila (festivo). No cambia la luz: ahí siguen solo los nacionales de fecha fija.
+  // Fechas públicas de Álava / Vitoria-Gasteiz y del País Vasco, sin calendario escolar.
+  const FESTIVOS_ALAVA = {
+    '01-01': 'Año Nuevo',
+    '01-06': 'Epifanía',
+    '04-28': 'San Prudencio',
+    '05-01': 'Día del Trabajador',
+    '07-25': 'Santiago',
+    '08-05': 'Virgen Blanca',
+    '08-15': 'Asunción',
+    '10-12': 'Fiesta Nacional',
+    '11-01': 'Todos los Santos',
+    '12-06': 'Constitución',
+    '12-08': 'Inmaculada',
+    '12-25': 'Navidad'
+  };
+  function festivoEtiqueta(d) {
+    if (!d || isNaN(d.getTime())) return null;
+    const key = pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    if (FESTIVOS_ALAVA[key]) return { id: 'festivo', label: 'Festivo', name: FESTIVOS_ALAVA[key] };
+    const pascua = domingoPascua(d.getFullYear());
+    const viernes = addDays(pascua, -2);
+    const lunes = addDays(pascua, 1);
+    if (sameDay(d, viernes)) return { id: 'festivo', label: 'Festivo', name: 'Viernes Santo' };
+    if (sameDay(d, lunes)) return { id: 'festivo', label: 'Festivo', name: 'Lunes de Pascua' };
+    return null;
+  }
+
   // Prefijo propio: misma web que /marco/ (github.io) no debe compartir listas, PIN ni calendarios.
   const PREFIX = 'marco-v2.';
   const store = {
@@ -57,5 +97,5 @@
 
   const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
-  window.U = { DIAS, DIAS_C, MESES, MESES_C, now, pad, hm, sod, addDays, sameDay, mondayOf, dayKey, dayDiff, esc, fechaLarga, fechaCorta, countdown, esFestivoNacional, store, uid, parseLocal, get simulated() { return offset !== 0; } };
+  window.U = { DIAS, DIAS_C, MESES, MESES_C, now, pad, hm, sod, addDays, sameDay, mondayOf, dayKey, dayDiff, esc, fechaLarga, fechaCorta, countdown, esFestivoNacional, festivoEtiqueta, domingoPascua, store, uid, parseLocal, get simulated() { return offset !== 0; } };
 })();

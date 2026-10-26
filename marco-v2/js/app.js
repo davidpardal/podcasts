@@ -144,8 +144,9 @@
     const label = late ? 'Lo primero de mañana' : 'Lo primero de hoy';
     const evs = eventsOn(day).filter((e) => !e.background && !e.virtual);
     const first = evs.filter((e) => !e.allDay).sort((a, b) => a.start - b.start)[0] || evs[0];
-    if (!first) return label + ' · nada apuntado';
-    return label + ' · ' + (first.allDay ? 'todo el día' : hm(first.start)) + ' ' + first.title;
+    const extra = packPhrase(day);
+    if (!first) return label + ' · nada apuntado' + (extra ? ' · ' + extra : '');
+    return label + ' · ' + (first.allDay ? 'todo el día' : hm(first.start)) + ' ' + first.title + (extra ? ' · ' + extra : '');
   }
   function tomorrowGlance(t) {
     const d = addDays(sod(t), 1);
@@ -154,7 +155,23 @@
     let s = 'Mañana · ' + (first ? ((first.allDay ? 'todo el día ' : hm(first.start) + ' ') + first.title) : 'sin citas');
     const meals = mealsFor(d);
     if (meals && !meals.off && (meals.comida || meals.cena)) s += ' · ' + [meals.comida, meals.cena].filter(Boolean).join(' / ');
+    const extra = packPhrase(d);
+    if (extra) s += ' · ' + extra;
     return s;
+  }
+  function mochilaRules() {
+    return (Array.isArray(CFG.backpack) && CFG.backpack.length) ? CFG.backpack : window.MARCO_DEFAULTS.backpack;
+  }
+  function packDay(day) {
+    const evs = eventsOn(day).filter((e) => !e.background && !e.virtual);
+    return Mochila.forDay(day, evs, { home: kidsHomeOn(day), rules: mochilaRules() });
+  }
+  function packPhrase(day) {
+    const p = packDay(day);
+    if (p.paused) return '';
+    if (p.off) return 'día libre';
+    if (!p.items.length) return '';
+    return 'mochila: ' + p.items.map((i) => i.item).join(', ');
   }
 
   /* ---------------- Estado ---------------- */
@@ -175,7 +192,8 @@
     syncCalStatus: store.get('cache.syncCal', null),
     salud: null,
     saludLoads: 0,
-    saludDias: 7
+    saludDias: 7,
+    avisos: { ok: true, alerts: [] }
   };
   // Citas en caché (por si arranca sin red)
   (store.get('cache.events', []) || []).forEach((e) => S.events.push(Object.assign({}, e, { start: new Date(e.start), end: new Date(e.end) })));
@@ -298,9 +316,59 @@
       return S.salud;
     }
   }
+  function avisoMuestraOn() {
+    try { return new URLSearchParams(location.search).get('aviso') === 'muestra'; }
+    catch (e) { return false; }
+  }
+  function primeAvisos() {
+    if (avisoMuestraOn()) { S.avisos = Mochila.avisoMuestra(); return; }
+    const c = store.get('cache.avisos', null);
+    const fresh = c && c.fetched && (Date.now() - new Date(c.fetched).getTime() < 3 * 3600000);
+    S.avisos = (fresh && c.ok !== false && !c.sample) ? c : { ok: true, alerts: [] };
+  }
+  async function loadAvisos() {
+    if (avisoMuestraOn()) { S.avisos = Mochila.avisoMuestra(); return S.avisos; }
+    if (!syncReady()) return S.avisos;
+    try {
+      const data = await Sync.fetchAvisos();
+      if (!data || data.ok === false) throw new Error('avisos');
+      const norm = Mochila.normAvisos(data);
+      norm.ok = true;
+      norm.sample = false;
+      norm.fetched = data.fetched || new Date().toISOString();
+      S.avisos = norm;
+      store.set('cache.avisos', norm);
+      return norm;
+    } catch (e) {
+      S.avisos = { ok: false, alerts: [] };
+      return S.avisos;
+    }
+  }
+  function showAviso(i) {
+    const data = Mochila.normAvisos(S.avisos || {});
+    const a = data.alerts[i];
+    if (!a) return;
+    const nombre = a.level === 'rojo' ? 'Aviso rojo' : 'Aviso naranja';
+    let hasta = '';
+    if (a.until) {
+      const d = new Date(a.until);
+      if (!isNaN(d.getTime())) hasta = 'hasta el ' + U.fechaCorta(d) + ' a las ' + hm(d);
+    }
+    const where = [a.area || 'Álava / Vitoria-Gasteiz', hasta].filter(Boolean).join(' · ');
+    openModal('<div class="modal-h">' + esc(nombre) + (a.event ? ' · ' + esc(a.event) : '') + '</div>' +
+      '<div class="modal-w">' + esc(where) + '</div>' +
+      (a.headline ? '<div class="modal-t" style="font-size:1.2rem">' + esc(a.headline) + '</div>' : '') +
+      '<div class="modal-d">' + esc(a.text || a.headline || 'Sin texto') + '</div>' +
+      (data.sample ? '<div class="tag ej">EJEMPLO · no es un aviso real</div>' : '<div class="muted sm">Aviso oficial de AEMET</div>'));
+  }
+  function showPack(btn) {
+    const item = btn.getAttribute('data-pack') || 'Mochila';
+    const why = btn.getAttribute('data-pack-why') || '';
+    openModal('<div class="modal-h">🎒 ' + esc(item) + '</div><div class="modal-d">' + esc(why || 'Sale de las citas de ese día.') + '</div>');
+  }
   async function refreshAll(manual) {
     if (manual) toast('Actualizando…', 1500);
-    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC(), Sync.syncNow().catch((e) => console.warn(e)), loadSalud().catch((e) => console.warn(e))]);
+    await Promise.all([loadCalendars().catch((e) => console.warn(e)), loadWeather(), loadPVPC(), Sync.syncNow().catch((e) => console.warn(e)), loadSalud().catch((e) => console.warn(e)), loadAvisos().catch((e) => console.warn(e))]);
     render();
     if (manual) toast('Actualizado a las ' + hm(now()));
   }
@@ -379,6 +447,52 @@
       '<span class="cb-ic">' + (w ? '🏠' : '🚗') + '</span><span><b>' + esc(kidsNames()) + '</b> · ' + esc(txt) + '</span></div>';
   }
 
+  function avisosHtml() {
+    const data = Mochila.normAvisos(S.avisos || {});
+    if (!data.alerts.length) return '';
+    return '<div class="aemet-row">' + data.alerts.map((a, i) => {
+      const nombre = a.level === 'rojo' ? 'Aviso rojo' : 'Aviso naranja';
+      return '<button type="button" class="aemet-chip ' + a.level + '" data-aviso="' + i + '">' + esc(nombre + (a.event ? ' · ' + a.event : '')) +
+        (data.sample ? ' <span class="tag ej">EJEMPLO</span>' : '') + '</button>';
+    }).join('') + '</div>';
+  }
+  function mochilaSumHtml(t) {
+    const hoy = packDay(sod(t));
+    const man = packDay(addDays(sod(t), 1));
+    if (hoy.paused && man.paused) return '<div class="sum-sub">Mochila en pausa esta semana</div>';
+    function bit(label, p) {
+      if (p.paused) return '';
+      if (p.off) return esc(label) + ' día libre';
+      if (!p.items.length) return '';
+      return esc(label) + ' ' + p.items.map((i) => esc((i.emoji ? i.emoji + ' ' : '') + i.item)).join(', ');
+    }
+    const s = [bit('Hoy', hoy), bit('Mañana', man)].filter(Boolean).join(' · ');
+    return s ? '<div class="sum-sub">' + s + '</div>' : '';
+  }
+  function mochilaDayHtml(label, day) {
+    const p = packDay(day);
+    const tags = (p.tags || []).map((tag) => '<span class="day-tag" title="' + esc(tag.name || '') + '">' + esc(tag.label) + '</span>').join('');
+    let body;
+    if (p.paused) body = '<div class="muted">En pausa</div>';
+    else if (p.items.length) body = '<div class="stickers">' + p.items.map((it) =>
+      '<button type="button" class="sticker' + (it.off ? ' off' : '') + '" data-pack="' + esc(it.item) + '" data-pack-why="' + esc(it.why || '') + '"><span class="sticker-ic" aria-hidden="true">' + esc(it.emoji || '🎒') + '</span>' + esc(it.item) + '</button>'
+    ).join('') + '</div>';
+    else if (p.school) body = '<div class="muted">Nada extra en la mochila</div>';
+    else body = '<div class="muted">Nada apuntado</div>';
+    return '<div class="mochila-day"><div class="mochila-when">' + esc(label) + tags + '</div>' + body + '</div>';
+  }
+  function mochilaBlock(t) {
+    const hoy = sod(t);
+    const man = addDays(hoy, 1);
+    const paused = packDay(hoy).paused && packDay(man).paused;
+    const note = paused
+      ? 'Esta semana no están en casa: la mochila espera, igual que las tareas.'
+      : 'Sale de las citas de hoy y de mañana. Las reglas están en Ajustes.';
+    return '<section class="card mochila-card"><div class="card-h">🎒 Mochila</div><div class="mochila-days">' +
+      mochilaDayHtml('Hoy', hoy) + mochilaDayHtml('Mañana', man) +
+      '</div><div class="muted sm">' + note + '</div></section>';
+  }
+
   /* ---------------- HOY ---------------- */
   function renderHoy() {
     const t = now();
@@ -405,6 +519,7 @@
           return '<div class="wx-day"><div class="wx-dn">' + U.DIAS_C[dd.getDay()] + '</div><div class="wx-di">' + Weather.icon(d.code) + '</div><div class="wx-dmax">' + Math.round(d.max) + '°</div><div class="wx-dmin">' + Math.round(d.min) + '°</div><div class="wx-drain' + (d.rain >= 40 ? ' hi' : '') + '">💧 ' + (d.rain ?? '–') + ' %</div></div>';
         }).join('') + '</div>';
     }
+    wx += avisosHtml();
 
     // Ahora: siguiente cita, comida de hoy y mañana de un vistazo. Los calendarios de fondo no entran.
     const list = allEvents().filter((e) => !e.allDay && !e.background && !isDone(e) && e.end > t).sort((a, b) => a.start - b.start);
@@ -433,13 +548,15 @@
       const d = addDays(today, i);
       const st = dayStatus(d);
       const sh = shiftOn(d);
+      const fest = U.festivoEtiqueta(d);
       const items = eventsOn(d, evs);
       const mainEv = items.filter((e) => !e.background);
       const bgEv = items.filter((e) => e.background).slice(0, 1);
       const kids = st === 'padre' ? '<div class="kids-chip">🏠 Con ' + esc(kidsNames()) + '</div>' : '';
       week += '<div class="day c-' + st + (i === 0 ? ' is-today' : '') + '">' +
         '<div class="day-h"><span class="day-n">' + (i === 0 ? 'Hoy' : U.DIAS_C[d.getDay()]) + '</span><span class="day-d">' + d.getDate() + '</span></div>' +
-        (sh ? '<div class="shift">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '<div class="shift off">Libre</div>') + kids +
+        (sh ? '<div class="shift">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '<div class="shift off">Libre</div>') +
+        (fest ? '<div class="day-tag" title="' + esc(fest.name) + '">' + esc(fest.label) + '</div>' : '') + kids +
         '<div class="day-evs">' + mainEv.concat(bgEv).map((e) => evItem(e, d)).join('') + (mainEv.length ? '' : '<div class="no-ev">—</div>') + '</div></div>';
     }
 
@@ -457,7 +574,7 @@
       '<section class="next card">' + nextHtml + '</section>' +
       '<section class="week">' + week + '</section>' +
       '<section class="sums">' +
-        '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + (ninos.overdue ? ' · fuera de hora' : ''))) + '</div><div class="sum-chips">' + ninos.chips + '</div></button>' +
+        '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + (ninos.overdue ? ' · fuera de hora' : ''))) + '</div><div class="sum-chips">' + ninos.chips + '</div>' + mochilaSumHtml(t) + '</button>' +
         '<button class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + compra.length + (compra.length === 1 ? ' cosa' : ' cosas') + '</div><div class="sum-sub">' + esc(compra.slice(0, 5).map((x) => x.name).join(' · ') || 'Lista vacía') + '</div></button>' +
         '<button class="card sum" data-go="luz"><div class="sum-h c-amber">⚡ LUZ · 2.0TD</div><div class="sum-big"><span class="per-dot" style="--c:' + Luz.COLOR[p] + '"></span>Ahora ' + Luz.NOMBRE[p].toLowerCase() + '</div><div class="sum-sub">' + (p === 'valle' ? 'Buen momento para lavadora y lavavajillas' : nw ? 'Valle ' + whenTxt(nw.start, t) : '') + '</div></button>' +
         saludMini() +
@@ -524,6 +641,7 @@
         const mainEv = items.filter((e) => !e.background);
         const bgEv = items.filter((e) => e.background);
         const sh = shiftOn(d);
+        const festTag = U.festivoEtiqueta(d);
         const wx = wxBy[dayKey(d)];
         const first = d.getDate() === 1;
         const max = 4;
@@ -531,6 +649,7 @@
           '<div class="cell-h"><span class="cell-n">' + (sameDay(d, today) ? 'Hoy' : U.DIAS_C[d.getDay()]) + (first ? ' · ' + U.MESES_C[d.getMonth()] : '') + '</span><span class="cell-d">' + d.getDate() + '</span></div>' +
           (wx ? '<div class="cell-wx">' + Weather.icon(wx.code) + ' ' + Math.round(wx.max) + '°/' + Math.round(wx.min) + '° <span class="' + (wx.rain >= 40 ? 'hi' : '') + '">💧' + (wx.rain ?? '–') + '%</span></div>' : '') +
           (sh ? '<div class="shift sm">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '') +
+          (festTag ? '<div class="day-tag" title="' + esc(festTag.name) + '">' + esc(festTag.label) + '</div>' : '') +
           '<div class="cell-evs">' + mainEv.slice(0, max).map((e) => evItem(e, d, true)).join('') +
           (mainEv.length > max ? '<button class="more" data-dayall="' + dayKey(d) + '">+' + (mainEv.length - max) + ' más</button>' : '') +
           bgEv.slice(0, 2).map((e) => evItem(e, d, true)).join('') + '</div></div>';
@@ -704,6 +823,7 @@
     }).join('');
     const log = (k.log || []).slice(-6).reverse().map((l) => '<div class="log">' + esc(typeof l === 'string' ? l : (l.text || '')) + '</div>').join('');
     screenEl.innerHTML = '<div class="ninos">' +
+      mochilaBlock(t) +
       '<section class="card"><div class="card-h">⭐ Tareas de hoy <span class="muted sm">' + (w === null ? '' : w ? 'Semana con ' + esc(CFG.parent) : 'Esta semana están con ' + esc(CFG.otherParent)) + '</span></div><div class="kid-chips">' + chips + '</div>' + strip + pause + rows +
         '<div class="muted sm">Cada uno toca su nombre al terminar. Volver a tocar lo deshace. Mañana, después del cole y noche. En la semana sin niños se pausan solas.</div></section>' +
       '<section class="col"><div class="card"><div class="card-h">🎁 Recompensas</div>' + rws + '</div>' +
@@ -1255,7 +1375,7 @@
       const nx = custodyOn() ? Custody.nextHandover(t) : null;
       const when = nx ? U.fechaCorta(nx.at) + ' a las ' + hm(nx.at) : '';
       screenEl.innerHTML = '<div class="semana"><section class="card semana-calma"><div class="semana-pause">Semana sin niños — tareas pausadas</div>' +
-        '<div class="muted">Las tareas esperan a la próxima semana en casa.' + (when ? ' Vuelven el ' + esc(when) + '.' : '') + ' El menú de la izquierda sigue aquí.</div></section></div>';
+        '<div class="muted">Las tareas y la mochila esperan a la próxima semana en casa.' + (when ? ' Vuelven el ' + esc(when) + '.' : '') + ' El menú de la izquierda sigue aquí.</div></section></div>';
       return;
     }
     const nx = custodyOn() ? Custody.nextHandover(t) : null;
@@ -1267,6 +1387,7 @@
     const n = compraViva(C()).filter((x) => !x.done).length;
     const compraTxt = n === 0 ? 'Nada pendiente en la lista' : (n === 1 ? '1 pendiente en la lista' : n + ' pendientes en la lista');
     screenEl.innerHTML = '<div class="semana"><div class="semana-banner">Esta semana con los niños</div><div class="semana-grid">' +
+      mochilaBlock(t) +
       '<section class="card"><div class="card-h">Tareas de hoy <span class="muted sm">' + esc(until) + '</span></div>' + tareasPorNino(t) +
         '<div class="muted sm">Las mismas tareas que en Niños, agrupadas por niño. Los nombres salen de Ajustes.</div></section>' +
       '<div class="col"><section class="card"><div class="card-h">Agenda</div>' + citas +
@@ -1296,13 +1417,18 @@
       return '<label class="sync-cal"><span class="sync-dot" style="--c:' + esc(cal.color || '#C8243B') + '"></span><span class="sync-name">' + esc(cal.name || 'Calendario') + '</span><span class="bg-flag"><input type="checkbox" data-sync-bg="' + esc(cal.id) + '"' + (on ? ' checked' : '') + '> De fondo</span></label>';
     }).join('');
     return '<section class="card wide" id="syncCard"><div class="card-h">🔄 Sincronización con Google</div>' +
-      '<div class="muted sm">Opcional. Si lo configuras, las citas salen de tus calendarios de Google (sin dirección iCal ni proxy) y la compra, el menú, las estrellas y las citas hechas se comparten entre el marco y el móvil. Salud usa la misma clave para pedirle al script el resumen de Garmin: la clave de Garmin se queda en el script, no en el marco. La URL y la clave compartida se guardan solo en este dispositivo.</div>' +
+      '<div class="muted sm">Opcional. Si lo configuras, las citas salen de tus calendarios de Google (sin dirección iCal ni proxy) y la compra, el menú, las estrellas y las citas hechas se comparten entre el marco y el móvil. Salud usa la misma clave para pedirle al script el resumen de Garmin, y los avisos de AEMET también: esas claves se quedan en el script, no en el marco. La URL y la clave compartida se guardan solo en este dispositivo.</div>' +
       '<label class="lbl">URL de la aplicación web</label><input id="syncUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" value="' + esc(settings.syncUrl || '') + '" placeholder="https://script.google.com/macros/s/…/exec">' +
       '<label class="lbl">Clave compartida</label><div class="sync-key"><input id="syncKey" type="password" autocomplete="off" spellcheck="false" value="' + esc(settings.syncKey || '') + '" placeholder="una clave larga, solo tuya"><button class="btn sm ghost" data-act="showSyncKey" type="button">👁</button></div>' +
       syncStatusLine() +
       (rows ? '<div class="card-h sub">CALENDARIOS DE GOOGLE · DE FONDO NO ENTRA EN AHORA</div><div class="sync-cals">' + rows + '</div>' : '') +
       '<div class="row-btns"><button class="btn" data-act="saveSync">Guardar y probar</button></div>' +
       '<div class="muted sm">Vacío = como hasta ahora (modo demo si no hay iCal). El iCal de abajo queda de respaldo si esta conexión falla. «Haz la cesta» no cambia: copia la lista y abre el correo. Los nombres de la familia, el PIN y las direcciones no se sincronizan.</div></section>';
+  }
+  function mochilaCard() {
+    return '<section class="card"><div class="card-h">🎒 Mochila</div><div class="muted sm">Una regla por línea: <code>baloncesto|basket → equipación → 🏀</code>. Las palabras, separadas por <code>|</code>, se buscan en el título de la cita (sin mayúsculas ni tildes). Si el objeto es <code>día libre</code>, ese día no se prepara la mochila. En la semana sin niños se pausa sola.</div>' +
+      '<textarea id="mochilaTxt" rows="6">' + esc(Mochila.texto(mochilaRules())) + '</textarea>' +
+      '<div class="row-btns"><button class="btn" data-act="saveMochila">Guardar</button><button class="btn ghost" data-act="resetMochila">Restaurar lista por defecto</button></div></section>';
   }
   function renderAjustes() {
     const calRows = (settings.calendars.length ? settings.calendars : []).map((c, i) => {
@@ -1335,6 +1461,7 @@
       '<section class="card"><div class="card-h">⭐ Tareas y recompensas</div><div class="muted sm">Una por línea: <code>emoji | nombre | estrellas | franja | niños</code>. Franja: <code>manana</code>, <code>cole</code> o <code>noche</code>. Niños: ids separados por coma; vacío = todos. En la semana sin niños (custodia) se pausan solas.</div>' +
         '<label class="lbl">Tareas</label><textarea id="choresTxt" rows="5">' + esc(ch) + '</textarea><label class="lbl">Recompensas</label><textarea id="rewardsTxt" rows="4">' + esc(rw) + '</textarea>' +
         '<div class="row-btns"><button class="btn" data-act="saveChores">Guardar</button><button class="btn ghost" data-act="resetStars">Poner estrellas a 0 🔒</button></div></section>' +
+      mochilaCard() +
       '<section class="card"><div class="card-h">🔒 PIN de padres</div><div class="muted sm">Para aprobar canjes y entrar en Ajustes. Se guarda en este dispositivo; es un candado para niños, no seguridad fuerte.</div>' +
         '<div class="row-btns"><input id="pin1" type="password" inputmode="numeric" maxlength="8" placeholder="Nuevo PIN (4–8 cifras)"><button class="btn" data-act="savePin">' + (store.get('pin', null) ? 'Cambiar PIN' : 'Crear PIN') + '</button></div></section>' +
       '<section class="card"><div class="card-h">🛒 Aviso de la cesta</div><div class="muted sm">Correo al que «Haz la cesta» abre el mensaje con la lista pendiente, para que Grok Bot la recoja cuando se lo pidas. Vacío hasta que lo pongas. Se guarda solo en este dispositivo. El marco no entra en la tienda.</div>' +
@@ -1432,6 +1559,26 @@
         const adv = store.get('advanced', {}); if (ch.length) adv.chores = ch; if (rw.length) adv.rewards = rw;
         store.set('advanced', adv); CFG.chores = adv.chores || CFG.chores; CFG.rewards = adv.rewards || CFG.rewards; toast('Tareas y recompensas guardadas'); render(); break;
       }
+      case 'saveMochila': {
+        const parsed = Mochila.parse($('#mochilaTxt').value);
+        if (!parsed.length) { toast('Escribe al menos una regla: palabras → objeto'); break; }
+        const adv = store.get('advanced', {});
+        adv.backpack = parsed;
+        store.set('advanced', adv);
+        CFG.backpack = parsed;
+        toast('Mochila guardada');
+        render();
+        break;
+      }
+      case 'resetMochila': {
+        const adv = store.get('advanced', {});
+        delete adv.backpack;
+        store.set('advanced', adv);
+        delete CFG.backpack;
+        toast('Lista por defecto');
+        render();
+        break;
+      }
       case 'resetStars': if (await requirePin('PIN para poner las estrellas a 0')) { const k = K(); Sync.resetStars(k); Sync.noteLog(k, hm(now()) + ' · Estrellas a 0'); saveK(k); toast('Estrellas a 0'); } break;
       case 'showSyncKey': { const inp = $('#syncKey'); if (inp) inp.type = inp.type === 'password' ? 'text' : 'password'; break; }
       case 'saveSync': {
@@ -1455,6 +1602,7 @@
         await Sync.syncNow();
         await loadCalendars({ quiet: true });
         await loadSalud().catch(() => {});
+        await loadAvisos().catch(() => {});
         render();
         const bad = (S.syncDataStatus && !S.syncDataStatus.ok) || (S.syncCalStatus && !S.syncCalStatus.ok);
         toast(bad ? 'Guardado en este dispositivo. No he podido conectar.' : 'Sincronización lista');
@@ -1719,6 +1867,8 @@
       if (act === 'hazCesta') return hazLaCesta();
       return settingsAction(act, a);
     }
+    const avisoBtn = t.closest('[data-aviso]'); if (avisoBtn) return showAviso(+avisoBtn.dataset.aviso);
+    const packBtn = t.closest('[data-pack]'); if (packBtn) return showPack(packBtn);
     const e = t.closest('[data-ev]'); if (e) return showEvent(e.dataset.ev);
     const da = t.closest('[data-dayall]'); if (da) return showDay(da.dataset.dayall);
     const ch = t.closest('[data-chore]'); if (ch) return toggleChore(ch.dataset.chore, ch.dataset.kid);
@@ -1850,7 +2000,7 @@
   setInterval(() => {
     Promise.all([loadCalendars().catch(() => {}), Sync.syncNow().catch(() => {})]).then(() => { if (!userBusy()) render(); });
   }, 15 * 60000);
-  setInterval(() => loadWeather().then(() => { if (!userBusy()) render(); }), 30 * 60000);
+  setInterval(() => { loadWeather().then(() => loadAvisos()).then(() => { if (!userBusy()) render(); }).catch(() => {}); }, 30 * 60000);
   setInterval(() => { if (!syncReady()) return; loadSalud().then(() => { if (!userBusy()) render(); }).catch(() => {}); }, Salud.EVERY);
   window.addEventListener('resize', () => applyRail());
   setInterval(() => loadPVPC().then(() => { if (!userBusy()) render(); }), 60 * 60000);
@@ -1893,11 +2043,12 @@
   // Arranque
   applyRail();
   primeSalud();
+  primeAvisos();
   const hash = (location.hash || '').replace('#', '');
   if (SCREENS[hash] && hash !== 'ajustes') S.screen = hash;
   render();
   refreshAll(false);
 
   // Para pruebas automáticas
-  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, loadSalud, showEvent, morningLine, menuState, kidsHome, mealsFor, paintOffline, SALUD_EVERY: Salud.EVERY };
+  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, loadSalud, loadAvisos, showEvent, showAviso, morningLine, packDay, menuState, kidsHome, mealsFor, paintOffline, SALUD_EVERY: Salud.EVERY };
 })();
