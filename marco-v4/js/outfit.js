@@ -83,5 +83,26 @@
     return s;
   }
 
-  window.Outfit = { SLOTS: SLOTS, normalize: normalize, demo: demo, brief: brief, safeImage: safeImage };
+  /* URL del script: …/exec?action=outfitImg&tok=… sin clave. */
+  function esFotoScript(url) {
+    var s = String(url || '');
+    if (!/^https:\/\//i.test(s) || s.length > 2000) return false;
+    if (!/[?&]action=outfitImg(?:&|$)/.test(s) || !/[?&]tok=/.test(s)) return false;
+    if (/[?&]key=/.test(s)) return false;
+    return true;
+  }
+
+  /* El script responde un data URL (image/jpeg o image/png). Otra cosa no es foto. */
+  function dataUrlFoto(raw) {
+    var s = String(raw || '').replace(/\s+/g, '');
+    var i = s.indexOf(',');
+    if (i < 12) return '';
+    var head = s.slice(0, i).toLowerCase();
+    if (head !== 'data:image/jpeg;base64' && head !== 'data:image/png;base64') return '';
+    var b64 = s.slice(i + 1);
+    if (!b64 || b64.length > 12000000 || !/^[a-z0-9+/=]+$/i.test(b64)) return '';
+    return head + ',' + b64;
+  }
+
+  window.Outfit = { SLOTS: SLOTS, normalize: normalize, demo: demo, brief: brief, safeImage: safeImage, esFotoScript: esFotoScript, dataUrlFoto: dataUrlFoto };
 })();

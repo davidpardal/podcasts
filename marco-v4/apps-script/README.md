@@ -1,6 +1,6 @@
 # Apps Script del marco (v4)
 
-La compra desde un Atajo de iOS está en `AtajoCompra.gs` y `ATAJO.md`. El outfit de mañana está en `OUTFIT.md` (acción `outfit`, la misma `MARCO_KEY`, sin propiedad nueva). Hay que pegar `Code.gs` de esta carpeta y publicar una **versión nueva**. La URL `/exec` no cambia.
+La compra desde un Atajo de iOS está en `AtajoCompra.gs` y `ATAJO.md`. El outfit de mañana está en `OUTFIT.md` (acción `outfit`, la misma `MARCO_KEY`). Una foto guardada en Drive se enseña sin hacer el archivo público: el bot manda `imageDriveId` y el marco sigue usando `imageUrl`. La propiedad `MARCO_OUTFIT_DRIVE_FOLDER` es opcional. Hay que pegar `Code.gs` (y el manifiesto, que ahora pide permiso de Drive) y publicar una **versión nueva**. La URL `/exec` no cambia.
 
 # Apps Script del marco (detalle)
 
@@ -18,6 +18,7 @@ Engranaje del proyecto → **Propiedades del script** → **Añadir propiedad**.
 | `GARMIN_PERSONAL_API_KEY` | Solo si quieres Salud | Clave de la API personal de Garmin. Sin ella, la acción `salud` responde sin datos y el marco enseña «Sin datos de Garmin». |
 | `AEMET_API_KEY` | Solo si quieres avisos | Clave de AEMET OpenData. Sin ella, la acción `avisos` responde sin avisos y el marco no pinta chip. |
 | `AEMET_AREA` | No | Área CAP. Por defecto `eus` (País Vasco). El marco se queda con lo naranja y lo rojo de Álava / Vitoria-Gasteiz. |
+| `MARCO_OUTFIT_DRIVE_FOLDER` | No | Id de la carpeta de Drive del lookbook. Si está, `imageDriveId` solo vale si el archivo cuelga de esa carpeta. Sin ella, el script no comprueba la carpeta. Ver `OUTFIT.md`. |
 
 Los nombres se escriben tal cual, en mayúsculas. El valor de Garmin es el que te da tu cuenta (API personal de Garmin Connect), no un token temporal: el script pide el token él mismo y no lo guarda en el código.
 

@@ -14,7 +14,7 @@ Esta carpeta es **otra versión**, en paralelo. No sustituye a `marco/`, ni a `m
 3. **Reloj nocturno.** Si hay datos, una línea con el outfit de mañana. Si no hay, no sale nada.
 4. **Apps Script.** Acción `outfit` (POST JSON) y la misma propuesta en la respuesta de `sync`. La clave sigue siendo `MARCO_KEY`. Pasos cortos en `apps-script/OUTFIT.md`.
 
-Sin URL ni clave, el modo demo enseña un outfit de ejemplo para poder ver la tarjeta y la pestaña. Los datos de esta versión van en `marco-v4.*` (localStorage). El service worker solo borra cachés `marco-v4-shell-*` (`marco-v4-shell-v9`).
+Sin URL ni clave, el modo demo enseña un outfit de ejemplo para poder ver la tarjeta y la pestaña. Los datos de esta versión van en `marco-v4.*` (localStorage). El service worker solo borra cachés `marco-v4-shell-*` (`marco-v4-shell-v10`).
 
 ## Qué trae de la v3
 
