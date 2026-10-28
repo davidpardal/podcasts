@@ -9,7 +9,7 @@ Opcional:
   MARCO_SUBPATH_URL=http://127.0.0.1:8766/marco-v4/  comprueba que funciona bajo una subruta (GitHub Pages: /podcasts/marco-v4/)
 Las capturas de capturas/ se hacen SIEMPRE con ajustes genéricos de ejemplo.
 """
-import datetime as dt, glob, json, os, subprocess, sys
+import datetime as dt, glob, json, os, re, subprocess, sys
 from urllib.parse import unquote
 from playwright.sync_api import sync_playwright
 
@@ -136,6 +136,52 @@ with sync_playwright() as p:
     check("outfit de mañana en hoy, sin el consejo genérico de ropa",
           page.locator("[data-outfit=demo]").count() == 1 and "p011" in outfit_hoy and "Fresquito" in outfit_hoy
           and page.locator("[data-ropa]").count() == 0 and page.locator(".aemet-chip").count() == 0, outfit_hoy)
+    foto = page.evaluate("""() => ({
+      src: (document.querySelector('img.outfit-img') || {}).src || '',
+      script: Outfit.esFotoScript('https://script.google.com/macros/s/ABC/exec?action=outfitImg&tok=abc'),
+      clave: Outfit.esFotoScript('https://script.google.com/macros/s/ABC/exec?action=outfitImg&tok=abc&key=x'),
+      cuerpo: Outfit.dataUrlFoto('404'),
+      jpeg: Outfit.dataUrlFoto('data:image/jpeg;base64,qq==')
+    })""")
+    check("el ejemplo sigue en imageUrl y un tok con clave no vale",
+          "outfit-demo" in foto["src"] and foto["script"] is True and foto["clave"] is False
+          and foto["cuerpo"] == "" and str(foto["jpeg"]).startswith("data:image/jpeg"), foto)
+    ctx_f, page_f = new_page(b, 1280, 800, dt.datetime(2026, 10, 21, 17, 45, 5, tzinfo=TZ))
+    png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    page_f.route(re.compile(r"action=outfitImg"), lambda route: route.fulfill(
+        status=200, content_type="text/plain; charset=utf-8",
+        headers={"X-Content-Type-Options": "nosniff", "Access-Control-Allow-Origin": "*"},
+        body="data:image/png;base64," + png_b64))
+    page_f.goto(BASE)
+    page_f.wait_for_selector("img.outfit-img")
+    page_f.evaluate("""() => {
+      Marco.settings.syncUrl = 'https://script.google.com/macros/s/TEST/exec';
+      Marco.settings.syncKey = 'clave-de-prueba-123456';
+      Marco.settings.demo = false;
+      Marco.S.outfit = {
+        forDate: '2026-10-22', updatedAt: '2026-10-21T21:00:00+01:00', why: 'Foto de prueba',
+        imageUrl: 'https://script.google.com/macros/s/TEST/exec?action=outfitImg&tok=abc',
+        pieces: [{ id: 'p011', name: 'camiseta', slot: 'arriba' }], demo: false, stale: false
+      };
+      Marco.render();
+    }""")
+    page_f.wait_for_function("""() => {
+      const img = document.querySelector('img.outfit-hoy-img');
+      return !!(img && img.naturalWidth === 1 && String(img.src || '').indexOf('data:image/png') === 0);
+    }""", timeout=10000)
+    check("foto de Drive: el img usa el data URL y no la clave",
+          "key=" not in (page_f.locator("img.outfit-hoy-img").get_attribute("data-outfit-src") or "")
+          and page_f.locator("img.outfit-hoy-img").evaluate("el => el.naturalWidth") == 1)
+    page_f.unroute(re.compile(r"action=outfitImg"))
+    page_f.route(re.compile(r"action=outfitImg"), lambda route: route.fulfill(
+        status=200, content_type="text/plain; charset=utf-8", body="404"))
+    page_f.evaluate("""() => {
+      Marco.S.outfit.imageUrl = 'https://script.google.com/macros/s/TEST/exec?action=outfitImg&tok=otro';
+      Marco.render();
+    }""")
+    page_f.wait_for_selector(".outfit-hoy .outfit-ph", timeout=10000)
+    check("tok malo: el marco deja el hueco de la camiseta", page_f.locator(".outfit-hoy .outfit-ph").count() == 1)
+    ctx_f.close()
     check("tema automático de día a media tarde", page.evaluate("() => !document.documentElement.classList.contains('theme-night')"))
     check("ahora no lo tapa el turno de fondo", "Turno" not in page.inner_text(".next-title"))
     check("calendario de fondo visible", page.locator(".ev-bg").count() > 0)
@@ -507,11 +553,20 @@ with sync_playwright() as p:
           and "function claveAemet_" in gs and "api_key=" in gs)
     check("script no registra la clave de AEMET", "Logger.log(claveAemet_" not in gs and "Logger.log(key" not in gs and "Logger.log(token" not in gs)
     sw = open(os.path.join(HERE, "..", "sw.js"), encoding="utf-8").read()
-    check("el service worker incluye el outfit y sube la caché", "marco-v4-shell-v9" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v4-shell-" in sw)
+    check("el service worker incluye el outfit y sube la caché", "marco-v4-shell-v10" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v4-shell-" in sw)
     check("script: acción outfit con la misma clave, sin propiedad nueva",
           "action === 'outfit'" in gs and "MARCO_OUTFIT_N" in gs and "function leerOutfit_" in gs and "AEMET_API_KEY" in gs)
     outfit_md = open(os.path.join(HERE, "..", "apps-script", "OUTFIT.md"), encoding="utf-8").read()
     check("OUTFIT.md explica el POST y MARCO_KEY", "action" in outfit_md and "MARCO_KEY" in outfit_md and "forDate" in outfit_md and "pantalón" in outfit_md)
+    check("script: foto de Drive por outfitImg sin clave en la URL",
+          "imageDriveId" in gs and "action=outfitImg" in gs and "function servirOutfitImg_" in gs
+          and "DriveApp.getFileById" in gs and "image/jpeg" in gs and "image/png" in gs
+          and "MARCO_OUTFIT_IMG" in gs and "texto404_" in gs
+          and "key=" not in gs.split("function urlFotoOutfit_")[1].split("function guardarMapaImagen_")[0])
+    check("manifiesto puede leer Drive", "https://www.googleapis.com/auth/drive" in (manifest.get("oauthScopes") or []))
+    check("OUTFIT.md explica imageDriveId y la carpeta opcional",
+          "imageDriveId" in outfit_md and "outfitImg" in outfit_md and "MARCO_OUTFIT_DRIVE_FOLDER" in outfit_md
+          and "versión nueva" in outfit_md.lower() or "Nueva versión" in outfit_md)
     check("readme de apps-script explica AEMET_API_KEY",
           "AEMET_API_KEY" in readme_gs and "avisos_cap" in readme_gs and "Nueva versión" in readme_gs and "no imprime" in readme_gs)
 

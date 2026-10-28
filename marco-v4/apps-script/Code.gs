@@ -5,7 +5,8 @@
  * MARCO_KEY, GARMIN_PERSONAL_API_KEY y AEMET_API_KEY van en Propiedades del script
  * (Ajustes del proyecto). El script no las escribe en el registro ni las devuelve.
  * El outfit de mañana usa la misma MARCO_KEY (acción outfit). No hay otra clave.
- * El detalle del JSON está en OUTFIT.md.
+ * Una foto de Drive (imageDriveId) se sirve con action=outfitImg y un tok; la URL
+ * de la imagen no lleva MARCO_KEY. El detalle está en OUTFIT.md.
  *
  * La mezcla es la misma que en js/sync.js (mergeState): por elemento,
  * gana la revisión más alta, y un borrado es una lápida para no resucitarlo.
@@ -24,10 +25,15 @@ var MAX_WEEKS = 16;
 var MAX_EVENTS = 2000;
 
 function doGet(e) {
+  var params = (e && e.parameter) || {};
+  // La foto no lleva clave: el tok es el secreto. El <img> del marco no puede mandar cabeceras.
+  if (String(params.action || '') === 'outfitImg') return servirOutfitImg_(params.tok);
   return handle_(e, null);
 }
 
 function doPost(e) {
+  var params = (e && e.parameter) || {};
+  if (String(params.action || '') === 'outfitImg') return servirOutfitImg_(params.tok);
   var body = {};
   var raw = '';
   try {
@@ -38,6 +44,7 @@ function doPost(e) {
     if (typeof atajoDesdeTexto_ === 'function') return atajoDesdeTexto_(e, raw);
     return json_({ ok: false, error: 'JSON no válido' });
   }
+  if (body && String(body.action || '') === 'outfitImg') return servirOutfitImg_(body.tok || params.tok);
   return handle_(e, body);
 }
 
@@ -56,6 +63,7 @@ function probar() {
   Logger.log(aemetListo ? 'AEMET: propiedad AEMET_API_KEY presente (no se muestra).' : 'AEMET: falta AEMET_API_KEY. No habrá avisos.');
   var outfitGuardado = leerOutfit_();
   Logger.log(outfitGuardado ? ('Outfit guardado para ' + outfitGuardado.forDate + ' (' + (outfitGuardado.pieces || []).length + ' piezas).') : 'Outfit: todavía no hay propuesta guardada.');
+  Logger.log(outfitGuardado && outfitGuardado.imageDriveId ? 'Outfit: hay foto en Drive (ni el id ni el enlace se imprimen).' : 'Outfit: sin foto de Drive.');
 }
 
 function handle_(e, body) {
@@ -1250,13 +1258,22 @@ var OUTFIT_MAX_CHUNKS = 8;
 
 function outfit_(body) {
   body = body || {};
-  if (body.pieces || body.forDate || body.why || body.imageUrl) return guardarOutfit_(body);
+  if (body.pieces || body.forDate || body.why || body.imageUrl || body.imageDriveId) return guardarOutfit_(body);
   return { ok: true, outfit: leerOutfit_() };
 }
 
 function guardarOutfit_(body) {
   var norm = validarOutfit_(body);
   if (norm.error) return { ok: false, error: norm.error };
+  var driveId = String(body.imageDriveId || '').trim();
+  var mapa = null;
+  if (driveId) {
+    var foto = imagenDesdeDrive_(driveId);
+    if (foto.error) return { ok: false, error: foto.error };
+    norm.outfit.imageUrl = foto.imageUrl;
+    norm.outfit.imageDriveId = driveId;
+    mapa = foto.map;
+  }
   var json = JSON.stringify(norm.outfit);
   if (json.length > OUTFIT_CHUNK * OUTFIT_MAX_CHUNKS) {
     return { ok: false, error: 'El outfit no cabe. Usa una URL https para la imagen.' };
@@ -1265,6 +1282,8 @@ function guardarOutfit_(body) {
   if (!lock.tryLock(15000)) return { ok: false, error: 'Prueba otra vez en unos segundos' };
   try {
     guardarOutfitJson_(json);
+    if (mapa) guardarMapaImagen_(mapa);
+    else borrarMapaImagen_();
     return { ok: true, outfit: norm.outfit };
   } finally {
     lock.releaseLock();
@@ -1289,11 +1308,16 @@ function validarOutfit_(body) {
     if (!slot) return { error: 'Hueco no válido en ' + id + '. Usa arriba, capa, pantalón, calzado o exterior.' };
     pieces.push({ id: id, name: name.substring(0, 80), slot: slot });
   }
-  var imageUrl = String(body.imageUrl || '').trim();
-  if (imageUrl && !/^https:\/\//i.test(imageUrl) && !/^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);/i.test(imageUrl)) {
-    return { error: 'imageUrl tiene que ser https o un data URL de imagen' };
+  var driveId = String(body.imageDriveId || '').trim();
+  var imageUrl = '';
+  // Con imageDriveId la URL la pone el script (action=outfitImg&tok=…). No se usa la imageUrl del cuerpo.
+  if (!driveId) {
+    imageUrl = String(body.imageUrl || '').trim();
+    if (imageUrl && !/^https:\/\//i.test(imageUrl) && !/^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);/i.test(imageUrl)) {
+      return { error: 'imageUrl tiene que ser https o un data URL de imagen' };
+    }
+    if (imageUrl.length > 50000) return { error: 'La imagen es demasiado grande. Usa una URL https.' };
   }
-  if (imageUrl.length > 50000) return { error: 'La imagen es demasiado grande. Usa una URL https.' };
   var updatedAt = String(body.updatedAt || '').trim();
   if (!updatedAt) updatedAt = ahoraMadrid_();
   return {
@@ -1345,4 +1369,137 @@ function guardarOutfitJson_(json) {
   for (var i = 0; i < n; i++) props.setProperty('MARCO_OUTFIT_' + i, json.substring(i * OUTFIT_CHUNK, (i + 1) * OUTFIT_CHUNK));
   for (var j = n; j < prev; j++) props.deleteProperty('MARCO_OUTFIT_' + j);
   props.setProperty('MARCO_OUTFIT_N', String(n));
+}
+
+/* Foto de Drive. El archivo no se comparte. El marco pide
+ * …/exec?action=outfitImg&tok=… sin MARCO_KEY. Apps Script solo puede
+ * responder texto (y el servidor de Google manda nosniff), así que el cuerpo
+ * es un data URL image/jpeg o image/png. El marco lo pone en el <img>. */
+
+var OUTFIT_IMG_MAX = 7 * 1024 * 1024;
+var OUTFIT_IMG_PROP = 'MARCO_OUTFIT_IMG';
+
+function imagenDesdeDrive_(driveId) {
+  if (!/^[A-Za-z0-9_-]{10,128}$/.test(driveId)) return { error: 'imageDriveId no válido' };
+  var file;
+  try { file = DriveApp.getFileById(driveId); }
+  catch (e) { return { error: 'No encuentro esa foto en Drive' }; }
+  if (!file || file.isTrashed()) return { error: 'No encuentro esa foto en Drive' };
+  var carpeta = carpetaOutfitOk_(file);
+  if (carpeta) return { error: carpeta };
+  var bytes;
+  try { bytes = file.getBlob().getBytes(); }
+  catch (e2) { return { error: 'No puedo leer esa foto en Drive' }; }
+  if (!bytes || bytes.length < 8) return { error: 'La foto está vacía' };
+  if (bytes.length > OUTFIT_IMG_MAX) return { error: 'La foto pesa demasiado' };
+  var mime = tipoPorBytes_(bytes);
+  if (mime !== 'image/jpeg' && mime !== 'image/png') return { error: 'La foto tiene que ser JPEG o PNG' };
+  var tok = tokenOpaco_();
+  var imageUrl = urlFotoOutfit_(tok);
+  if (!imageUrl || imageUrl.indexOf('key=') !== -1) return { error: 'Publica la aplicación web (la URL acaba en /exec) antes de guardar la foto' };
+  return { imageUrl: imageUrl, map: { tok: tok, fileId: driveId } };
+}
+
+function carpetaOutfitOk_(file) {
+  var want = String(PropertiesService.getScriptProperties().getProperty('MARCO_OUTFIT_DRIVE_FOLDER') || '').trim();
+  if (!want) return '';
+  var parents;
+  try { parents = file.getParents(); }
+  catch (e) { return 'La foto no está en la carpeta del outfit'; }
+  while (parents.hasNext()) {
+    if (parents.next().getId() === want) return '';
+  }
+  return 'La foto no está en la carpeta del outfit';
+}
+
+function tokenOpaco_() {
+  var raw = Utilities.getUuid() + '|' + Utilities.getUuid() + '|' + Utilities.getUuid();
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
+  return Utilities.base64EncodeWebSafe(digest).replace(/=+$/g, '');
+}
+
+function urlFotoOutfit_(tok) {
+  var base = '';
+  try { base = String(ScriptApp.getService().getUrl() || ''); } catch (e) { base = ''; }
+  base = base.split('#')[0].split('?')[0].replace(/\/dev$/, '/exec');
+  if (!/^https:\/\//i.test(base) || !/\/exec$/.test(base)) return '';
+  return base + '?action=outfitImg&tok=' + encodeURIComponent(tok);
+}
+
+function guardarMapaImagen_(map) {
+  var props = PropertiesService.getScriptProperties();
+  var prevRaw = props.getProperty(OUTFIT_IMG_PROP) || '';
+  props.setProperty(OUTFIT_IMG_PROP, JSON.stringify({ tok: map.tok, fileId: map.fileId }));
+  var cache = CacheService.getScriptCache();
+  try {
+    var prev = prevRaw ? JSON.parse(prevRaw) : null;
+    if (prev && prev.tok && prev.tok !== map.tok) cache.remove('oi:' + prev.tok);
+  } catch (e) {}
+  try { cache.put('oi:' + map.tok, map.fileId, 21600); } catch (e2) {}
+}
+
+function borrarMapaImagen_() {
+  var props = PropertiesService.getScriptProperties();
+  var prevRaw = props.getProperty(OUTFIT_IMG_PROP) || '';
+  if (!prevRaw) return;
+  props.deleteProperty(OUTFIT_IMG_PROP);
+  try {
+    var prev = JSON.parse(prevRaw);
+    if (prev && prev.tok) CacheService.getScriptCache().remove('oi:' + prev.tok);
+  } catch (e) {}
+}
+
+function buscarFoto_(tok) {
+  tok = String(tok || '').trim();
+  if (!/^[A-Za-z0-9_-]{32,80}$/.test(tok)) return '';
+  var cache = CacheService.getScriptCache();
+  var hit = '';
+  try { hit = cache.get('oi:' + tok) || ''; } catch (e) { hit = ''; }
+  if (/^[A-Za-z0-9_-]{10,128}$/.test(hit)) return hit;
+  var raw = PropertiesService.getScriptProperties().getProperty(OUTFIT_IMG_PROP) || '';
+  var map = null;
+  try { map = JSON.parse(raw); } catch (e2) { map = null; }
+  if (!map || !mismaClave_(String(map.tok || ''), tok)) return '';
+  var fileId = String(map.fileId || '');
+  if (!/^[A-Za-z0-9_-]{10,128}$/.test(fileId)) return '';
+  try { cache.put('oi:' + tok, fileId, 21600); } catch (e3) {}
+  return fileId;
+}
+
+function servirOutfitImg_(tok) {
+  try {
+    var fileId = buscarFoto_(tok);
+    if (!fileId) return texto404_();
+    var file = DriveApp.getFileById(fileId);
+    if (!file || file.isTrashed()) return texto404_();
+    if (carpetaOutfitOk_(file)) return texto404_();
+    var bytes = file.getBlob().getBytes();
+    if (!bytes || bytes.length < 8 || bytes.length > OUTFIT_IMG_MAX) return texto404_();
+    var mime = tipoPorBytes_(bytes);
+    if (mime !== 'image/jpeg' && mime !== 'image/png') return texto404_();
+    return fotoRespuesta_(bytes, mime);
+  } catch (e) {
+    return texto404_();
+  }
+}
+
+function fotoRespuesta_(bytes, mime) {
+  // ContentService no tiene image/jpeg ni image/png. El data URL lleva ese tipo.
+  var b64 = Utilities.base64Encode(bytes);
+  return ContentService.createTextOutput('data:' + mime + ';base64,' + b64).setMimeType(ContentService.MimeType.TEXT);
+}
+
+function texto404_() {
+  return ContentService.createTextOutput('404').setMimeType(ContentService.MimeType.TEXT);
+}
+
+function tipoPorBytes_(bytes) {
+  if (!bytes || bytes.length < 8) return '';
+  var b0 = bytes[0] & 255;
+  var b1 = bytes[1] & 255;
+  var b2 = bytes[2] & 255;
+  var b3 = bytes[3] & 255;
+  if (b0 === 0xFF && b1 === 0xD8 && b2 === 0xFF) return 'image/jpeg';
+  if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) return 'image/png';
+  return '';
 }

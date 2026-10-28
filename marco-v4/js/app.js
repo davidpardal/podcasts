@@ -604,9 +604,51 @@
     if (isNaN(d.getTime())) return o.forDate;
     return U.DIAS[d.getDay()] + ' ' + d.getDate() + ' de ' + U.MESES[d.getMonth()];
   }
+  const outfitImgMemo = Object.create(null);
+  const OUTFIT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
   function outfitImgHtml(o, cls) {
     if (!o || !o.imageUrl) return '<div class="' + cls + ' outfit-ph" aria-hidden="true">👕</div>';
-    return '<img class="' + cls + ' outfit-img" alt="Lookbook del outfit" referrerpolicy="no-referrer" src="' + esc(o.imageUrl) + '">';
+    const url = o.imageUrl;
+    if (Outfit.esFotoScript(url)) {
+      return '<img class="' + cls + ' outfit-img" alt="Lookbook del outfit" referrerpolicy="no-referrer" src="' + OUTFIT_PIXEL + '" data-outfit-src="' + esc(url) + '">';
+    }
+    return '<img class="' + cls + ' outfit-img" alt="Lookbook del outfit" referrerpolicy="no-referrer" src="' + esc(url) + '">';
+  }
+  function outfitPh(img) {
+    const ph = document.createElement('div');
+    ph.className = String(img.className || '').replace('outfit-img', '').trim() + ' outfit-ph';
+    ph.setAttribute('aria-hidden', 'true');
+    ph.textContent = '👕';
+    if (img.parentNode) img.replaceWith(ph);
+  }
+  function recordarFoto_(url, data) {
+    outfitImgMemo[url] = data;
+    const keys = Object.keys(outfitImgMemo);
+    if (keys.length > 2) keys.slice(0, keys.length - 2).forEach((k) => { delete outfitImgMemo[k]; });
+  }
+  function pintarFotosOutfit() {
+    document.querySelectorAll('img.outfit-img[data-outfit-src]').forEach((img) => {
+      const url = img.getAttribute('data-outfit-src');
+      if (!Outfit.esFotoScript(url)) return;
+      if (outfitImgMemo[url]) {
+        img.src = outfitImgMemo[url];
+        img.removeAttribute('data-outfit-src');
+        return;
+      }
+      if (img.getAttribute('data-outfit-loading')) return;
+      img.setAttribute('data-outfit-loading', '1');
+      fetch(url, { redirect: 'follow', credentials: 'omit', referrerPolicy: 'no-referrer' })
+        .then((r) => r.text())
+        .then((t) => {
+          const data = Outfit.dataUrlFoto(t);
+          if (!data) throw new Error('foto');
+          recordarFoto_(url, data);
+          if (!img.isConnected) return;
+          img.src = data;
+          img.removeAttribute('data-outfit-src');
+        })
+        .catch(() => { if (img.isConnected) outfitPh(img); });
+    });
   }
   function outfitTag(o) {
     if (!o) return '';
@@ -2149,6 +2191,7 @@
     });
     document.body.dataset.screen = S.screen;
     try { (SCREENS[S.screen] || renderHoy)(); } catch (e) { console.error(e); screenEl.innerHTML = '<div class="card">Error al pintar: ' + esc(e.message) + '</div>'; }
+    pintarFotosOutfit();
     tickClocks();
   }
   function closeDrawer() {
@@ -2469,10 +2512,7 @@
   document.addEventListener('error', (ev) => {
     const img = ev.target;
     if (!img || !img.classList || !img.classList.contains('outfit-img')) return;
-    const ph = document.createElement('div');
-    ph.className = String(img.className || '').replace('outfit-img', '').trim() + ' outfit-ph';
-    ph.setAttribute('aria-hidden', 'true');
-    ph.textContent = '👕';
-    if (img.parentNode) img.replaceWith(ph);
+    if (img.getAttribute('data-outfit-src')) return;
+    outfitPh(img);
   }, true);
 })();

@@ -102,9 +102,15 @@ assert.deepStrictEqual(live.pieces.map((p) => p.id + ':' + p.slot), ['p011:arrib
 assert.strictEqual(Outfit.normalize({ pieces: [] }), null);
 assert.strictEqual(Outfit.safeImage('https://ejemplo.invalid/a.png').indexOf('https://'), 0);
 assert.strictEqual(Outfit.brief(null), '');
+assert.strictEqual(Outfit.esFotoScript('https://script.google.com/macros/s/ABC/exec?action=outfitImg&tok=abc'), true);
+assert.strictEqual(Outfit.esFotoScript('https://script.google.com/macros/s/ABC/exec?action=outfitImg&tok=abc&key=secreto'), false);
+assert.strictEqual(Outfit.esFotoScript('img/outfit-demo.svg'), false);
+assert.strictEqual(Outfit.dataUrlFoto('404'), '');
+assert.strictEqual(Outfit.dataUrlFoto('data:image/jpeg;base64,/9j/abc+def='), 'data:image/jpeg;base64,/9j/abc+def=');
+assert.strictEqual(Outfit.dataUrlFoto('data:image/gif;base64,aaaa'), '');
 
 const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-assert.ok(sw.indexOf('marco-v4-shell-v9') !== -1);
+assert.ok(sw.indexOf('marco-v4-shell-v10') !== -1);
 assert.ok(sw.indexOf("k.indexOf('marco-v4-shell-')") !== -1);
 assert.ok(sw.indexOf("indexOf('marco-v2") === -1 && sw.indexOf("indexOf('marco-v3") === -1);
 
