@@ -1,0 +1,8 @@
+# Nunca subir secretos ni configuraciones locales
+*.secret
+*.local.*
+.env
+secrets/
+node_modules/
+__pycache__/
+capturas/
