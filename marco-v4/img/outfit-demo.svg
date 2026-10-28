@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 860">
+  <rect width="640" height="860" fill="#F3EADF"/>
+  <rect x="40" y="28" width="560" height="804" rx="32" fill="#FFFDF9"/>
+  <text x="72" y="86" fill="#6E6358" font-family="sans-serif" font-size="20" font-weight="700" letter-spacing="1.5">LOOKBOOK DE EJEMPLO</text>
+  <text x="72" y="128" fill="#221D18" font-family="sans-serif" font-size="40" font-weight="700">Mañana</text>
+  <path d="M118 168 h168 l36 42 v268 l-48 22 -34-16 v-196 h-76 v196 l-34 16 -48-22 v-268 z" fill="#2C3338"/>
+  <path d="M146 214 h34 v86 h-34 z M214 214 h34 v86 h-34 z" fill="#445055"/>
+  <path d="M168 196 h168 c22 48 30 104 26 168 h-46 l-10 132 h-108 l-10-132 h-46 c-4-64 4-120 26-168 z" fill="#161616"/>
+  <path d="M206 200 h92 c10 22 12 42 8 60 h-108 c-4-18 -2-38 8-60 z" fill="#0C0C0C"/>
+  <path d="M188 292 h128 l20 168 h-168 z" fill="#111111"/>
+  <path d="M228 312 h48 l8 18 h-64 z" fill="#2A2A2A"/>
+  <path d="M196 456 h112 l22 248 h-52 l-16-160 -16 160 h-52 z" fill="#6E7C8A"/>
+  <path d="M246 456 h10 v48 h-10 z" fill="#5A6772"/>
+  <ellipse cx="214" cy="736" rx="58" ry="24" fill="#D5D0C8"/>
+  <path d="M168 724 h78 c20 0 34 10 34 18 v10 h-124 v-14 c0-8 5-14 12-14 z" fill="#F7F4EF"/>
+  <ellipse cx="392" cy="736" rx="58" ry="24" fill="#D5D0C8"/>
+  <path d="M346 724 h78 c20 0 34 10 34 18 v10 h-124 v-14 c0-8 5-14 12-14 z" fill="#F7F4EF"/>
+  <text x="72" y="800" fill="#6E6358" font-family="sans-serif" font-size="18">No es una foto. Sirve cuando no hay script.</text>
+</svg>
