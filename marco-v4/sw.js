@@ -1,7 +1,7 @@
 /* Caché simple para GitHub Pages: la app se abre sin red y los datos vivos siguen en localStorage.
  * No guarda calendarios, el proxy ni las APIs (Open-Meteo, REE). */
 (function () {
-  var CACHE = 'marco-v4-shell-v10';
+  var CACHE = 'marco-v4-shell-v11';
   var ASSETS = [
     './',
     './index.html',
@@ -14,6 +14,7 @@
     './js/luz.js',
     './js/sync.js',
     './js/salud.js',
+    './js/plan.js',
     './js/mochila.js',
     './js/casa.js',
     './js/outfit.js',

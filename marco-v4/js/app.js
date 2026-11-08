@@ -848,6 +848,9 @@
     if (steps != null) bits.push(Salud.fmtInt(steps) + ' / ' + Salud.fmtInt(Salud.goal(d)) + ' pasos');
     if (hrv && Salud.num(hrv.hrv) != null) bits.push('VFC ' + Salud.fmtInt(hrv.hrv));
     if (day && Salud.num(day.bodyBatteryMin) != null) bits.push('batería ' + day.bodyBatteryMin + '–' + (day.bodyBatteryMax != null ? day.bodyBatteryMax : '–'));
+    const ph = planHoy();
+    const dot = { verde: '🟢', ambar: '🟠', rojo: '🔴', nada: '⚪' }[ph.semaforo.luz];
+    bits.unshift(dot + ' ' + ph.ajustada.titulo);
     return '<button type="button" class="card sum salud-mini" data-go="salud"><div class="sum-h c-salud">💓 SALUD ' + tag + '</div><div class="sum-big">' + esc(sleepTxt) + '</div><div class="sum-sub">' + esc(bits.join(' · ') || 'Salud') + '</div></button>';
   }
 
@@ -2095,10 +2098,29 @@
       '<div class="hoy-bit" data-entreno="' + esc(tipoId) + '"><div class="wo-k">ENTRENO</div><div class="metric-n">' + esc(entrenoLabel(tipoId)) + '</div><div class="muted sm">' + esc(woSub) + '</div></div>' +
       '</div></section>';
   }
+  function planHoy() {
+    return Plan.hoy(saludNow(), now(), { cfg: CFG, kidsAt: custodyOn() ? (x) => Custody.withParent(x) : null });
+  }
+  function entrenoHoyCard(d) {
+    const p = planHoy();
+    const sem = p.semaforo;
+    const luz = sem.luz;
+    const semTxt = p.conNinos == null ? 'Semana sin custodia en Ajustes' : (p.conNinos ? 'Semana con ' + kidsNames() : 'Semana sin niños');
+    const motivos = sem.motivos.map((m) => '<span class="plan-why ' + m.luz + '">' + esc(m.txt) + '</span>').join('');
+    const huecos = sem.huecos.length ? '<div class="muted sm plan-gaps">Sin datos: ' + esc(sem.huecos.join(' · ')) + '</div>' : '';
+    const strip = p.semana.map((x) => '<div class="plan-day' + (x.hoy ? ' is-today' : '') + (x.pasado ? ' past' : '') + ' k-' + esc(x.sesion.k) + '" data-fecha="' + x.fecha + '">' +
+      '<b>' + x.dia + (x.hecho ? ' ✓' : '') + '</b><span>' + esc(x.sesion.t) + '</span>' + (x.sesion.d ? '<i>' + esc(x.sesion.d) + '</i>' : '') + '</div>').join('');
+    const tag = d && d.demo ? '<span class="tag ej">EJEMPLO</span>' : '';
+    return '<section class="card plan-hoy" data-luz="' + luz + '"><div class="card-h">💪 Entreno de hoy ' + tag + '<span class="plan-sem muted sm">' + esc(semTxt) + '</span></div>' +
+      '<div class="plan-row"><div class="plan-light ' + luz + '" role="img" aria-label="Semáforo ' + esc(Plan.NOMBRE[luz]) + '"><span></span><b>' + esc(Plan.NOMBRE[luz]) + '</b></div>' +
+      '<div class="plan-main"><div class="plan-t">' + esc(p.ajustada.titulo) + '</div><div class="plan-n">' + esc(p.ajustada.nota) + '</div>' +
+      '<div class="plan-whys">' + motivos + '</div>' + huecos + '</div></div>' +
+      '<div class="plan-week" aria-label="Semana de entreno">' + strip + '</div></section>';
+  }
   function renderSalud() {
     const d = saludNow();
     if (!d || d.empty || d.ok === false) {
-      screenEl.innerHTML = '<div class="salud">' + saludHoyStrip(d) + '<section class="card salud-empty"><div class="card-h">💓 Salud</div><div class="sum-big">Sin datos de Garmin</div><div class="muted sm">Con la sincronización activa, el marco pide el resumen al script. Si Garmin no responde y no hay una copia en este dispositivo, no se inventan cifras. El tipo de entreno sí se elige en Ajustes.</div></section></div>';
+      screenEl.innerHTML = '<div class="salud">' + saludHoyStrip(d) + entrenoHoyCard(d) + '<section class="card salud-empty"><div class="card-h">💓 Salud</div><div class="sum-big">Sin datos de Garmin</div><div class="muted sm">Con la sincronización activa, el marco pide el resumen al script. Si Garmin no responde y no hay una copia en este dispositivo, no se inventan cifras. El tipo de entreno sí se elige en Ajustes.</div></section></div>';
       return;
     }
     const t = now();
@@ -2128,7 +2150,7 @@
     const hrvTxt = hrv && Salud.num(hrv.hrv) != null ? Salud.fmtInt(hrv.hrv) : '–';
     const hrvSub = hrv ? ('Semana ' + (Salud.num(hrv.hrvWeekly) != null ? Salud.fmtInt(hrv.hrvWeekly) : '–') + ' · ' + Salud.hrvLabel(hrv.hrvStatus)) : 'Sin VFC';
     const goalNote = d.stepsGoal ? '' : ' · objetivo de referencia';
-    screenEl.innerHTML = '<div class="salud">' + note + saludHoyStrip(d) +
+    screenEl.innerHTML = '<div class="salud">' + note + saludHoyStrip(d) + entrenoHoyCard(d) +
       '<div class="salud-grid">' +
         '<section class="card salud-sleep"><div class="card-h">🌙 Sueño de anoche</div>' +
           '<div class="sleep-big">' + esc(sleep ? Salud.hours(sleep.sleepSeconds) : '–') + '</div>' +
@@ -2508,7 +2530,7 @@
   refreshAll(false);
 
   // Para pruebas automáticas
-  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, loadSalud, loadAvisos, loadOutfit, showEvent, showAviso, morningLine, nightStartLine, nightOutfitLine, packDay, menuState, kidsHome, mealsFor, paintOffline, applyTheme, leavePlan, schoolOpt, SALUD_EVERY: Salud.EVERY, DAY_IDLE_MS: 60000 };
+  window.Marco = { S, CFG, settings, render, go, allEvents, eventsOn, custodyEvents, demoOn, syncReady, loadCalendars, loadSalud, planHoy, loadAvisos, loadOutfit, showEvent, showAviso, morningLine, nightStartLine, nightOutfitLine, packDay, menuState, kidsHome, mealsFor, paintOffline, applyTheme, leavePlan, schoolOpt, SALUD_EVERY: Salud.EVERY, DAY_IDLE_MS: 60000 };
   document.addEventListener('error', (ev) => {
     const img = ev.target;
     if (!img || !img.classList || !img.classList.contains('outfit-img')) return;

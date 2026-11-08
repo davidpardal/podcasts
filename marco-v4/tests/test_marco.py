@@ -553,7 +553,7 @@ with sync_playwright() as p:
           and "function claveAemet_" in gs and "api_key=" in gs)
     check("script no registra la clave de AEMET", "Logger.log(claveAemet_" not in gs and "Logger.log(key" not in gs and "Logger.log(token" not in gs)
     sw = open(os.path.join(HERE, "..", "sw.js"), encoding="utf-8").read()
-    check("el service worker incluye el outfit y sube la caché", "marco-v4-shell-v10" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v4-shell-" in sw)
+    check("el service worker incluye el outfit y sube la caché", "marco-v4-shell-v11" in sw and "./js/plan.js" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v4-shell-" in sw)
     check("script: acción outfit con la misma clave, sin propiedad nueva",
           "action === 'outfit'" in gs and "MARCO_OUTFIT_N" in gs and "function leerOutfit_" in gs and "AEMET_API_KEY" in gs)
     outfit_md = open(os.path.join(HERE, "..", "apps-script", "OUTFIT.md"), encoding="utf-8").read()
@@ -847,6 +847,7 @@ process.stdin.on("end", function () {
     demo_txt = page.inner_text(".salud")
     check("salud de ejemplo, con sueño, pasos y entrenos", "Datos de ejemplo" in demo_txt and "no son de tu Garmin" in demo_txt and "Sueño de anoche" in demo_txt and "Pasos de hoy" in demo_txt and "Carrera de ejemplo" in demo_txt and "Remo de ejemplo" not in demo_txt and page.locator(".trend-card").count() == 6 and page.locator(".wo").count() >= 3 and "EJEMPLO" in demo_txt)
     hoy_ej = page.inner_text(".salud-hoy").lower()
+    check("entreno de hoy de ejemplo: tarjeta, semana y etiqueta", page.locator(".plan-hoy").count() == 1 and page.locator(".plan-hoy .plan-day").count() == 7 and "EJEMPLO" in page.inner_text(".plan-hoy") and page.get_attribute(".plan-hoy", "data-luz") in ("verde", "ambar", "rojo", "nada"))
     check("salud de ejemplo: franja Hoy", page.locator(".salud-hoy").count() == 1 and "sueño" in hoy_ej and "descanso" in hoy_ej and "batería" in hoy_ej and page.get_attribute("[data-entreno]", "data-entreno") == "descanso")
     trends = page.evaluate("""() => {
       const d = Salud.demo(U.now());
@@ -910,6 +911,10 @@ process.stdin.on("end", function () {
     real = page.inner_text(".salud")
     check("salud usa la respuesta simulada y no el ejemplo", "91" in real and "12.345" in real and "Remo de ejemplo" in real and "Equilibrada" in real and "Datos de ejemplo" not in real and "22" in real and "95" in real, real[:240])
     check("la clave no va en la URL de salud", not salud_box["key_in_url"] and salud_box["n"] >= 1)
+    plan_txt = page.inner_text(".plan-hoy")
+    check("entreno de hoy: semáforo verde con la respuesta simulada", page.get_attribute(".plan-hoy", "data-luz") == "verde" and "Sueño 8,0 h · nota 91" in plan_txt and "equilibrada" in plan_txt and page.locator(".plan-day").count() == 7 and page.locator(".plan-day.is-today").count() == 1, plan_txt[:200])
+    check("entreno de hoy en el resumen de Salud", "🟢" in page.evaluate("async () => { await Marco.go('hoy'); return document.querySelector('.salud-mini').innerText; }"))
+    page.click("#rail [data-go=salud]"); page.wait_for_selector(".plan-hoy")
     stored = page.evaluate("() => localStorage.getItem('marco-v4.cache.salud') || ''")
     check("la copia local no guarda la clave", stored.startswith("{") and "clave-de-ejemplo" not in stored and "GARMIN" not in stored and "Bearer" not in stored)
     check("salud se pide al cargar y el intervalo es 30 min", page.evaluate("() => Marco.SALUD_EVERY === 30 * 60000 && Marco.S.saludLoads >= 1"))
