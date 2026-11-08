@@ -509,3 +509,23 @@ html.theme-night .undo .btn { background: #1A1816; color: #F6EFE6; }
 .outfit-slot { font-size: 0.68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); }
 .outfit-empty { max-width: 36rem; }
 html.theme-night .outfit-hero { background: #241F1B; }
+/* Entreno de hoy (semáforo + semana tipo) */
+.plan-hoy .card-h { display: flex; align-items: center; gap: 0.5rem; }
+.plan-sem { margin-left: auto; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.plan-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.9rem; align-items: center; }
+.plan-light { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; min-width: 4.6rem; }
+.plan-light span { width: 3rem; height: 3rem; border-radius: 50%; background: #C4B5A4; box-shadow: inset 0 -3px 0 rgba(0,0,0,.12); }
+.plan-light.verde span { background: var(--green); } .plan-light.ambar span { background: var(--warm); } .plan-light.rojo span { background: var(--red); }
+.plan-light b { font-size: 0.8rem; letter-spacing: .06em; text-transform: uppercase; }
+.plan-t { font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.plan-n { color: var(--soft); margin-top: 0.15rem; }
+.plan-whys { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+.plan-why { font-size: 0.78rem; padding: 0.15rem 0.55rem; border-radius: 1rem; background: var(--hl); border-left: 4px solid #C4B5A4; }
+.plan-why.verde { border-color: var(--green); } .plan-why.ambar { border-color: var(--warm); } .plan-why.rojo { border-color: var(--red); }
+.plan-gaps { margin-top: 0.35rem; }
+.plan-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.4rem; margin-top: 0.75rem; }
+.plan-day { background: var(--hl); border-radius: 0.7rem; padding: 0.35rem 0.45rem; min-width: 0; font-size: 0.74rem; line-height: 1.2; border-top: 4px solid #C4B5A4; }
+.plan-day b { display: block; font-size: 0.8rem; } .plan-day span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .plan-day i { color: var(--soft); font-style: normal; }
+.plan-day.k-fuerza { border-top-color: var(--purple); } .plan-day.k-cardio { border-top-color: #2F80ED; } .plan-day.k-descanso { border-top-color: #C4B5A4; }
+.plan-day.past { opacity: 0.55; } .plan-day.is-today { outline: 2px solid var(--ink, #333); }
+@media (max-width: 700px) { .plan-week { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

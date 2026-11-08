@@ -14,7 +14,15 @@ Esta carpeta es **otra versión**, en paralelo. No sustituye a `marco/`, ni a `m
 3. **Reloj nocturno.** Si hay datos, una línea con el outfit de mañana. Si no hay, no sale nada.
 4. **Apps Script.** Acción `outfit` (POST JSON) y la misma propuesta en la respuesta de `sync`. La clave sigue siendo `MARCO_KEY`. Pasos cortos en `apps-script/OUTFIT.md`.
 
-Sin URL ni clave, el modo demo enseña un outfit de ejemplo para poder ver la tarjeta y la pestaña. Los datos de esta versión van en `marco-v4.*` (localStorage). El service worker solo borra cachés `marco-v4-shell-*` (`marco-v4-shell-v10`).
+Sin URL ni clave, el modo demo enseña un outfit de ejemplo para poder ver la tarjeta y la pestaña. Los datos de esta versión van en `marco-v4.*` (localStorage). El service worker solo borra cachés `marco-v4-shell-*` (`marco-v4-shell-v11`).
+
+## Entreno de hoy
+
+En **Salud**, debajo de la franja Hoy, la tarjeta **💪 Entreno de hoy** (y una línea en el resumen de Salud de la portada):
+
+- **Semáforo** con la noche de hoy frente a los 7 días anteriores, de la misma respuesta `salud` (sin cambiar el script). Gana el peor. **Verde**: sueño ≥7 h (o nota ≥70), VFC equilibrada y pulso ≤ media +2 → la sesión prevista. **Ámbar**: 5,5–7 h o nota 55–69, VFC desequilibrada o pulso +3–4 → la misma sesión con 20–30 % menos volumen, RPE ≤6 y cardio solo Z2. **Rojo**: <5,5 h o nota <55, VFC baja, pulso ≥ media +5 o batería máx <25 → descanso o paseo 30–40′ + 10′ de movilidad. Si falta un dato sale en «Sin datos» y no cuenta; sin ninguno, «Sin datos».
+- **Semana tipo** según la custodia de Ajustes: la semana (lunes a domingo) con los niños es la que sigue al cambio. Plantillas en `js/plan.js` (se pueden pisar con `planEntreno: { sin: [...7], con: [...7] }` en el JSON de ajustes avanzados). Debajo, la semana de L a D con ✓ en los días con entreno en Garmin.
+- Lógica en `js/plan.js`; pruebas sin navegador en `node tests/test_plan.js`.
 
 ## Qué trae de la v3
 
