@@ -39,6 +39,19 @@ assert.strictEqual(sooner.min, 10);
 assert.strictEqual(Casa.leavePhrase(sooner, now).main, 'Sal en 5 min');
 assert.strictEqual(Casa.leavePhrase(sooner, new Date(2026, 9, 21, 17, 50)).main, 'Sal ya');
 
+const at = new Date(2026, 9, 21, 17, 0);
+function leaveIn(min, id) {
+  return { event: { id: id, title: id }, min: 0, leave: new Date(at.getTime() + min * 60000) };
+}
+assert.strictEqual(Casa.leaveLineVisible(leaveIn(89, 'a'), at, null), true);
+assert.strictEqual(Casa.leaveLineVisible(leaveIn(90, 'a'), at, null), false);
+assert.strictEqual(Casa.leaveLineVisible(leaveIn(23 * 60, 'a'), at, null), false);
+assert.strictEqual(Casa.leaveLineVisible(null, at, null), false);
+assert.strictEqual(Casa.leaveLineVisible(leaveIn(5, 'cole'), at, { id: 'cole', title: 'Cole' }), false);
+assert.strictEqual(Casa.leaveLineVisible(leaveIn(5, 'compra'), at, { id: 'cole', title: 'Cole' }), true);
+assert.strictEqual(Casa.leaveLineVisible(leaveIn(-1, 'b'), at, null), true);
+assert.strictEqual(Casa.leavePhrase(leaveIn(23 * 60, 'a'), at).main.indexOf('h') !== -1, true);
+
 const groups = Casa.groupByAisle(
   [{ name: 'Leche' }, { name: 'Pilas' }, { name: 'Pan de molde' }, { name: 'Algo raro' }],
   Casa.parseAisles('Lácteos | leche\nDroguería | pila\nPanadería | pan\nOtros')
@@ -110,7 +123,7 @@ assert.strictEqual(Outfit.dataUrlFoto('data:image/jpeg;base64,/9j/abc+def='), 'd
 assert.strictEqual(Outfit.dataUrlFoto('data:image/gif;base64,aaaa'), '');
 
 const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-assert.ok(sw.indexOf('marco-v4-shell-v11') !== -1);
+assert.ok(sw.indexOf('marco-v4-shell-v12') !== -1);
 assert.ok(sw.indexOf("k.indexOf('marco-v4-shell-')") !== -1);
 assert.ok(sw.indexOf("indexOf('marco-v2") === -1 && sw.indexOf("indexOf('marco-v3") === -1);
 

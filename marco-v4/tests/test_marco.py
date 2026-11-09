@@ -60,9 +60,13 @@ with sync_playwright() as p:
     check("demo activo por defecto", page.evaluate("Marco.demoOn()"))
     check("aviso MODO DEMO visible", page.is_visible(".demo-pill"))
     check("citas demo cargadas", page.evaluate("Marco.S.events.length") > 10, page.evaluate("Marco.S.events.length"))
-    check("por defecto: custodia desactivada (sin aviso ni sombreado)", page.locator(".custody-badge").count() == 0 and page.locator(".day.c-padre").count() == 0)
+    check("por defecto: custodia desactivada (sin aviso ni tira de semana)", page.locator(".custody-badge").count() == 0 and page.locator(".week").count() == 0 and page.locator(".hoy-menu").count() == 0)
     check("por defecto: niños genéricos", page.evaluate("Marco.CFG.kids.map(k => k.name).join(',')") == "Peque A,Peque B")
-    check("por defecto: jornada de ejemplo 09:00–17:00", "09:00–17:00" in page.inner_text(".day.is-today .shift"))
+    page.click("#rail [data-go=calendario]"); page.wait_for_selector(".cell.is-today")
+    check("por defecto: jornada de ejemplo 09:00–17:00", "09:00–17:00" in page.inner_text(".cell.is-today .shift"))
+    check("calendario de fondo visible", page.locator(".cal .ev-bg").count() > 0)
+    check("cita demo tachada", page.locator(".cal .ev-done", has_text="Compra semanal").count() >= 1)
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-meal")
     rr = page.evaluate("""() => {
       const evs = Marco.S.events.filter(e => e.title.startsWith('Baloncesto'));
       const mon = U.mondayOf(U.now());
@@ -126,9 +130,24 @@ with sync_playwright() as p:
 
     # ================= 2) Capturas con ajustes genéricos de ejemplo =================
     set_ajustes(page, EJEMPLO); wait_data(page)
-    check("ejemplo: custodia activa y semanas sombreadas", page.locator(".custody-badge").count() == 1 and page.locator(".day.c-padre").count() >= 1)
+    check("ejemplo: custodia activa en el cielo", page.locator(".custody-badge").count() == 1 and page.locator(".week").count() == 0)
+    meal0 = page.evaluate("""() => {
+      const meal = document.querySelector('.next-meal');
+      const sub = document.querySelector('.next-sub');
+      const card = document.querySelector('.next');
+      const r = meal.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      return {
+        text: meal.textContent,
+        mealPx: parseFloat(getComputedStyle(meal).fontSize),
+        subPx: sub ? parseFloat(getComputedStyle(sub).fontSize) : 0,
+        inside: r.left >= c.left - 1 && r.right <= c.right + 1 && r.top >= c.top - 1 && r.bottom <= c.bottom + 1 && r.bottom <= window.innerHeight + 1 && r.top >= 0,
+        h: r.height
+      };
+    }""")
+    check("hoy: comida y cena en grande dentro de Ahora", meal0["text"] == "Hoy: Arroz · Ensalada" and meal0["mealPx"] >= 22 and meal0["mealPx"] >= meal0["subPx"] * 1.5 and meal0["inside"] and meal0["h"] >= 22, meal0)
     leave = page.inner_text("[data-leave]")
-    check("salida: sal en minutos", ("Sal en" in leave or "Sal ya" in leave) and "Cole" in leave and "10 min" in leave, leave)
+    check("salida: sal en minutos y no repite lo próximo", ("Sal en" in leave or "Sal ya" in leave) and "Cole" in leave and "10 min" in leave and "Cole" not in page.inner_text(".next-title") and page.inner_text(".next-label") == "LO PRÓXIMO", leave + " | " + page.inner_text(".next-title"))
     check("custodia: cambio con días", "Cambio el" in page.inner_text(".custody-badge") and "día" in page.inner_text(".custody-badge"))
     check("cole en hoy", "cole" in page.inner_text("[data-cole]").lower())
     check("clima con hora", page.inner_text("[data-fresh=clima]").startswith("Clima de las") or page.inner_text("[data-fresh=clima]") == "Clima sin datos")
@@ -184,24 +203,25 @@ with sync_playwright() as p:
     ctx_f.close()
     check("tema automático de día a media tarde", page.evaluate("() => !document.documentElement.classList.contains('theme-night')"))
     check("ahora no lo tapa el turno de fondo", "Turno" not in page.inner_text(".next-title"))
-    check("calendario de fondo visible", page.locator(".ev-bg").count() > 0)
     lay = page.evaluate("""() => {
       const rail = document.querySelector('#rail').getBoundingClientRect();
       const screen = document.querySelector('#screen').getBoundingClientRect();
-      const menu = document.querySelector('.hoy-menu').getBoundingClientRect();
+      const meal = document.querySelector('.next-meal').getBoundingClientRect();
       const next = document.querySelector('.next').getBoundingClientRect();
       const label = getComputedStyle(document.querySelector('#rail [data-go=hoy] .nav-label'));
       return {
         railBeforeScreen: rail.right <= screen.left + 1,
         vertical: rail.height > rail.width * 1.5,
         labelShown: label.position !== 'absolute' && parseFloat(label.width) > 8,
-        menuLeftOfNext: menu.right <= next.left + 2
+        mealInNext: meal.left >= next.left - 1 && meal.right <= next.right + 2 && meal.width > 40,
+        noMenu: !document.querySelector('.hoy-menu'),
+        noWeek: !document.querySelector('.week')
       };
     }""")
     check("menú de pantallas a la izquierda, en vertical", lay["railBeforeScreen"] and lay["vertical"], lay)
     check("barra con iconos y etiquetas", lay["labelShown"] and "Salud" in page.inner_text("#rail") and "Hoy" in page.inner_text("#rail"))
-    check("menú semanal en la columna izquierda", lay["menuLeftOfNext"] and "Menú semanal" in page.inner_text(".hoy-menu"))
-    check("hoy muestra comida y cena", "Comida" in page.inner_text(".hoy-menu") and "Arroz" in page.inner_text(".hoy-menu"))
+    check("hoy no pinta el menú de 7 días ni la tira de semana", lay["noMenu"] and lay["noWeek"] and lay["mealInNext"], lay)
+    check("hoy muestra comida y cena", page.inner_text(".next-meal") == "Hoy: Arroz · Ensalada")
     page.focus("#rail [data-go=hoy]")
     page.keyboard.press("ArrowDown")
     check("flechas mueven el foco por el menú", page.evaluate("document.activeElement && document.activeElement.dataset.go") == "calendario")
@@ -221,9 +241,8 @@ with sync_playwright() as p:
     page.click("[data-act=railToggle]")
     page.evaluate("localStorage.setItem('marco-v4.railCollapsed', 'false')")
     page.click("#rail [data-go=hoy]")
-    page.wait_for_selector(".hoy-menu")
+    page.wait_for_selector(".next-meal")
     check("mañana de un vistazo", page.inner_text(".next-tom").startswith("Mañana"))
-    check("cita demo tachada", page.locator(".ev-done", has_text="Compra semanal").count() >= 1)
     if page.locator(".wx-h").count():
         check("tiempo por horas", page.locator(".wx-h").count() >= 4)
     page.screenshot(path=os.path.join(OUT, "1-hoy.png"))
@@ -234,17 +253,17 @@ with sync_playwright() as p:
           and "p002" in page.inner_text(".outfit-list").lower() and "pantalón" in page.inner_text(".outfit-list").lower()
           and "Para el" in page.inner_text(".outfit-for"))
     page.screenshot(path=os.path.join(OUT, "22-outfit.png"))
-    page.click("#rail [data-go=hoy]")
-    page.wait_for_selector(".week")
-    page.locator(".week [data-ev]", has_text="Dentista").first.click()
+    page.click("#rail [data-go=calendario]")
+    page.wait_for_selector(".cal")
+    page.locator(".cal [data-ev]", has_text="Dentista").first.click()
     page.wait_for_selector(".modal-card")
     check("al tocar una cita se abre el detalle", page.inner_text(".modal-t") == "Dentista (demo)")
     page.screenshot(path=os.path.join(OUT, "7-aviso-cita.png"))
     page.click("[data-close]")
-    page.locator(".week [data-ev]", has_text="Dentista").first.click()
+    page.locator(".cal [data-ev]", has_text="Dentista").first.click()
     page.wait_for_selector("[data-done]")
     page.click("[data-done]")
-    check("marcar hecha tacha la cita", page.locator(".week .ev-done", has_text="Dentista").count() >= 1)
+    check("marcar hecha tacha la cita", page.locator(".cal .ev-done", has_text="Dentista").count() >= 1)
     page.click("[data-done]")
     page.click("[data-close]")
     for i, (tab, sel) in enumerate([("calendario", ".cal-week"), ("luz", ".luz"), ("ninos", ".ninos"), ("compra", ".compra"), ("ajustes", ".ajustes")], start=2):
@@ -252,6 +271,7 @@ with sync_playwright() as p:
         if tab == "calendario":
             check("calendario: 13 semanas", page.locator(".cal-week").count() == 13)
             check("calendario: semanas de custodia sombreadas", page.locator(".cell.c-padre").count() >= 30)
+            check("calendario de fondo visible en la cuadrícula", page.locator(".cal .ev-bg").count() > 0)
         if tab == "luz":
             try: page.wait_for_selector(".bars", timeout=10000)
             except Exception: pass
@@ -356,8 +376,8 @@ with sync_playwright() as p:
     check("arrastrar asigna la cena", "Sopa" in page.locator(".menu-slot[data-day='2'][data-meal='cena']").inner_text())
     page.click("[data-span='5']")
     check("el menú puede ser solo L–V", page.locator(".menu-day").count() == 5)
-    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".hoy-menu")
-    check("hoy enseña la comida elegida", "Pizza" in page.inner_text(".hoy-menu"))
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-meal")
+    check("hoy enseña la comida elegida", page.inner_text(".next-meal") == "Hoy: Pizza · Sopa")
     page.click("#rail [data-go=menu]"); page.click("[data-act=resetMenu]")
     check("volver al menú de ejemplo", "Arroz" in page.locator(".menu-slot[data-day='2'][data-meal='comida']").inner_text())
     # Haz la cesta: copia, mailto y aviso. Sin webhook en el repo; el correo sale de Ajustes.
@@ -472,6 +492,7 @@ with sync_playwright() as p:
     ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 24, 10, 0, tzinfo=TZ))
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
     page.screenshot(path=os.path.join(OUT, "8-hoy-sabado.png"))
+    check("sábado: la comida del día, sin menú semanal ni semana", page.inner_text(".next-meal") == "Hoy: Hamburguesa · Tortilla de patata" and page.locator(".hoy-menu").count() == 0 and page.locator(".week").count() == 0)
     check("sábado sin niños: tareas en pausa", "En pausa" in page.locator(".sum").first.inner_text())
     check("semana sin niños: vuelven", "Vuelven el" in page.inner_text(".custody-badge"))
     check("mañana domingo no hay cole", "Mañana no hay cole" in page.inner_text("[data-cole]"))
@@ -488,6 +509,30 @@ with sync_playwright() as p:
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
     page.screenshot(path=os.path.join(OUT, "9-hoy-1920x1200.png"))
     check("1920×1200 sin desbordes", page.evaluate("document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1"))
+    check("a las 9:30 no dice sal en horas", page.locator(".week").count() == 0 and page.locator("[data-leave]").count() == 0 and "Sal en" not in page.inner_text(".next") and page.inner_text(".next-meal") == "Hoy: Arroz · Ensalada")
+    ctx.close()
+    ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 21, 17, 45, tzinfo=TZ))
+    page.goto(BASE); page.wait_for_selector(".hoy"); wait_data(page)
+    page.evaluate("""() => {
+      const e = Marco.S.events.find(x => x.title.indexOf('Clase de música') === 0 && U.sameDay(x.start, U.now()));
+      const hechas = JSON.parse(localStorage.getItem('marco-v4.hechas') || '{}');
+      if (e) hechas[e.id] = { on: true, rev: 1 };
+      localStorage.setItem('marco-v4.hechas', JSON.stringify(hechas));
+      Marco.render();
+    }""")
+    check("si lo próximo es la misma salida, no hay segunda línea", "Cole" in page.inner_text(".next-title") and page.inner_text(".next-label") == "LO PRÓXIMO" and page.locator("[data-leave]").count() == 0)
+    page.clock.set_fixed_time(dt.datetime(2026, 10, 21, 18, 5, tzinfo=TZ))
+    page.evaluate("""() => {
+      const e = Marco.S.events.find(x => x.title.indexOf('Compra semanal') === 0);
+      const hechas = JSON.parse(localStorage.getItem('marco-v4.hechas') || '{}');
+      if (e) delete hechas[e.id];
+      localStorage.setItem('marco-v4.hechas', JSON.stringify(hechas));
+      Marco.render();
+    }""")
+    page.wait_for_selector("[data-leave]")
+    leave_now = page.inner_text("[data-leave]")
+    check("salida en menos de 90 min si no es Lo próximo", "Sal en" in leave_now and "Compra" in leave_now and "Cole" not in leave_now and " h" not in leave_now, leave_now)
+    check("esa salida no sustituye al ahora", page.inner_text(".next-label") == "AHORA" and "Compra" not in page.inner_text(".next-title"))
     ctx.close()
     ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
@@ -495,16 +540,18 @@ with sync_playwright() as p:
       const rail = document.querySelector('#rail').getBoundingClientRect();
       const screen = document.querySelector('#screen').getBoundingClientRect();
       const label = getComputedStyle(document.querySelector('#rail [data-go=salud] .nav-label'));
-      const menu = document.querySelector('.hoy-menu');
+      const meal = document.querySelector('.next-meal');
+      const box = meal ? meal.getBoundingClientRect() : { width: 0, height: 0 };
       return {
         left: rail.right <= screen.left + 1,
         vertical: rail.height > rail.width,
         compact: label.position === 'absolute' || parseFloat(label.width) < 2,
         notBottom: rail.top < 40,
-        menu: !!(menu && menu.getBoundingClientRect().width > 40)
+        meal: box.width > 40 && box.height > 16,
+        noWeek: !document.querySelector('.week') && !document.querySelector('.hoy-menu')
       };
     }""")
-    check("móvil: carril izquierdo y compacto", mob["left"] and mob["vertical"] and mob["compact"] and mob["notBottom"] and mob["menu"], mob)
+    check("móvil: carril izquierdo y compacto", mob["left"] and mob["vertical"] and mob["compact"] and mob["notBottom"] and mob["meal"] and mob["noWeek"], mob)
     page.click("[data-act=railToggle]")
     page.wait_for_selector("html.rail-drawer")
     check("móvil: el cajón muestra las etiquetas", "Salud" in page.inner_text("#rail") and page.evaluate("document.documentElement.classList.contains('rail-drawer')"))
@@ -553,7 +600,7 @@ with sync_playwright() as p:
           and "function claveAemet_" in gs and "api_key=" in gs)
     check("script no registra la clave de AEMET", "Logger.log(claveAemet_" not in gs and "Logger.log(key" not in gs and "Logger.log(token" not in gs)
     sw = open(os.path.join(HERE, "..", "sw.js"), encoding="utf-8").read()
-    check("el service worker incluye el outfit y sube la caché", "marco-v4-shell-v11" in sw and "./js/plan.js" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v4-shell-" in sw)
+    check("el service worker incluye el outfit y sube la caché", "marco-v4-shell-v12" in sw and "./js/plan.js" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v4-shell-" in sw)
     check("script: acción outfit con la misma clave, sin propiedad nueva",
           "action === 'outfit'" in gs and "MARCO_OUTFIT_N" in gs and "function leerOutfit_" in gs and "AEMET_API_KEY" in gs)
     outfit_md = open(os.path.join(HERE, "..", "apps-script", "OUTFIT.md"), encoding="utf-8").read()
@@ -721,7 +768,9 @@ process.stdin.on("end", function () {
     page.wait_for_selector(".modal-d")
     check("al tocar el chip se lee el aviso entero", "Rachas fuertes en el interior de Álava" in page.inner_text(".modal-d") and "Álava" in page.inner_text(".modal-card"))
     page.click("[data-close]")
-    check("el turno se pinta de fondo", page.locator(".ev-bg", has_text="Turno ejemplo").count() >= 1)
+    page.click("#rail [data-go=calendario]"); page.wait_for_selector(".cal")
+    check("el turno se pinta de fondo", page.locator(".cal .ev-bg", has_text="Turno ejemplo").count() >= 1)
+    page.click("#rail [data-go=hoy]"); page.wait_for_selector(".next-title")
     page.click("#rail [data-go=compra]"); page.wait_for_selector(".compra")
     check("llega la compra del otro dispositivo", "Pan del otro móvil" in page.inner_text(".items"))
     antes = page.evaluate("() => Marco.S.syncCount || 0")
@@ -736,9 +785,9 @@ process.stdin.on("end", function () {
     page.evaluate("() => Sync.syncNow()")
     page.wait_for_function("() => { const k = JSON.parse(localStorage.getItem('marco-v4.ninos')||'{}'); return (k.stars||{})['peque-a'] >= 1 && (k.stars||{})['peque-b'] >= 2; }")
     check("una estrella local no borra la del otro", "Peque A ⭐ 1" in page.inner_text(".kid-chips") and "Peque B ⭐ 2" in page.inner_text(".kid-chips"))
-    page.click("#rail [data-go=hoy]")
+    page.click("#rail [data-go=calendario]"); page.wait_for_selector(".cal")
     antes_hecha = page.evaluate("() => Marco.S.syncCount || 0")
-    page.locator(".week [data-ev]", has_text="Reunión de ejemplo").first.click()
+    page.locator(".cal [data-ev]", has_text="Reunión de ejemplo").first.click()
     page.click("[data-done]")
     page.evaluate("() => Sync.syncNow()")
     page.wait_for_function("(n) => (Marco.S.syncCount || 0) > n", arg=antes_hecha, timeout=15000)
@@ -836,11 +885,11 @@ process.stdin.on("end", function () {
     tab = page.evaluate("""() => {
       const rail = document.querySelector('#rail').getBoundingClientRect();
       const screen = document.querySelector('#screen').getBoundingClientRect();
-      const menu = document.querySelector('.hoy-menu').getBoundingClientRect();
+      const meal = document.querySelector('.next-meal').getBoundingClientRect();
       const next = document.querySelector('.next').getBoundingClientRect();
-      return { left: rail.right <= screen.left + 1, vertical: rail.height > rail.width, menu: menu.right <= next.left + 2 };
+      return { left: rail.right <= screen.left + 1, vertical: rail.height > rail.width, meal: meal.left >= next.left - 1 && meal.right <= next.right + 2 && meal.width > 40, noWeek: !document.querySelector('.week') };
     }""")
-    check("tablet apaisada: menú a la izquierda y semanal en la columna izquierda", tab["left"] and tab["vertical"] and tab["menu"], tab)
+    check("tablet apaisada: carril a la izquierda y la comida dentro de Ahora", tab["left"] and tab["vertical"] and tab["meal"] and tab["noWeek"], tab)
     page.screenshot(path=os.path.join(OUT, "13-tablet-hoy.png"))
     page.click("#rail [data-go=salud]"); page.wait_for_selector(".salud")
     page.wait_for_selector(".trend-card")
@@ -1002,7 +1051,9 @@ process.stdin.on("end", function () {
         check("privado: vie 30/10 16:59 contigo / 17:01 otro", cust["d30a"] and not cust["d30b"])
         check("privado: 6/11 contigo, 14/11 otro, 21/11 contigo (tras cambio de hora)", cust["d06"] and not cust["d14"] and cust["d21"])
         check("privado: siguiente cambio vie 23/10 17:00", "Fri Oct 23 2026 17:00" in cust["next"], cust["next"])
-        check("privado: jornada L–J 08:00–16:30 y V 08:00–14:00", "08:00–16:30" in page.inner_text(".day.is-today .shift") and "08:00–14:00" in page.locator(".day").nth(2).inner_text())
+        page.click("#rail [data-go=calendario]"); page.wait_for_selector(".cal-week")
+        row = page.locator(".cal-week").first.locator(".cell")
+        check("privado: jornada L–J 08:00–16:30 y V 08:00–14:00", "08:00–16:30" in row.nth(0).inner_text() and "08:00–16:30" in row.nth(2).inner_text() and "08:00–14:00" in row.nth(4).inner_text())
         ctx.close()
         ctx, page = new_page(b, 1280, 800, dt.datetime(2026, 10, 24, 10, 0, tzinfo=TZ))
         page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, priv)
