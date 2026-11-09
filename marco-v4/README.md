@@ -14,7 +14,7 @@ Esta carpeta es **otra versión**, en paralelo. No sustituye a `marco/`, ni a `m
 3. **Reloj nocturno.** Si hay datos, una línea con el outfit de mañana. Si no hay, no sale nada.
 4. **Apps Script.** Acción `outfit` (POST JSON) y la misma propuesta en la respuesta de `sync`. La clave sigue siendo `MARCO_KEY`. Pasos cortos en `apps-script/OUTFIT.md`.
 
-Sin URL ni clave, el modo demo enseña un outfit de ejemplo para poder ver la tarjeta y la pestaña. Los datos de esta versión van en `marco-v4.*` (localStorage). El service worker solo borra cachés `marco-v4-shell-*` (`marco-v4-shell-v11`).
+Sin URL ni clave, el modo demo enseña un outfit de ejemplo para poder ver la tarjeta y la pestaña. Los datos de esta versión van en `marco-v4.*` (localStorage). El service worker solo borra cachés `marco-v4-shell-*` (`marco-v4-shell-v12`).
 
 ## Entreno de hoy
 
@@ -58,7 +58,7 @@ y 1920×1200, y también en móvil.
 
 | Pantalla | Qué tiene |
 |---|---|
-| **Hoy** | Bloque «cielo» que cambia de color con el sol (amanecer, día, atardecer, noche) con la hora, la fecha, el tiempo de varios días y las **próximas horas** (Open-Meteo), con un aviso si llueve o hace frío a la hora de una cita. Si hay un **aviso naranja o rojo de AEMET** para Álava / Vitoria, sale un chip en el cielo: al tocarlo lees el texto. **Outfit de mañana**: lookbook (si hay URL), piezas con id y el porqué. **Ahora**: lo siguiente con cuenta atrás, la comida y la cena de hoy, y mañana de un vistazo (con la mochila, si toca). La semana con las citas (las de fondo, tenues), la **jornada**, una etiqueta **Festivo** si el día lo es, y, si activas la custodia, los días con los niños sombreados y **con quién están**. Abajo, resúmenes de niños (con la mochila), compra y luz. |
+| **Hoy** | Bloque «cielo» que cambia de color con el sol (amanecer, día, atardecer, noche) con la hora, la fecha, el tiempo de varios días y las **próximas horas** (Open-Meteo), con un aviso si llueve o hace frío a la hora de una cita. Si hay un **aviso naranja o rojo de AEMET** para Álava / Vitoria, sale un chip en el cielo: al tocarlo lees el texto. **Outfit de mañana**: lookbook (si hay URL), piezas con id y el porqué. **Ahora**: lo siguiente con cuenta atrás, una línea grande con la comida y la cena de hoy («Hoy: comida · cena»), y mañana de un vistazo (con la mochila, si toca). «Sal en…» solo si la salida es en menos de 90 minutos y no repite la cita de «Lo próximo». La semana de citas, la jornada y el sombreado de custodia están en Calendario; el menú de la semana, en Menú. Abajo, resúmenes de niños (con la mochila), compra y luz. |
 | **Outfit** | La propuesta del día siguiente a pantalla completa: imagen, piezas (`p001`…), hueco (arriba, capa, pantalón, calzado, exterior), el porqué y la fecha. Sin script, un ejemplo marcado. |
 | **Calendario** | 13 semanas de lunes a domingo, con el mes, el día 1 resaltado, el tiempo de los próximos 16 días, la jornada, las citas y las **semanas de custodia sombreadas**. Los calendarios **de fondo** se ven tenues y no tapan el resto. «+N más» abre el día entero. Tocar una cita permite **marcarla hecha** (tachada; se guarda en el dispositivo). |
 | **Luz** | Periodo **2.0TD** actual (punta/llano/valle; fines de semana y festivos nacionales, todo valle), franjas de hoy y mañana, **mejores horas** para lavadora y lavavajillas. Precios de tu tarifa solo si los metes tú en Ajustes (no se inventan). Gráfico **PVPC de REE marcado como referencia, «NO es tu tarifa»**. |
