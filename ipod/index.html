@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#141416">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Thinkpod: los podcasts, en un iPod clásico.">
+<meta name="application-name" content="Thinkpod">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Thinkpod">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta property="og:title" content="Thinkpod">
+<meta property="og:description" content="Los podcasts, en un iPod clásico.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:site_name" content="Thinkpod">
+<meta property="og:url" content="https://davidpardal.github.io/podcasts/ipod/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Thinkpod">
+<meta name="twitter:description" content="Los podcasts, en un iPod clásico.">
+<title>Thinkpod</title>
+<link rel="canonical" href="https://davidpardal.github.io/podcasts/ipod/">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="ipod.css">
+</head>
+<body>
+<p class="sr-only" id="help">Flechas o la rueda del ratón mueven la selección. Intro elige. Escape vuelve. Espacio reproduce o pausa. En la rueda: arriba menú, centro seleccionar, abajo reproducir, izquierda anterior y derecha siguiente. Arrastrar en círculo mueve la selección.</p>
+<main class="stage">
+  <div class="device" id="device" tabindex="0" role="application" aria-label="Thinkpod" aria-describedby="help">
+    <div class="hold" aria-hidden="true"></div>
+    <div class="bezel">
+      <div class="lcd" id="lcd" data-view="menu">
+        <header class="lcd-head">
+          <h1 id="lcd-title">Thinkpod</h1>
+          <div class="battery" id="battery" role="img" aria-label="Batería">
+            <svg viewBox="0 0 28 13" aria-hidden="true">
+              <rect x="0.7" y="0.7" width="23" height="11.6" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+              <rect x="24.5" y="4" width="2.2" height="5" rx="0.6" fill="currentColor"/>
+              <rect id="bat-fill" x="2.1" y="2.15" width="16.4" height="8.7" rx="1" fill="currentColor"/>
+              <path id="bat-bolt" d="M14.2 2.6 9.4 6.8h2.8L10.6 10.6 16.2 6.1h-2.9z" fill="#3c4553" visibility="hidden"/>
+            </svg>
+          </div>
+        </header>
+        <div class="lcd-body">
+          <div id="menu" class="menu" role="listbox" aria-labelledby="lcd-title">
+            <p class="msg">Cargando…</p>
+            <noscript><p class="msg">Activa JavaScript para escuchar los episodios.</p></noscript>
+          </div>
+          <div id="now" class="now" hidden>
+            <div class="np-empty" id="np-empty">
+              <p>Nada en reproducción</p>
+              <p class="sub">Elige un episodio</p>
+            </div>
+            <div class="np-main" id="np-main" hidden>
+              <img id="np-art" alt="" width="256" height="256">
+              <div class="np-meta">
+                <p class="kicker" id="np-kicker">Ahora suena</p>
+                <p class="np-title" id="np-title"></p>
+                <p class="np-by" id="np-by"></p>
+                <p class="np-album" id="np-album">Thinkpod</p>
+              </div>
+              <div class="np-prog">
+                <div class="track" id="track" role="slider" aria-label="Posición de la reproducción" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="-1">
+                  <div class="rail"><div class="fill" id="np-fill"></div></div>
+                  <div class="knob" id="np-knob"></div>
+                </div>
+                <div class="times">
+                  <span id="np-el">0:00</span>
+                  <span id="np-rate"></span>
+                  <span id="np-rem">-0:00</span>
+                </div>
+                <p class="np-status" id="np-status" role="status"></p>
+              </div>
+            </div>
+          </div>
+          <div class="glass" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wheel" id="wheel" role="group" aria-label="Rueda de control">
+      <div class="shine" aria-hidden="true"></div>
+      <div class="press" id="press" hidden></div>
+      <span class="lab menu">MENÚ</span>
+      <span class="lab prev"><svg viewBox="0 0 28 24" aria-hidden="true"><path fill="currentColor" d="M13 12 3 4.5v15zM25 12 15 4.5v15z"/></svg><span class="sr-only">Anterior</span></span>
+      <span class="lab next"><svg viewBox="0 0 28 24" aria-hidden="true"><path fill="currentColor" d="M3 4.5 13 12 3 19.5zM15 4.5 25 12 15 19.5z"/></svg><span class="sr-only">Siguiente</span></span>
+      <span class="lab play"><svg viewBox="0 0 28 24" aria-hidden="true"><path fill="currentColor" d="M2 4.2v15.6L13.2 12zM16.2 4.2h3.1v15.6h-3.1zM21.2 4.2h3.1v15.6h-3.1z"/></svg><span class="sr-only">Reproducir o pausar</span></span>
+      <button type="button" class="center" id="center" aria-label="Seleccionar" tabindex="-1"></button>
+    </div>
+  </div>
+</main>
+<p id="live" class="sr-only" aria-live="polite"></p>
+<audio id="audio" preload="none" playsinline></audio>
+<script src="ipod.js"></script>
+</body>
+</html>
