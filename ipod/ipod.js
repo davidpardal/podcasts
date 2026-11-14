@@ -153,17 +153,10 @@
     if (ep.durationSec && p / ep.durationSec >= DONE_AT) return 0;
     return p;
   }
-  function rateFor(id) {
-    const specific = parseFloat(store.get("rate:" + id));
-    if (specific > 0) return specific;
-    const pref = parseFloat(store.get("ipod:rate"));
-    if (pref > 0) return pref;
-    return 1;
-  }
   function currentRate() {
-    if (current) return rateFor(current.id);
     const pref = parseFloat(store.get("ipod:rate"));
-    return pref > 0 ? pref : 1;
+    if (RATES.some((r) => Math.abs(r - pref) < 0.001)) return pref;
+    return 1;
   }
   function applyRateValue(r) {
     audio.defaultPlaybackRate = r;
@@ -173,9 +166,20 @@
   }
   function setRate(r) {
     store.set("ipod:rate", String(r));
-    if (current) store.set("rate:" + current.id, String(r));
     applyRateValue(r);
     updateRateLabel();
+    if (screen === "now") setHeader(speedHeader());
+  }
+  function cycleRate() {
+    const cur = currentRate();
+    let i = RATES.findIndex((r) => Math.abs(r - cur) < 0.001);
+    if (i < 0) i = RATES.indexOf(1);
+    const next = RATES[(i + 1) % RATES.length];
+    setRate(next);
+    announce("Velocidad " + fmtRate(next));
+  }
+  function speedHeader() {
+    return SITE_TITLE + "  " + fmtRate(currentRate());
   }
   function migrate() {
     episodes.forEach((ep) => {
@@ -218,6 +222,7 @@
           menuItem("Sin escuchar", { kind: "eps", filter: "todo" }, episodes.filter((e) => !isDone(e.id)).length),
           menuItem("Escuchados", { kind: "eps", filter: "done" }, episodes.filter((e) => isDone(e.id)).length),
           menuItem("Ahora suena", { kind: "now" }),
+          menuItem("Velocidad", { kind: "rates" }, null, fmtRate(currentRate())),
           menuItem("Ajustes", { kind: "settings" })
         ]
       };
@@ -350,6 +355,7 @@
     if (f.selected >= view.items.length) f.selected = Math.max(0, view.items.length - 1);
     if (f.selected < 0) f.selected = 0;
     setHeader(view.title);
+    center.setAttribute("aria-label", "Seleccionar");
     menu.hidden = false;
     nowEl.hidden = true;
     lcd.dataset.view = "menu";
@@ -401,7 +407,8 @@
   }
 
   function renderNow() {
-    setHeader(SITE_TITLE);
+    setHeader(speedHeader());
+    center.setAttribute("aria-label", "Velocidad");
     menu.hidden = true;
     nowEl.hidden = false;
     lcd.dataset.view = "now";
@@ -468,7 +475,11 @@
   function onSelect() {
     flashCenter();
     clickTick();
-    if (phase !== "ready" || screen === "now") return;
+    if (phase !== "ready") return;
+    if (screen === "now") {
+      cycleRate();
+      return;
+    }
     activate(currentItem());
   }
   function back() {
@@ -524,8 +535,7 @@
     track.setAttribute("aria-valuetext", fmt(t) + (d ? " de " + fmt(d) : ""));
   }
   function updateRateLabel() {
-    const r = current ? rateFor(current.id) : currentRate();
-    npRate.textContent = Math.abs(r - 1) < 0.001 ? "" : fmtRate(r);
+    npRate.textContent = fmtRate(currentRate());
   }
   function updateLiveRow() {
     if (screen !== "menu" || !current) return;
@@ -588,7 +598,7 @@
       pendingSeek = savedPos(ep);
       restored = false;
       npStatus.textContent = "";
-      applyRateValue(rateFor(ep.id));
+      applyRateValue(currentRate());
       audio.src = audioURL(ep.id);
     }
     // Arranca dentro del gesto (antes del render) para que iPhone no bloquee el audio.
@@ -1023,13 +1033,13 @@
       if (want > 1 && Number.isFinite(audio.duration) && want < audio.duration - 2) {
         audio.currentTime = want;
       }
-      if (current) applyRateValue(rateFor(current.id));
+      applyRateValue(currentRate());
       restored = true;
       updateProgress();
       updateSessionPos();
     });
     audio.addEventListener("play", () => {
-      if (current) applyRateValue(rateFor(current.id));
+      applyRateValue(currentRate());
       renderPlayState();
       updateSessionPos();
     });
