@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7EEE2">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<title>Marco familiar · v3</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/app.css">
+<script>
+/* Evita el salto del menú: en pantallas estrechas arranca contraído, antes de pintar. */
+(function () {
+  try {
+    var w = window.innerWidth || 1200;
+    var raw = localStorage.getItem('marco-v3.railCollapsed');
+    var pref = raw == null ? null : JSON.parse(raw);
+    var collapsed = w < 720 ? true : (pref === null ? w < 960 : !!pref);
+    if (collapsed) document.documentElement.classList.add('rail-collapsed');
+    var st = localStorage.getItem('marco-v3.settings');
+    var theme = st ? (JSON.parse(st).theme || 'auto') : 'auto';
+    if (theme === 'noche') document.documentElement.classList.add('theme-night');
+    document.documentElement.setAttribute('data-theme', theme === 'dia' || theme === 'noche' ? theme : 'auto');
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<button type="button" class="rail-backdrop" data-act="railClose" aria-label="Cerrar menú"></button>
+<div id="app">
+  <nav id="rail" aria-label="Pantallas">
+    <button type="button" class="nav rail-toggle" data-act="railToggle" aria-controls="rail" aria-expanded="true"><span class="ic" aria-hidden="true">☰</span><span class="nav-label">Menú</span></button>
+    <button type="button" data-go="hoy" class="nav"><span class="ic" aria-hidden="true">📅</span><span class="nav-label">Hoy</span></button>
+    <button type="button" data-go="calendario" class="nav"><span class="ic" aria-hidden="true">🗓️</span><span class="nav-label">Calendario</span></button>
+    <button type="button" data-go="luz" class="nav"><span class="ic" aria-hidden="true">⚡</span><span class="nav-label">Luz</span></button>
+    <button type="button" data-go="dinero" class="nav"><span class="ic" aria-hidden="true">💶</span><span class="nav-label">Dinero</span></button>
+    <button type="button" data-go="plazos" class="nav"><span class="ic" aria-hidden="true">⏳</span><span class="nav-label">Plazos</span></button>
+    <button type="button" data-go="ninos" class="nav"><span class="ic" aria-hidden="true">⭐</span><span class="nav-label">Niños</span></button>
+    <button type="button" data-go="semana" class="nav" title="Semana con los niños"><span class="ic" aria-hidden="true">🧒</span><span class="nav-label">Semana</span></button>
+    <button type="button" data-go="compra" class="nav"><span class="ic" aria-hidden="true">🛒</span><span class="nav-label">Compra</span></button>
+    <button type="button" data-go="menu" class="nav"><span class="ic" aria-hidden="true">🍲</span><span class="nav-label">Menú</span></button>
+    <button type="button" data-go="salud" class="nav"><span class="ic" aria-hidden="true">💓</span><span class="nav-label">Salud</span></button>
+    <button type="button" data-act="refresh" class="nav sec nav-break"><span class="ic" aria-hidden="true">🔄</span><span class="nav-label">Actualizar</span></button>
+    <button type="button" data-go="ajustes" class="nav sec"><span class="ic" aria-hidden="true">⚙️</span><span class="nav-label">Ajustes</span></button>
+    <button type="button" data-act="sleep" class="nav sec"><span class="ic" aria-hidden="true">🌙</span><span class="nav-label">Dormir</span></button>
+    <div class="rail-clock" data-clock="rail" aria-hidden="true"></div>
+  </nav>
+  <main id="screen" aria-live="polite"></main>
+</div>
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
+<div id="night" class="night hidden"><div class="night-time" data-clock="night"></div><div class="night-date" data-clock="nightdate"></div><div class="night-next" data-clock="nightnext"></div><div class="night-hint">Toca para despertar</div></div>
+<div id="offline" class="offline hidden" role="status"></div>
+<div id="toast" class="toast hidden"></div>
+<div id="undo" class="undo hidden" role="status"><span>Listo: <b data-undo-name></b></span><button type="button" class="btn sm" data-act="undoCompra">Deshacer</button></div>
+<script src="vendor/ical.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/custody.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/luz.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/salud.js"></script>
+<script src="js/mochila.js"></script>
+<script src="js/casa.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
