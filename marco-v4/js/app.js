@@ -112,6 +112,12 @@
     const p = (m.plan && m.plan[String(idx)]) || {};
     return { comida: p.comida || '', cena: p.cena || '', off: false };
   }
+  function hoyMealLine(day) {
+    const meals = mealsFor(day);
+    if (!meals || meals.off) return 'Hoy: sin menú';
+    const bits = [meals.comida, meals.cena].filter(Boolean);
+    return bits.length ? ('Hoy: ' + bits.join(' · ')) : 'Hoy: sin menú';
+  }
   function assignMeal(day, meal, dish) {
     if (meal !== 'comida' && meal !== 'cena') return;
     S.menuPick = { day: String(day), meal: meal };
@@ -748,7 +754,7 @@
     }
     wx += avisosHtml();
 
-    // Ahora: siguiente cita, comida de hoy y mañana de un vistazo. Los calendarios de fondo no entran.
+    // Ahora: siguiente cita y la comida de hoy. Los calendarios de fondo no entran.
     const list = allEvents().filter((e) => !e.allDay && !e.background && !isDone(e) && e.end > t).sort((a, b) => a.start - b.start);
     const cur = list.find((e) => e.start <= t);
     const nxt = list.find((e) => e.start > t);
@@ -765,30 +771,17 @@
         '<div class="next-sub">' + esc(dayTxt + ' · ' + hm(main.start) + '–' + hm(main.end) + (main.location ? ' · ' + main.location : '')) + '</div>' +
         (after && sameDay(after.start, t) ? '<button class="next-after" data-ev="' + esc(after.id) + '">Después: ' + esc(hm(after.start) + ' ' + after.title) + '</button>' : '');
     }
-    const phrase = Casa.leavePhrase(leavePlan(t), t);
-    const leaveHtml = '<div class="leave-line' + (phrase.late ? ' is-late' : '') + '" data-leave><span class="leave-k">Siguiente</span> <b>' + esc(phrase.main) + '</b>' +
-      (phrase.sub ? '<span class="leave-sub"> · ' + esc(phrase.sub) + '</span>' : '') + '</div>';
-    const nextHtml = '<div class="next-in' + (main && main === cur ? ' is-now' : '') + '"' + (main ? ' style="--c:' + esc(main.color) + '"' : '') + '>' +
-      leaveHtml + body + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
-
-    // Semana
-    const evs = allEvents();
-    let week = '';
-    for (let i = 0; i < 7; i++) {
-      const d = addDays(today, i);
-      const st = dayStatus(d);
-      const sh = shiftOn(d);
-      const fest = U.festivoEtiqueta(d);
-      const items = eventsOn(d, evs);
-      const mainEv = items.filter((e) => !e.background);
-      const bgEv = items.filter((e) => e.background).slice(0, 1);
-      const kids = st === 'padre' ? '<div class="kids-chip">🏠 Con ' + esc(kidsNames()) + '</div>' : '';
-      week += '<div class="day c-' + st + (i === 0 ? ' is-today' : '') + '">' +
-        '<div class="day-h"><span class="day-n">' + (i === 0 ? 'Hoy' : U.DIAS_C[d.getDay()]) + '</span><span class="day-d">' + d.getDate() + '</span></div>' +
-        (sh ? '<div class="shift">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '<div class="shift off">Libre</div>') +
-        (fest ? '<div class="day-tag" title="' + esc(fest.name) + '">' + esc(fest.label) + '</div>' : '') + kids +
-        '<div class="day-evs">' + mainEv.concat(bgEv).map((e) => evItem(e, d)).join('') + (mainEv.length ? '' : '<div class="no-ev">—</div>') + '</div></div>';
+    const plan = leavePlan(t);
+    const proximo = main && main !== cur ? main : null;
+    let leaveHtml = '';
+    if (Casa.leaveLineVisible(plan, t, proximo)) {
+      const phrase = Casa.leavePhrase(plan, t);
+      leaveHtml = '<div class="leave-line' + (phrase.late ? ' is-late' : '') + '" data-leave><span class="leave-k">Siguiente</span> <b>' + esc(phrase.main) + '</b>' +
+        (phrase.sub ? '<span class="leave-sub"> · ' + esc(phrase.sub) + '</span>' : '') + '</div>';
     }
+    const mealHtml = '<button type="button" class="next-meal" data-go="menu">' + esc(hoyMealLine(t)) + '</button>';
+    const nextHtml = '<div class="next-in' + (main && main === cur ? ' is-now' : '') + '"' + (main ? ' style="--c:' + esc(main.color) + '"' : '') + '>' +
+      leaveHtml + body + mealHtml + '<div class="next-tom">' + esc(tomorrowGlance(t)) + '</div>' + (tip ? '<div class="wx-tip">' + esc(tip) + '</div>' : '') + '</div>';
 
     // Resúmenes
     const ninos = choresSummary();
@@ -801,31 +794,13 @@
         '<div class="sky-left"><div class="big-clock" data-clock="big">' + hm(t) + '</div><div class="sky-date"><b>' + U.DIAS[t.getDay()] + '</b> ' + t.getDate() + ' de ' + U.MESES[t.getMonth()] + '</div>' + custodyBadge(t) + coleHtml(t) + freshHtml() + '</div>' +
         '<div class="sky-wx">' + wx + '</div></section>' +
       outfitHoyHtml() +
-      renderHoyMenu(t) +
       '<section class="next card">' + nextHtml + '</section>' +
-      '<section class="week">' + week + '</section>' +
       '<section class="sums">' +
         '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + (ninos.pending === 1 ? ' tarea por hacer' : ' tareas por hacer') + (ninos.overdue ? ' · fuera de hora' : ''))) + '</div><div class="sum-chips">' + ninos.chips + '</div>' + mochilaSumHtml(t) + '</button>' +
         '<button class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + compra.length + (compra.length === 1 ? ' cosa' : ' cosas') + '</div><div class="sum-sub">' + esc(compra.slice(0, 5).map((x) => x.name).join(' · ') || 'Lista vacía') + '</div></button>' +
         '<button class="card sum" data-go="luz"><div class="sum-h c-amber">⚡ LUZ · 2.0TD</div><div class="sum-big"><span class="per-dot" style="--c:' + Luz.COLOR[p] + '"></span>Ahora ' + Luz.NOMBRE[p].toLowerCase() + '</div><div class="sum-sub">' + (p === 'valle' ? 'Buen momento para lavadora y lavavajillas' : nw ? 'Valle ' + whenTxt(nw.start, t) : '') + '</div></button>' +
         saludMini() +
       '</section></div>';
-  }
-
-  function renderHoyMenu(t) {
-    const m = menuState();
-    const letters = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    const nDays = m.span === 5 ? 5 : 7;
-    const todayIdx = weekdayIndex(t);
-    let rows = '';
-    for (let i = 0; i < nDays; i++) {
-      const p = (m.plan && m.plan[String(i)]) || {};
-      rows += '<button type="button" class="hoy-md' + (i === todayIdx ? ' is-today' : '') + '" data-go="menu">' +
-        '<span class="hoy-md-n">' + letters[i] + '</span>' +
-        '<span class="hoy-md-meal"><span class="k">Comida</span> <b>' + esc(p.comida || '—') + '</b></span>' +
-        '<span class="hoy-md-meal"><span class="k">Cena</span> <b>' + esc(p.cena || '—') + '</b></span></button>';
-    }
-    return '<section class="hoy-menu card" aria-label="Menú semanal"><div class="card-h">🍲 Menú semanal</div><div class="hoy-mds">' + rows + '</div></section>';
   }
 
   function saludNow() {

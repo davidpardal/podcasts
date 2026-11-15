@@ -111,6 +111,23 @@
     return { late: false, main: 'Sal en ' + wait, sub: sub };
   }
 
+  function leaveMinutes(plan, now) {
+    if (!plan || !plan.leave || !(now instanceof Date)) return null;
+    const leave = plan.leave;
+    if (!(leave instanceof Date) || isNaN(leave.getTime()) || isNaN(now.getTime())) return null;
+    return Math.round((leave.getTime() - now.getTime()) / 60000);
+  }
+
+  // «Sal en…» solo si faltan menos de 90 min y no es la cita ya mostrada como «Lo próximo».
+  function leaveLineVisible(plan, now, proximo) {
+    const mins = leaveMinutes(plan, now);
+    if (mins == null || mins >= 90) return false;
+    if (!plan.event || !proximo) return true;
+    if (plan.event === proximo) return false;
+    if (plan.event.id && proximo.id && plan.event.id === proximo.id) return false;
+    return true;
+  }
+
   function parseAisles(text, fallback) {
     const lines = linesOf(text);
     if (!lines.length) return (fallback || []).map((a) => ({ name: a.name, match: a.match || '' }));
@@ -239,7 +256,7 @@
   }
 
   window.Casa = {
-    sunTimes, isNight, parseTravel, formatTravel, travelMin, nextLeave, leavePhrase,
+    sunTimes, isNight, parseTravel, formatTravel, travelMin, nextLeave, leavePhrase, leaveMinutes, leaveLineVisible,
     parseAisles, formatAisles, aisleIndex, groupByAisle, parseDateLines, schoolOff, covers,
     parseKidLines, textosCompra
   };
