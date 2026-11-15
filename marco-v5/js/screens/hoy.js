@@ -231,7 +231,7 @@ function renderHoy() {
       hoursHtml +
       '<div class="wx-days">' + rest.map((d) => {
         const dd = U.parseLocal(d.date);
-        return '<div class="wx-day"><div class="wx-dn">' + U.DIAS_C[dd.getDay()] + '</div><div class="wx-di">' + Weather.icon(d.code) + '</div><div class="wx-dmax">' + Math.round(d.max) + '°</div><div class="wx-dmin">' + Math.round(d.min) + '°</div><div class="wx-drain' + (d.rain >= 40 ? ' hi' : '') + '">💧 ' + (d.rain ?? '–') + ' %</div></div>';
+        return '<div class="wx-day"><div class="wx-dn">' + U.DIAS_C[dd.getDay()] + '</div><div class="wx-di">' + Weather.icon(d.code) + '</div><div class="wx-dtemps"><span class="wx-dmax">' + Math.round(d.max) + '°</span><span class="wx-dmin">' + Math.round(d.min) + '°</span><span class="wx-drain' + (d.rain >= 40 ? ' hi' : '') + '">💧 ' + (d.rain ?? '–') + '%</span></div></div>';
       }).join('') + '</div>';
   }
   wx += avisosHtml();
@@ -270,7 +270,7 @@ function renderHoy() {
     const items = eventsOn(d, evs);
     const mainEv = items.filter((e) => !e.background);
     const bgEv = items.filter((e) => e.background).slice(0, 1);
-    const kids = st === 'padre' ? '<div class="kids-chip">🏠 Con ' + esc(kidsNames()) + '</div>' : '';
+    const kids = st === 'padre' ? '<div class="kids-chip">🏠 ' + esc(kidsNames()) + '</div>' : '';
     week += '<div class="day c-' + st + (i === 0 ? ' is-today' : '') + '">' +
       '<div class="day-h"><span class="day-n">' + (i === 0 ? 'Hoy' : U.DIAS_C[d.getDay()]) + '</span><span class="day-d">' + d.getDate() + '</span></div>' +
       (sh ? '<div class="shift">💼 ' + esc(sh.from + '–' + sh.to) + '</div>' : '<div class="shift off">Libre</div>') +
@@ -288,9 +288,9 @@ function renderHoy() {
       '<div class="sky-wx">' + wx + '</div></section>' +
     '<section class="next card">' + nextHtml + '</section>' +
     tocaHtml(t) +
+    outfitHoyHtml() +
     '<section class="week">' + week + '</section>' +
     '<section class="sums">' +
-      outfitHoyHtml() +
       '<button class="card sum" data-go="ninos"><div class="sum-h c-orange">⭐ NIÑOS</div><div class="sum-big">' + (ninos.paused ? 'En pausa esta semana' : (ninos.pending + ' por hacer')) + '</div>' + (ninos.overdue && !ninos.paused ? '<div class="sum-sub sum-late">' + ninos.overdue + ' fuera de hora</div>' : '') + '<div class="sum-chips">' + ninos.chips + '</div></button>' +
       '<button class="card sum" data-go="compra"><div class="sum-h c-green">🛒 COMPRA</div><div class="sum-big">' + compra.length + (compra.length === 1 ? ' cosa' : ' cosas') + '</div><div class="sum-sub">' + esc(compra.slice(0, 5).map((x) => x.name).join(' · ') || 'Lista vacía') + '</div></button>' +
       casaSumHtml(t) +

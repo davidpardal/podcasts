@@ -64,6 +64,44 @@ def wait_data(page):
     except Exception: pass
     page.clock.run_for(1000)
 
+def hoy_legible(page):
+    """Textos de Hoy enteros (sin elipsis ni recorte) y el outfit en su propia fila."""
+    page.wait_for_function("() => document.body.innerText.includes('Educación física')", timeout=15000)
+    return page.evaluate("""() => {
+      function malo(el) {
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return 'sin caja';
+        if (el.scrollWidth > el.clientWidth + 1) return 'ancho';
+        if (el.scrollHeight > el.clientHeight + 4) return 'alto';
+        let p = el.parentElement;
+        while (p && p !== document.body) {
+          const cs = getComputedStyle(p);
+          if (/hidden|clip/.test(cs.overflow + cs.overflowY)) {
+            const pr = p.getBoundingClientRect();
+            if (r.top < pr.top - 1 || r.bottom > pr.bottom + 1 || r.left < pr.left - 1 || r.right > pr.right + 1) return 'cortado';
+          }
+          p = p.parentElement;
+        }
+        return '';
+      }
+      const bad = [];
+      document.querySelectorAll('.week .ev-n, .week .shift, .week .kids-chip, .outfit-hoy-k, .outfit-hoy-when, .outfit-hoy-pieces, .outfit-hoy-why, .toca-v, .toca-s, .sum-big, .sum-sub, .next-title, .next-sub, .next-tom, .wx-day').forEach((el) => {
+        const c = malo(el);
+        if (c) bad.push(c + ': ' + (el.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 48));
+      });
+      const hoy = document.querySelector('.hoy').getBoundingClientRect();
+      const outfit = document.querySelector('.outfit-hoy').getBoundingClientRect();
+      const textos = [...document.querySelectorAll('.week .ev-n')].map((el) => el.innerText);
+      return {
+        bad: bad.slice(0, 6), n: bad.length,
+        ef: textos.some((t) => t.indexOf('Educación física') >= 0),
+        dent: textos.some((t) => t.indexOf('Dentista') >= 0),
+        outfitFull: outfit.width >= hoy.width - 2,
+        outfitH: outfit.height,
+        font: parseFloat(getComputedStyle(document.documentElement).fontSize)
+      };
+    }""")
+
 with sync_playwright() as p:
     launch = {"channel": "chrome"} if os.environ.get("MARCO_CHROME") else {}
     b = p.chromium.launch(**launch)
@@ -77,6 +115,24 @@ with sync_playwright() as p:
     check("por defecto: custodia desactivada (sin aviso ni sombreado)", page.locator(".custody-badge").count() == 0 and page.locator(".day.c-padre").count() == 0)
     check("por defecto: niños genéricos", page.evaluate("Marco.CFG.kids.map(k => k.name).join(',')") == "Peque A,Peque B")
     check("por defecto: jornada de ejemplo 09:00–17:00", "09:00–17:00" in page.inner_text(".day.is-today .shift"))
+    leg = hoy_legible(page)
+    check("1280: Educación física, Dentista, turno y tarjetas enteros",
+          leg["n"] == 0 and leg["ef"] and leg["dent"] and leg["outfitFull"] and leg["outfitH"] >= leg["font"] * 4, leg)
+    page.evaluate("() => document.documentElement.classList.add('theme-night')")
+    night = hoy_legible(page)
+    contrast = page.evaluate("""() => {
+      function lin(c){ c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+      function L(rgb){ const m = rgb.match(/[\\d.]+/g).map(Number); return 0.2126 * lin(m[0]) + 0.7152 * lin(m[1]) + 0.0722 * lin(m[2]); }
+      function ratio(fg, bg){ const a = L(fg), b = L(bg); const hi = Math.max(a, b), lo = Math.min(a, b); return (hi + 0.05) / (lo + 0.05); }
+      function bgOf(el){ let p = el; while (p) { const c = getComputedStyle(p).backgroundColor; if (c && c !== 'rgba(0, 0, 0, 0)') return c; p = p.parentElement; } return 'rgb(0,0,0)'; }
+      return ['.week .shift', '.week .ev-n', '.outfit-hoy-pieces', '.is-today .day-n'].map((s) => {
+        const el = document.querySelector(s); const fg = getComputedStyle(el).color; const bg = bgOf(el);
+        return { s, r: Math.round(ratio(fg, bg) * 100) / 100 };
+      });
+    }""")
+    page.evaluate("() => document.documentElement.classList.remove('theme-night')")
+    check("1280 noche: mismos textos enteros y contraste",
+          night["n"] == 0 and night["ef"] and night["dent"] and all(c["r"] >= 4.5 for c in contrast), {"night": night, "contrast": contrast})
     rr = page.evaluate("""() => {
       const evs = Marco.S.events.filter(e => e.title.startsWith('Baloncesto'));
       const mon = U.mondayOf(U.now());
@@ -505,6 +561,9 @@ with sync_playwright() as p:
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
     page.screenshot(path=os.path.join(OUT, "9-hoy-1920x1200.png"))
     check("1920×1200 sin desbordes", page.evaluate("document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1"))
+    leg1920 = hoy_legible(page)
+    check("1920: Educación física y Dentista enteros, outfit en su fila",
+          leg1920["n"] == 0 and leg1920["ef"] and leg1920["dent"] and leg1920["outfitFull"] and leg1920["outfitH"] >= leg1920["font"] * 4, leg1920)
     ctx.close()
     ctx, page = new_page(b, 390, 844, dt.datetime(2026, 10, 21, 20, 30, tzinfo=TZ), mobile=True)
     page.goto(BASE); page.wait_for_selector(".hoy"); set_ajustes(page, EJEMPLO); wait_data(page)
