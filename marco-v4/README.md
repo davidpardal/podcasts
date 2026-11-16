@@ -1,5 +1,7 @@
 # Marco familiar · v4
 
+> **Desde el 16-nov-2026 `marco-v4/` salta a `marco-v5/`**, que es la que se ve en el marco de casa. La v4 sigue entera en [`v4.html`](https://davidpardal.github.io/podcasts/marco-v4/v4.html). Para volver atrás: borrar `index.html` y renombrar `v4.html` a `index.html`.
+
 Esta carpeta es **otra versión**, en paralelo. No sustituye a `marco/`, ni a `marco-v2/`, ni a `marco-v3/`.
 
 - El de casa sigue en [https://davidpardal.github.io/podcasts/marco/](https://davidpardal.github.io/podcasts/marco/) (`marco/`).
