@@ -55,6 +55,7 @@ html.rail-collapsed .nav-label { position: absolute; width: 1px; height: 1px; pa
 .sky-dusk { background: linear-gradient(120deg, #F08A5D, #8E5BC8); }
 .sky-night { background: linear-gradient(120deg, #1E2A4A, #3B3F78); }
 .sky.dark { color: #fff; }
+.sky:not(.dark) { --ink: #221D18; --soft: #4A4038; --muted: #6E6358; color: var(--ink); }
 .sky-left { flex: none; width: 100%; display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0.08rem 0.4rem; }
 .big-clock { flex: none; font-size: clamp(3.1rem, 7vh, 5rem); line-height: 1; font-weight: 400; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .sky-date { flex: none; font-size: 1.35rem; margin-top: 0; } .sky-date b { font-weight: 700; }
@@ -157,6 +158,7 @@ html.rail-collapsed .nav-label { position: absolute; width: 1px; height: 1px; pa
 .sum-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .kid-chip { background: color-mix(in srgb, var(--c) 14%, white); border-radius: 1rem; padding: 0.15rem 0.6rem; font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.35rem; }
 .kid-chip.lg { font-size: 1.05rem; padding: 0.3rem 0.8rem 0.3rem 0.35rem; }
+html.theme-night .kid-chip { background: color-mix(in srgb, var(--c) 30%, var(--card)); }
 .av { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--c); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; flex: none; }
 .av.sm { width: 1.4rem; height: 1.4rem; font-size: 0.7rem; }
 .per-dot { width: 0.9rem; height: 0.9rem; border-radius: 50%; background: var(--c); display: inline-block; flex: none; }
@@ -502,6 +504,11 @@ html.theme-night {
   --parent: #243246; --parent-b: #3C5878;
   color-scheme: dark;
 }
+/* Colores (Ajustes → Pantalla → Colores). «Clásico» es crema de día y oscuro de noche. */
+html[data-paleta="blanco"]:not(.theme-night) { --bg: #F2F3F5; --rail: #E7E9ED; --card: #FFFFFF; --border: #DFE2E8; --line: #E3E6EB; --hl: #EEF0F4; }
+html[data-paleta="azul"]:not(.theme-night) { --bg: #E9F1FB; --rail: #D8E5F6; --card: #FFFFFF; --border: #CBDBF0; --line: #D3E1F2; --hl: #E1EBF8; --parent: #DCEBFB; }
+html[data-paleta="salvia"]:not(.theme-night) { --bg: #E8EFE4; --rail: #DBE5D5; --card: #FBFDF9; --border: #CFDCC7; --line: #D6E1CF; --hl: #E2EBDC; }
+html.theme-night[data-paleta="azul"] { --bg: #0F1A2E; --rail: #15233D; --card: #1B2C4A; --border: #2B4067; --line: #2B4067; --hl: #223556; }
 html.theme-night .btn { background: #F6EFE6; color: #1A1816; }
 html.theme-night .btn.ghost { background: var(--hl); color: var(--ink); }
 html.theme-night .btn.danger { background: #D9483B; color: #fff; }

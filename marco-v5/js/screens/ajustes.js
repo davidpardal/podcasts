@@ -189,6 +189,10 @@ function renderAjustes() {
         '<option value="dia"' + (settings.theme === 'dia' ? ' selected' : '') + '>Día</option>' +
         '<option value="noche"' + (settings.theme === 'noche' ? ' selected' : '') + '>Noche</option>' +
       '</select></label>' +
+      '<label class="lbl">Colores<select id="paleta">' +
+        [['clasica', 'Clásico · crema de día, oscuro de noche'], ['blanco', 'Blanco de día, oscuro de noche'], ['azul', 'Azul claro de día, azul noche de noche'], ['salvia', 'Verde salvia de día, oscuro de noche']]
+          .map((o) => '<option value="' + o[0] + '"' + ((settings.paleta || 'clasica') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') +
+      '</select></label>' +
       '<div class="muted sm">Automático sigue el amanecer y el atardecer de Vitoria, calculados en el dispositivo (sin otra API). De día, 60 s sin tocar vuelve a Hoy.</div>' +
       '<div class="row-btns"><button class="btn ghost" data-act="fullscreen">Pantalla completa</button><button class="btn" data-act="saveScreen">Guardar</button></div></section>' +
     casaCards() +
@@ -392,6 +396,8 @@ async function settingsAction(act, el) {
       settings.nightClock = $('#night').checked;
       const theme = ($('#theme') && $('#theme').value) || 'auto';
       settings.theme = (theme === 'dia' || theme === 'noche') ? theme : 'auto';
+      const paleta = ($('#paleta') && $('#paleta').value) || 'clasica';
+      settings.paleta = ['blanco', 'azul', 'salvia'].indexOf(paleta) >= 0 ? paleta : 'clasica';
       saveSettings();
       applyTheme();
       toast('Guardado');
