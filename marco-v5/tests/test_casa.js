@@ -96,6 +96,13 @@ assert.deepStrictEqual(live.pieces.map((p) => p.id + ':' + p.slot), ['p011:arrib
 assert.strictEqual(Outfit.normalize({ pieces: [] }), null);
 assert.strictEqual(Outfit.safeImage('https://ejemplo.invalid/a.png').indexOf('https://'), 0);
 assert.strictEqual(Outfit.brief(null), '');
+const o19 = { forDate: '2026-11-19' };
+assert.strictEqual(Outfit.cuando(o19, new Date(2026, 10, 18, 21, 30)), 'mañana');
+assert.strictEqual(Outfit.cuando(o19, new Date(2026, 10, 19, 7, 0)), 'hoy');
+assert.strictEqual(Outfit.cuando(o19, new Date(2026, 10, 20, 7, 0)), 'pasado');
+assert.strictEqual(Outfit.titulo(o19, new Date(2026, 10, 19, 7, 0)), 'Outfit de hoy');
+assert.strictEqual(Outfit.titulo(o19, new Date(2026, 10, 18, 22, 0)), 'Outfit de mañana');
+assert.ok(Outfit.brief({ forDate: '2026-11-19', pieces: [{ id: 'p028', name: 'plumífero negro', slot: 'exterior' }] }, new Date(2026, 10, 19, 6, 0)).indexOf('Outfit de hoy · plumífero negro') === 0);
 assert.strictEqual(Outfit.esFotoScript('https://script.google.com/macros/s/ABC/exec?action=outfitImg&tok=abc'), true);
 assert.strictEqual(Outfit.esFotoScript('https://script.google.com/macros/s/ABC/exec?action=outfitImg&tok=abc&key=secreto'), false);
 assert.strictEqual(Outfit.esFotoScript('img/outfit-demo.svg'), false);

@@ -243,7 +243,7 @@ function nightStartLine(t) {
 }
 function nightOutfitLine() {
   const o = currentOutfit();
-  return o ? Outfit.brief(o) : '';
+  return o ? Outfit.brief(o, now()) : '';
 }
 function applyTheme() {
   const mode = settings.theme === 'dia' || settings.theme === 'noche' ? settings.theme : 'auto';

@@ -536,6 +536,7 @@ html.theme-night .is-today .cell-n, html.theme-night .is-today .cell-d { color: 
 .outfit-side { min-height: 0; overflow: auto; }
 .outfit-for { font-size: 1.45rem; font-weight: 800; line-height: 1.15; }
 .outfit-why { font-size: 1.15rem; margin: 0.45rem 0 0.2rem; line-height: 1.3; }
+.outfit-aprox { margin-top: 0.6rem; }
 .outfit-list { list-style: none; margin: 0.7rem 0 0; padding: 0; }
 .outfit-piece { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) auto; gap: 0.55rem; align-items: center; padding: 0.55rem 0; border-top: 1px solid var(--line); min-height: 44px; }
 .outfit-id { font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .03em; background: var(--hl); border-radius: 0.45rem; padding: 0.2rem 0.3rem; font-size: 0.75rem; text-align: center; }
