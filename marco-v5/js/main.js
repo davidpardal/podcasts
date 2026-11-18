@@ -245,13 +245,17 @@ function nightOutfitLine() {
   const o = currentOutfit();
   return o ? Outfit.brief(o, now()) : '';
 }
+// Fondo de día y de noche de cada juego de colores (el CSS lleva el resto).
+const PALETAS = { clasica: ['#F7EEE2', '#1A1816'], blanco: ['#F2F3F5', '#1A1816'], azul: ['#E9F1FB', '#0F1A2E'], salvia: ['#E8EFE4', '#1A1816'] };
 function applyTheme() {
   const mode = settings.theme === 'dia' || settings.theme === 'noche' ? settings.theme : 'auto';
   const night = mode === 'noche' || (mode !== 'dia' && Casa.isNight(now(), Number(CFG.lat) || 42.85, Number(CFG.lon) || -2.67));
   document.documentElement.classList.toggle('theme-night', !!night);
   document.documentElement.setAttribute('data-theme', mode);
+  const paleta = PALETAS[settings.paleta] ? settings.paleta : 'clasica';
+  document.documentElement.setAttribute('data-paleta', paleta);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', night ? '#1A1816' : '#F7EEE2');
+  if (meta) meta.setAttribute('content', PALETAS[paleta][night ? 1 : 0]);
 }
 function inNightWindow(t) {
   if (!settings.nightClock) return false;

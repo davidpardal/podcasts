@@ -19,7 +19,7 @@ const CFG = window.CFG = deepMerge(window.MARCO_DEFAULTS, store.get('advanced', 
 { const adv = store.get('advanced', {}); if (adv.work && adv.work.shifts) CFG.work.shifts = adv.work.shifts; }
 const settings = Object.assign({
   calendars: [], proxy: '', demo: null, prices: {}, nightClock: CFG.nightClock.enabled, eroskiNotifyEmail: '', syncUrl: '', syncKey: '', syncBg: {},
-  theme: 'auto', travelText: null, aisleText: null,
+  theme: 'auto', paleta: 'clasica', travelText: null, aisleText: null,
   schoolIcs: '', schoolDates: null, schoolFrom: '', schoolTo: '', schoolKids: null
 }, store.get('settings', {}));
 if (!settings.syncBg || typeof settings.syncBg !== 'object') settings.syncBg = {};

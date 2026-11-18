@@ -629,7 +629,7 @@ with sync_playwright() as p:
           and "function claveAemet_" in gs and "api_key=" in gs)
     check("script no registra la clave de AEMET", "Logger.log(claveAemet_" not in gs and "Logger.log(key" not in gs and "Logger.log(token" not in gs)
     sw = open(os.path.join(HERE, "..", "sw.js"), encoding="utf-8").read()
-    check("el service worker incluye el outfit y sube la caché", "marco-v5-shell-v2'" in sw and "./js/core.js" in sw and "./js/screens/casa.js" in sw and "./js/app.js" not in sw and "./js/plan.js" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v5-shell-" in sw)
+    check("el service worker incluye el outfit y sube la caché", "marco-v5-shell-v3'" in sw and "./js/core.js" in sw and "./js/screens/casa.js" in sw and "./js/app.js" not in sw and "./js/plan.js" in sw and "./js/outfit.js" in sw and "./js/casa.js" in sw and "marco-v5-shell-" in sw)
     check("script: acción outfit con la misma clave, sin propiedad nueva",
           "action === 'outfit'" in gs and "MARCO_OUTFIT_N" in gs and "function leerOutfit_" in gs and "AEMET_API_KEY" in gs)
     outfit_md = open(os.path.join(HERE, "..", "apps-script", "OUTFIT.md"), encoding="utf-8").read()
