@@ -66,7 +66,9 @@ function freshHtml() {
 function currentOutfit() {
   if (!syncReady()) return Outfit.demo(now());
   const o = S.outfit && Outfit.normalize(S.outfit);
-  return o && !o.demo ? o : null;
+  // Si el bot no ha mandado el de esta noche, el de ayer no se enseña como si fuera el de mañana.
+  if (!o || o.demo || Outfit.cuando(o, now()) === 'pasado') return null;
+  return o;
 }
 function outfitDateLabel(o) {
   if (!o || !o.forDate) return '';
@@ -137,7 +139,7 @@ function outfitHoyHtml() {
   const pieces = (o.pieces || []).map((p) => p.id + ' ' + p.name).join(' · ');
   return '<button type="button" class="card outfit-hoy" data-act="outfit" data-outfit="' + (o.demo ? 'demo' : 'live') + '">' +
     outfitImgHtml(o, 'outfit-hoy-img') +
-    '<span class="outfit-hoy-main"><span class="outfit-hoy-k">Outfit de mañana' + outfitTag(o) + '</span>' +
+    '<span class="outfit-hoy-main"><span class="outfit-hoy-k">' + Outfit.titulo(o, now()) + outfitTag(o) + '</span>' +
     (when ? '<span class="outfit-hoy-when">Para el ' + esc(when.toLowerCase()) + '</span>' : '') +
     '<span class="outfit-hoy-pieces">' + esc(pieces) + '</span>' +
     (o.why ? '<span class="outfit-hoy-why">' + esc(o.why) + '</span>' : '') +
@@ -336,10 +338,12 @@ function showOutfit() {
   ).join('');
   openModal('<div class="outfit-modal" data-outfit="' + (o.demo ? 'demo' : 'live') + '">' +
     '<div class="outfit-look">' + outfitImgHtml(o, 'outfit-hero') + '</div>' +
-    '<div class="outfit-side"><div class="modal-h">Outfit de mañana' + outfitTag(o) + '</div>' +
+    '<div class="outfit-side"><div class="modal-h">' + Outfit.titulo(o, now()) + outfitTag(o) + '</div>' +
     (when ? '<div class="outfit-for">Para el ' + esc(when.toLowerCase()) + '</div>' : '') +
     (o.why ? '<p class="outfit-why">' + esc(o.why) + '</p>' : '') +
     (o.updatedAt ? '<div class="muted sm">Propuesto ' + esc(o.updatedAt) + '</div>' : '') +
-    '<ul class="outfit-list">' + pieces + '</ul></div></div>', false, 'wide');
+    '<ul class="outfit-list">' + pieces + '</ul>' +
+    (o.imageUrl ? '<div class="muted sm outfit-aprox">La foto es una aproximación generada, no tus prendas exactas.</div>' : '') +
+    '</div></div>', false, 'wide');
   pintarFotosOutfit();
 }

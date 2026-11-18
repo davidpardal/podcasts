@@ -73,11 +73,28 @@
     };
   }
 
-  function brief(raw) {
+  /* Para qué día vale respecto a ahora: 'mañana', 'hoy', 'pasado' o '' (sin fecha o más adelante). */
+  function cuando(o, now) {
+    if (!o || !o.forDate) return '';
+    var t = now || new Date();
+    var hoy = dayKey(t);
+    var man = dayKey(new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1));
+    if (o.forDate === man) return 'mañana';
+    if (o.forDate === hoy) return 'hoy';
+    if (o.forDate < hoy) return 'pasado';
+    return '';
+  }
+
+  /* De madrugada (y hasta que llega el nuevo, sobre las 21:00) el outfit es el de hoy. */
+  function titulo(o, now) {
+    return cuando(o, now) === 'hoy' ? 'Outfit de hoy' : 'Outfit de mañana';
+  }
+
+  function brief(raw, now) {
     var o = normalize(raw);
     if (!o) return '';
     var bits = o.pieces.map(function (p) { return p.name; });
-    var s = 'Outfit de mañana · ' + bits.join(', ');
+    var s = titulo(o, now) + ' · ' + bits.join(', ');
     if (o.why) s += ' · ' + o.why;
     if (o.demo) s += ' (ejemplo)';
     return s;
@@ -104,5 +121,5 @@
     return head + ',' + b64;
   }
 
-  window.Outfit = { SLOTS: SLOTS, normalize: normalize, demo: demo, brief: brief, safeImage: safeImage, esFotoScript: esFotoScript, dataUrlFoto: dataUrlFoto };
+  window.Outfit = { SLOTS: SLOTS, normalize: normalize, demo: demo, brief: brief, cuando: cuando, titulo: titulo, safeImage: safeImage, esFotoScript: esFotoScript, dataUrlFoto: dataUrlFoto };
 })();

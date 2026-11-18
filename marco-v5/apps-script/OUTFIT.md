@@ -1,6 +1,6 @@
 # Outfit de mañana
 
-El bot Outfit propone **un** conjunto para el día siguiente (catálogo `p001`–`p027`) y lo deja en este Apps Script. El marco lo pinta en Hoy y en la pestaña Outfit. La clave sigue siendo `MARCO_KEY`, la misma de Ajustes.
+El bot Outfit propone **un** conjunto para el día siguiente (catálogo `p001`–`p029`) y lo deja en este Apps Script. El marco lo pinta en Hoy y en la pestaña Outfit. La clave sigue siendo `MARCO_KEY`, la misma de Ajustes.
 
 Hay que pegar el `Code.gs` de esta carpeta y el `appsscript.json` (ahora pide permiso de Drive). Publica **una versión nueva**: Implementar → Administrar implementaciones → lápiz → Versión: Nueva versión. La URL `/exec` no cambia. Si Google pide acceso a Drive, acéptalo: el script solo lee la foto del lookbook, no la comparte.
 
