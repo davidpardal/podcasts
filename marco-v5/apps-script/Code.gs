@@ -1693,13 +1693,74 @@ function outfitAutomatico() {
   var manana = fechaMadrid_(1);
   var o = leerOutfit_();
   if (o && o.forDate === manana) { Logger.log('El bot ya mandó el outfit de ' + manana + '.'); return; }
+  var r = outfitDesdeDrive_(manana);
+  if (r) return r;
   return ponerOutfitAuto_(manana);
 }
 
 /** Para probar: pone ya un outfit (de hoy por la mañana, de mañana desde las 15:00). Sustituye al que haya. */
 function outfitAhora() {
   var hora = parseInt(Utilities.formatDate(new Date(), 'Europe/Madrid', 'H'), 10);
-  return ponerOutfitAuto_(fechaMadrid_(hora < 15 ? 0 : 1));
+  var fecha = fechaMadrid_(hora < 15 ? 0 : 1);
+  return outfitDesdeDrive_(fecha) || ponerOutfitAuto_(fecha);
+}
+
+/* ---------- Buzón de Drive (sin MARCO_KEY) ---------- */
+/* El bot puede dejar en la carpeta del outfit (Marco/Outfit) dos archivos para un día:
+ *   look-AAAA-MM-DD.json  → { "why": "…", "pieces": [ { "id": "p015", "name": "…", "slot": "arriba" }, … ] }
+ *   look-AAAA-MM-DD.jpg   (o .jpeg / .png) → la foto, opcional
+ * A las 21:30 (outfitAutomatico) y con outfitAhora el script los busca y los guarda
+ * igual que un POST del bot. Sin JSON no se usa la foto (no casaría con las prendas
+ * que elige el script). Carpeta: propiedad MARCO_OUTFIT_DRIVE_FOLDER (id) o, si no
+ * está, la carpeta «Outfit» que cuelga de «Marco». */
+
+function outfitDesdeDrive_(fecha) {
+  var carpeta = carpetaBuzonOutfit_();
+  if (!carpeta) { Logger.log('Buzón de Drive: no encuentro la carpeta Marco/Outfit.'); return null; }
+  var base = 'look-' + fecha;
+  var jsonFile = archivoBuzon_(carpeta, [base + '.json']);
+  if (!jsonFile) { Logger.log('Buzón de Drive: no hay ' + base + '.json.'); return null; }
+  var datos;
+  try { datos = JSON.parse(jsonFile.getBlob().getDataAsString('UTF-8')); }
+  catch (e) { Logger.log('Buzón de Drive: ' + base + '.json no es JSON válido.'); return null; }
+  var body = { forDate: fecha, why: datos.why, pieces: datos.pieces };
+  var foto = archivoBuzon_(carpeta, [base + '.jpg', base + '.jpeg', base + '.png']);
+  if (foto) body.imageDriveId = foto.getId();
+  var r = guardarOutfit_(body);
+  if (!r.ok && body.imageDriveId) {
+    Logger.log('Buzón de Drive: la foto falló (' + r.error + '). Guardo el outfit sin foto.');
+    delete body.imageDriveId;
+    r = guardarOutfit_(body);
+  }
+  Logger.log(r.ok ? ('Buzón de Drive: outfit de ' + fecha + ' guardado' + (body.imageDriveId ? ' con foto.' : ' sin foto.')) : ('Buzón de Drive: no se pudo guardar: ' + r.error));
+  return r.ok ? r : null;
+}
+
+function carpetaBuzonOutfit_() {
+  var id = String(PropertiesService.getScriptProperties().getProperty('MARCO_OUTFIT_DRIVE_FOLDER') || '').trim();
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { return null; } }
+  var it = DriveApp.getFoldersByName('Outfit');
+  while (it.hasNext()) {
+    var f = it.next();
+    if (f.isTrashed()) continue;
+    var padres = f.getParents();
+    while (padres.hasNext()) { if (padres.next().getName() === 'Marco') return f; }
+  }
+  return null;
+}
+
+function archivoBuzon_(carpeta, nombres) {
+  for (var i = 0; i < nombres.length; i++) {
+    var it = carpeta.getFilesByName(nombres[i]);
+    var mejor = null;
+    while (it.hasNext()) {
+      var f = it.next();
+      if (f.isTrashed()) continue;
+      if (!mejor || f.getLastUpdated() > mejor.getLastUpdated()) mejor = f;
+    }
+    if (mejor) return mejor;
+  }
+  return null;
 }
 
 function ponerOutfitAuto_(fecha) {

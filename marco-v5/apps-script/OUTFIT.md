@@ -37,6 +37,30 @@ El bot sube el PNG o JPEG a Drive (carpeta «Marco/Outfit», o la que uses). **N
 
 `updatedAt` puede ir con zona (`+01:00`). Si lo omites, el script pone la hora de Europe/Madrid.
 
+## Buzón de Drive (sin clave)
+
+Si el bot no puede hacer el POST (no tiene la URL o la `MARCO_KEY`), le basta con dejar dos archivos en la carpeta **Marco/Outfit** de Drive:
+
+- `look-AAAA-MM-DD.json` con el porqué y las piezas:
+
+```json
+{
+  "why": "Fresquito y planta Basquevolt",
+  "pieces": [
+    { "id": "p015", "name": "camiseta Nike azul marino", "slot": "arriba" },
+    { "id": "p001", "name": "chino beige", "slot": "pantalón" },
+    { "id": "p019", "name": "New Balance 327", "slot": "calzado" },
+    { "id": "p006", "name": "softshell Jack & Jones", "slot": "exterior" }
+  ]
+}
+```
+
+- `look-AAAA-MM-DD.jpg` (o `.png`), la foto. Opcional.
+
+A las **21:30** el script busca `look-<mañana>.json`; si está, lo guarda con su foto igual que un POST y no elige nada él. `outfitAhora` también mira primero el buzón (de hoy antes de las 15:00, de mañana después). Sin JSON no usa la foto, porque no casaría con las prendas que elige el script. Si la foto falla, guarda el outfit sin foto.
+
+La carpeta es la de la propiedad `MARCO_OUTFIT_DRIVE_FOLDER` si existe; si no, la carpeta «Outfit» que cuelga de «Marco». El bot solo necesita poder escribir en esa carpeta: nada de URL ni de clave.
+
 ## Outfit automático (sin bot)
 
 Si el bot no manda nada, el script lo elige él. Cada noche hacia las **21:30** mira si ya hay outfit para mañana; si no lo hay, elige uno con:
