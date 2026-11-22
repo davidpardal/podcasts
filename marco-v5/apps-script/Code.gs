@@ -1281,6 +1281,7 @@ function guardarOutfit_(body) {
   if (!lock.tryLock(15000)) return { ok: false, error: 'Prueba otra vez en unos segundos' };
   try {
     guardarOutfitJson_(json);
+    try { apuntarUsado_(norm.outfit); } catch (eU) {}
     if (mapa) guardarMapaImagen_(mapa);
     else borrarMapaImagen_();
     return { ok: true, outfit: norm.outfit };
@@ -1619,4 +1620,189 @@ function parseFormAtajo_(raw) {
 
 function idCompra_() {
   return 'atajo' + Utilities.getUuid().replace(/-/g, '').slice(0, 12);
+}
+
+/* ---------- Outfit automático (sin bot) ---------- */
+/* Cada noche a las 21:30, si el bot no ha mandado el outfit de mañana, el script
+ * lo elige él con el catálogo de abajo (copia de WARDROBE.md), el tiempo de
+ * mañana en Vitoria (Open-Meteo, sin clave) y la «última vez» de cada prenda
+ * para no repetir. Lo guarda igual que el bot: el marco no cambia.
+ * Instalar: ejecuta instalarOutfitAutomatico() una vez en el editor (▶).
+ * Para probar ya: outfitAhora(). Para quitarlo: quitarOutfitAutomatico(). */
+
+var OUTFIT_AUTO_HORA = 21;
+var OUTFIT_AUTO_MIN = 30;
+var OUTFIT_USADO_PROP = 'MARCO_OUTFIT_USADO';
+var OUTFIT_LAT = 42.8467;
+var OUTFIT_LON = -2.6716;
+
+/* hueco: arriba, capa, pantalón, calzado, exterior.
+ * frio: 0 solo con calor, 1 entretiempo, 2 también invierno. lluvia: false si no va con lluvia (ante, lona).
+ * color: familia para no repetir color entre pantalón y lo de arriba. */
+var CATALOGO_OUTFIT = [
+  { id: 'p001', name: 'chino beige/kaki recto', slot: 'pantalón', color: 'beige', ultima: '2026-11-22' },
+  { id: 'p002', name: 'chino azul grisáceo', slot: 'pantalón', color: 'azul', ultima: '2026-11-19' },
+  { id: 'p003', name: 'camiseta blanca básica', slot: 'arriba', color: 'blanco', ultima: '2026-11-19' },
+  { id: 'p004', name: 'Converse blancas', slot: 'calzado', color: 'blanco', lluvia: false, ultima: '2026-11-08' },
+  { id: 'p005', name: 'jogger gris', slot: 'pantalón', color: 'gris', ultima: '2026-10-22' },
+  { id: 'p006', name: 'softshell marrón Jack & Jones con capucha', slot: 'exterior', color: 'marron', minFrio: 1, ultima: '2026-11-22' },
+  { id: 'p007', name: 'sudadera negra Relative Rules', slot: 'capa', color: 'negro', ultima: '2026-11-21' },
+  { id: 'p008', name: 'camiseta Nike Just Do It verde', slot: 'arriba', color: 'verde', ultima: '2026-10-28' },
+  { id: 'p009', name: 'camiseta Vans gris oscuro', slot: 'arriba', color: 'gris', ultima: '2026-11-21' },
+  { id: 'p010', name: 'chino verde oliva', slot: 'pantalón', color: 'verde', ultima: '2026-11-20' },
+  { id: 'p011', name: 'camiseta Nike negra ATHLETE', slot: 'arriba', color: 'negro', ultima: '2026-11-08' },
+  { id: 'p012', name: 'sudadera rosa Converse cerrada', slot: 'capa', color: 'rosa', ultima: '2026-11-19' },
+  { id: 'p014', name: 'cargo verde salvia', slot: 'pantalón', color: 'verde', ultima: '2026-11-21' },
+  { id: 'p015', name: 'camiseta Nike azul marino', slot: 'arriba', color: 'azul', ultima: '2026-11-22' },
+  { id: 'p016', name: 'camiseta Nike RUN blanca', slot: 'arriba', color: 'blanco', ultima: '2026-11-20' },
+  { id: 'p017', name: 'camiseta Nike AIR azul marino', slot: 'arriba', color: 'azul', ultima: '2026-11-17' },
+  { id: 'p018', name: 'Converse estrellas', slot: 'calzado', color: 'blanco', lluvia: false, ultima: '2026-11-19' },
+  { id: 'p019', name: 'New Balance 327 gris/blanco', slot: 'calzado', color: 'gris', ultima: '2026-11-22' },
+  { id: 'p020', name: 'zapatos de ante grises', slot: 'calzado', color: 'gris', lluvia: false, ultima: '2026-11-03' },
+  { id: 'p021', name: 'botines chukka camel', slot: 'calzado', color: 'marron', lluvia: false, ultima: '2026-11-20' },
+  { id: 'p022', name: 'Munich azul marino', slot: 'calzado', color: 'azul', ultima: '2026-11-12' },
+  { id: 'p023', name: 'zapatillas negras', slot: 'calzado', color: 'negro', ultima: '2026-11-21' },
+  { id: 'p024', name: 'zapatillas azul marino/gris', slot: 'calzado', color: 'azul', ultima: '2026-11-14' },
+  { id: 'p025', name: 'chino Springfield verde oliva', slot: 'pantalón', color: 'verde', ultima: '2026-11-04' },
+  { id: 'p026', name: 'chino beige ajustado', slot: 'pantalón', color: 'beige', ultima: '2026-11-17' },
+  { id: 'p027', name: 'Adidas de ante marrones', slot: 'calzado', color: 'marron', lluvia: false, ultima: '2026-11-17' },
+  { id: 'p028', name: 'plumas negro con capucha', slot: 'exterior', color: 'negro', minFrio: 2, ultima: '2026-11-21' },
+  { id: 'p029', name: 'jersey de punto antracita', slot: 'capa', color: 'gris', ultima: '2026-11-20' }
+  // p013 (pantalón de vestir) no entra: es para días arreglados.
+];
+
+/** Ejecútala una vez (▶). Crea el aviso diario de las 21:30 y, si hace falta, pone ya un outfit. */
+function instalarOutfitAutomatico() {
+  quitarOutfitAutomatico();
+  ScriptApp.newTrigger('outfitAutomatico').timeBased().everyDays(1).atHour(OUTFIT_AUTO_HORA).nearMinute(OUTFIT_AUTO_MIN).inTimezone('Europe/Madrid').create();
+  Logger.log('Listo: cada día hacia las ' + OUTFIT_AUTO_HORA + ':' + OUTFIT_AUTO_MIN + ' elige el outfit de mañana si el bot no lo ha mandado.');
+  var o = leerOutfit_();
+  var hoy = fechaMadrid_(0);
+  if (!o || o.forDate < hoy) outfitAhora();
+  else Logger.log('Ya hay outfit para ' + o.forDate + '. No lo toco.');
+}
+
+function quitarOutfitAutomatico() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'outfitAutomatico') ScriptApp.deleteTrigger(t);
+  });
+}
+
+/** Lo llama el aviso de las 21:30. Si el bot ya mandó el de mañana, no hace nada. */
+function outfitAutomatico() {
+  var manana = fechaMadrid_(1);
+  var o = leerOutfit_();
+  if (o && o.forDate === manana) { Logger.log('El bot ya mandó el outfit de ' + manana + '.'); return; }
+  return ponerOutfitAuto_(manana);
+}
+
+/** Para probar: pone ya un outfit (de hoy por la mañana, de mañana desde las 15:00). Sustituye al que haya. */
+function outfitAhora() {
+  var hora = parseInt(Utilities.formatDate(new Date(), 'Europe/Madrid', 'H'), 10);
+  return ponerOutfitAuto_(fechaMadrid_(hora < 15 ? 0 : 1));
+}
+
+function ponerOutfitAuto_(fecha) {
+  var tiempo = tiempoDia_(fecha);
+  var elegido = elegirOutfitAuto_(CATALOGO_OUTFIT, leerUsado_(), tiempo, fecha);
+  var r = guardarOutfit_({ forDate: fecha, why: elegido.why, pieces: elegido.pieces });
+  Logger.log(r.ok ? ('Outfit de ' + fecha + ': ' + elegido.pieces.map(function (p) { return p.name; }).join(', ') + ' · ' + elegido.why) : ('No se pudo guardar: ' + r.error));
+  return r;
+}
+
+function fechaMadrid_(masDias) {
+  return Utilities.formatDate(new Date(Date.now() + masDias * 86400000), 'Europe/Madrid', 'yyyy-MM-dd');
+}
+
+/* Tiempo del día en Vitoria. Si Open-Meteo falla, supone entretiempo con algo de lluvia. */
+function tiempoDia_(fecha) {
+  try {
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + OUTFIT_LAT + '&longitude=' + OUTFIT_LON +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FMadrid&start_date=' + fecha + '&end_date=' + fecha;
+    var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    var d = JSON.parse(res.getContentText()).daily;
+    return { max: d.temperature_2m_max[0], min: d.temperature_2m_min[0], lluvia: d.precipitation_probability_max[0] };
+  } catch (e) {
+    return { max: 13, min: 7, lluvia: 50, sinDatos: true };
+  }
+}
+
+function leerUsado_() {
+  var usado = {};
+  CATALOGO_OUTFIT.forEach(function (p) { if (p.ultima) usado[p.id] = p.ultima; });
+  try {
+    var guardado = JSON.parse(PropertiesService.getScriptProperties().getProperty(OUTFIT_USADO_PROP) || '{}');
+    Object.keys(guardado).forEach(function (k) { if (!usado[k] || guardado[k] > usado[k]) usado[k] = guardado[k]; });
+  } catch (e) {}
+  return usado;
+}
+
+/* Cualquier outfit guardado (del bot o automático) cuenta como puesto ese día. */
+function apuntarUsado_(outfit) {
+  if (!outfit || !outfit.forDate || !outfit.pieces) return;
+  var usado = leerUsado_();
+  outfit.pieces.forEach(function (p) { if (!usado[p.id] || outfit.forDate > usado[p.id]) usado[p.id] = outfit.forDate; });
+  PropertiesService.getScriptProperties().setProperty(OUTFIT_USADO_PROP, JSON.stringify(usado));
+}
+
+/* Elección pura (sin Google): se puede probar fuera del script.
+ * catalogo: CATALOGO_OUTFIT. usado: { id: 'AAAA-MM-DD' }. tiempo: { max, min, lluvia }. fecha: 'AAAA-MM-DD'. */
+function elegirOutfitAuto_(catalogo, usado, tiempo, fecha) {
+  var max = Number(tiempo.max), lluvia = Number(tiempo.lluvia) || 0;
+  var frio = max < 10 ? 2 : (max < 17 ? 1 : 0);  // 2 invierno, 1 entretiempo, 0 calor
+  var mojado = lluvia >= 50;
+  var dia = new Date(fecha + 'T12:00:00Z').getUTCDay();
+  var finde = dia === 0 || dia === 6;
+
+  function dias(id) {
+    var u = usado[id];
+    if (!u) return 999;
+    return Math.round((Date.parse(fecha + 'T00:00:00Z') - Date.parse(u + 'T00:00:00Z')) / 86400000);
+  }
+  function mezcla(id) {  // desempate estable por fecha, para que no salga siempre el mismo
+    var s = fecha + id, h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000003;
+    return h / 1000003;
+  }
+  function elegir(slot, evitarColores, filtro) {
+    var c = catalogo.filter(function (p) {
+      // Abrigo y capa pueden repetir (hay pocos); lo demás no se repite el mismo día.
+      return p.slot === slot && (!filtro || filtro(p)) && (slot === 'exterior' || slot === 'capa' || dias(p.id) !== 0);
+    });
+    if (!c.length) return null;
+    c.sort(function (a, b) {
+      var pa = (evitarColores.indexOf(a.color) >= 0 ? -100 : 0) + Math.min(dias(a.id), 30) + mezcla(a.id);
+      var pb = (evitarColores.indexOf(b.color) >= 0 ? -100 : 0) + Math.min(dias(b.id), 30) + mezcla(b.id);
+      return pb - pa;
+    });
+    return c[0];
+  }
+
+  var piezas = [];
+  var pantalon = elegir('pantalón', [], finde ? null : function (p) { return p.id !== 'p005'; });  // el jogger, solo en finde
+  if (!pantalon) pantalon = elegir('pantalón', []);
+  var arriba = elegir('arriba', [pantalon.color]);
+  piezas.push(arriba);
+  if (frio >= 1) piezas.push(elegir('capa', [pantalon.color, arriba.color === 'blanco' ? '' : arriba.color]));
+  piezas.push(pantalon);
+  piezas.push(elegir('calzado', [], mojado ? function (p) { return p.lluvia !== false; } : null));
+  var exterior = null;
+  if (frio === 2 || (frio === 1 && (mojado || Number(tiempo.min) < 6))) {
+    exterior = elegir('exterior', [], function (p) { return frio === 2 ? p.id === 'p028' : (p.minFrio || 0) <= 1; });
+  } else if (frio === 0 && mojado) {
+    exterior = elegir('exterior', [], function (p) { return p.id === 'p006'; });
+  }
+  if (exterior) piezas.push(exterior);
+  piezas = piezas.filter(Boolean);
+
+  var why = 'Vitoria ' + Math.round(tiempo.min) + '–' + Math.round(max) + ' °C';
+  why += lluvia >= 30 ? ', lluvia ' + lluvia + ' %' : ', sin lluvia';
+  if (exterior) why += exterior.id === 'p028' ? '; frío: plumas con capucha' : '; softshell con capucha';
+  if (mojado) why += '; calzado que aguanta el agua';
+  why += finde ? '. Fin de semana, cómodo.' : '. Día de planta, casual.';
+  if (tiempo.sinDatos) why = 'Sin previsión: entretiempo. ' + why;
+  return {
+    why: why,
+    pieces: piezas.map(function (p) { return { id: p.id, name: p.name, slot: p.slot }; })
+  };
 }

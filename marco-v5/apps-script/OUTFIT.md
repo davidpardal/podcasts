@@ -37,6 +37,24 @@ El bot sube el PNG o JPEG a Drive (carpeta «Marco/Outfit», o la que uses). **N
 
 `updatedAt` puede ir con zona (`+01:00`). Si lo omites, el script pone la hora de Europe/Madrid.
 
+## Outfit automático (sin bot)
+
+Si el bot no manda nada, el script lo elige él. Cada noche hacia las **21:30** mira si ya hay outfit para mañana; si no lo hay, elige uno con:
+
+- el catálogo `CATALOGO_OUTFIT` de `Code.gs` (copia de `WARDROBE.md`, p001–p029 sin p013, que es de vestir);
+- el tiempo de mañana en Vitoria (Open-Meteo, sin clave): con menos de 17 °C añade sudadera o jersey; con menos de 10 °C, el plumas; con lluvia (50 % o más) o mínima por debajo de 6 °C, el softshell; con lluvia no elige ante ni lona;
+- la «última vez» de cada prenda: no repite camiseta, pantalón ni calzado y prefiere lo que lleva más días sin ponerse. Cada outfit guardado, del bot o automático, cuenta como puesto ese día (propiedad `MARCO_OUTFIT_USADO`);
+- el día: el jogger solo en fin de semana.
+
+Sale sin foto. Si el bot manda el suyo antes de las 21:30, se respeta.
+
+**Instalar (una vez):** pega `Code.gs` y `appsscript.json` (ahora pide permiso para programar tareas), publica una versión nueva y, en el editor, ejecuta `instalarOutfitAutomatico` (▶). Acepta los permisos. Si no había outfit vigente, pone uno en ese momento.
+
+- `outfitAhora`: pone ya uno (de hoy antes de las 15:00, de mañana después) y sustituye al que haya.
+- `quitarOutfitAutomatico`: borra el aviso de las 21:30.
+
+Prenda nueva: añádela a `CATALOGO_OUTFIT` con `id`, `name`, `slot`, `color` y, si no aguanta la lluvia, `lluvia: false`.
+
 ## Cómo se ve la foto
 
 El marco sigue usando `imageUrl`. Pide `action=outfitImg&tok=…` sin clave (el tok es el secreto) y pinta el JPEG o el PNG.
